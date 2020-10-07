@@ -8,6 +8,7 @@ datetime
 pyarrow
 pytest
 numpy
+tables
 h5py
 openpyxl
 xlrd
