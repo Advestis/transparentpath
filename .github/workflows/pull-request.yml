@@ -16,7 +16,8 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v2
         with:
-          ref: refs/heads/${{ github.head_ref }}
+          token: ${{ secrets.token_cicd }}
+          fetch-depth: 0
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
