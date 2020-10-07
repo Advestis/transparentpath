@@ -16,6 +16,7 @@ jobs:
         with:
           token: ${{ secrets.token_cicd }}
           fetch-depth: 0
+      - run: git checkout HEAD
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
