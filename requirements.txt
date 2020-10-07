@@ -1,0 +1,14 @@
+sphinx_rtd_theme
+fsspec
+gcsfs==0.6.2
+pandas
+pathlib
+setuptools
+datetime
+pyarrow
+pytest
+json
+numpy
+h5py
+openpyxl
+xlrd
