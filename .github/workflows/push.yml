@@ -18,7 +18,12 @@ jobs:
       - name: build
         run: |
           git clone https://github.com/Advestis/transparentpath .
+          echo "git log:"
           git log
+          echo "git tag -l v*:"
+          git tag -l v*
+          echo "git log {tag}..HEAD --oneline"
+          git log {tag}..HEAD --oneline
           python -m pip install --upgrade pip
           pip install setuptools
           python setup.py sdist
