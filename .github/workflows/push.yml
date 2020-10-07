@@ -18,22 +18,18 @@ jobs:
       - name: build
         run: |
           git clone https://github.com/Advestis/transparentpath .
-          echo "git log:"
-          git log
-          echo "git tag -l v*:"
-          git tag -l v*
-#          python -m pip install --upgrade pip
-#          pip install setuptools
-#          python setup.py sdist
-#      - name: topypi
-#        uses: pypa/gh-action-pypi-publish@master
-#        with:
-#          user: ${{ secrets.pypi_login }}
-#          password: ${{ secrets.pypi_passwd }}
-#      - name: todocker
-#        uses: docker/build-push-action@v1
-#        with:
-#          username: ${{ secrets.docker_login }}
-#          password: ${{ secrets.docker_passwd }}
-#          repository: advestis/transparentpath
-#          tag_with_ref: true
+          python -m pip install --upgrade pip
+          pip install setuptools
+          python setup.py sdist
+      - name: topypi
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: ${{ secrets.pypi_login }}
+          password: ${{ secrets.pypi_passwd }}
+      - name: todocker
+        uses: docker/build-push-action@v1
+        with:
+          username: ${{ secrets.docker_login }}
+          password: ${{ secrets.docker_passwd }}
+          repository: advestis/transparentpath
+          tag_with_ref: true
