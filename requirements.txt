@@ -7,7 +7,6 @@ setuptools
 datetime
 pyarrow
 pytest
-json
 numpy
 h5py
 openpyxl
