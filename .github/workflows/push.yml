@@ -18,9 +18,7 @@ jobs:
       - name: build
         run: |
           ls -a
-          git clone https://github.com/Advestis/transparentpath
-          rm -r .git
-          mv transparentpath/.git ./.git
+          git clone https://github.com/Advestis/transparentpath .
           ls -a
           python -m pip install --upgrade pip
           pip install setuptools
@@ -30,10 +28,10 @@ jobs:
         with:
           user: ${{ secrets.pypi_login }}
           password: ${{ secrets.pypi_passwd }}
-      - name: todocker
-        uses: docker/build-push-action@v1
-        with:
-          username: ${{ secrets.docker_login }}
-          password: ${{ secrets.docker_passwd }}
-          repository: advestis/transparentpath
-          tag_with_ref: true
+#      - name: todocker
+#        uses: docker/build-push-action@v1
+#        with:
+#          username: ${{ secrets.docker_login }}
+#          password: ${{ secrets.docker_passwd }}
+#          repository: advestis/transparentpath
+#          tag_with_ref: true
