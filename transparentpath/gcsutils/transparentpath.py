@@ -84,11 +84,19 @@ zipfile.ZipFile = Myzipfile
 def myisinstance(obj1, obj2):
     """Will return True when testing whether a TransparentPath is a str
     and False when testing whether a pathlib.Path is a Transparent. """
-    if obj2 == TransparentPath:
-        if not type(obj1) == TransparentPath:
+
+    if type(obj1) == TransparentPath:
+        if obj2 == TransparentPath or obj2 == str:
+            return True
+        else:
             return False
-    elif obj2 == str and type(obj1) == TransparentPath:
-        return True
+
+    if obj2 == TransparentPath:
+        if type(obj1) == TransparentPath:
+            return True
+        else:
+            return False
+
     return builtins_isinstance(obj1, obj2)
 
 
