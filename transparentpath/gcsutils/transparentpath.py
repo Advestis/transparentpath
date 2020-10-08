@@ -4,6 +4,7 @@ import tempfile
 import json
 import zipfile
 import h5py
+from collections import Iterable
 from datetime import datetime
 from pathlib import Path
 from typing import Union, Tuple, Any, IO, Iterator, Optional
@@ -81,7 +82,7 @@ class Myzipfile(zipfileclass):
 zipfile.ZipFile = Myzipfile
 
 
-def myisinstance(obj1, obj2):
+def mysmallisinstance(obj1: Any, obj2) -> bool:
     """Will return True when testing whether a TransparentPath is a str
     and False when testing whether a pathlib.Path is a Transparent. """
 
@@ -98,6 +99,17 @@ def myisinstance(obj1, obj2):
             return False
 
     return builtins_isinstance(obj1, obj2)
+
+
+def myisinstance(obj1: Any, obj2) -> bool:
+
+    if not (builtins_isinstance(obj2, list) or builtins_isinstance(obj2, set) or builtins_isinstance(obj2, tuple)):
+        return mysmallisinstance(obj1, obj2)
+    else:
+        is_instance = False
+        for _type in obj2:
+            is_instance |= mysmallisinstance(obj1, _type)
+        return is_instance
 
 
 setattr(builtins, "isinstance", myisinstance)
@@ -185,7 +197,6 @@ def get_fs(gcs: str, project: str, bucket: str) -> Union[gcsfs.GCSFileSystem, Lo
     """
     if gcs == "gcs":
         bucket = bucket.replace("/", "")
-        # print("Setting GCS File System")
         fs = gcsfs.GCSFileSystem(project=project)
         # Will raise RefreshError if connection fails
         fs.glob(bucket)
@@ -198,7 +209,6 @@ def get_fs(gcs: str, project: str, bucket: str) -> Union[gcsfs.GCSFileSystem, Lo
             )
         return fs
     else:
-        # print("Setting local File System")
         return LocalFileSystem()
 
 
