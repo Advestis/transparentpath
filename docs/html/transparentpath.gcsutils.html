@@ -315,7 +315,7 @@ one element.</p>
 <em class="property">class </em><code class="sig-prename descclassname">transparentpath.gcsutils.transparentpath.</code><code class="sig-name descname">TransparentPath</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">path</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>pathlib.Path<span class="p">, </span><a class="reference internal" href="#transparentpath.gcsutils.transparentpath.TransparentPath" title="transparentpath.gcsutils.transparentpath.TransparentPath">transparentpath.gcsutils.transparentpath.TransparentPath</a><span class="p">, </span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'.'</span></em>, <em class="sig-param"><span class="n">nocheck</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">collapse</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">fs</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">bucket</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">project</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">os.PathLike</span></code></p>
 <p>Class that allows one to use a path in a local file system or a gcs file system (more or less) in almost the
-same way one would use a pathlib.Path object. All instences of TransparentPath are absolute, even if created with
+same way one would use a pathlib.Path object. All instances of TransparentPath are absolute, even if created with
 relative paths.</p>
 <p>Doing ‘isinstance(path, str)’ with a TransparentPath will return True (required to allow ‘open(TransparentPath()’
 to work). If you want to check whether path is actually a TransparentPath and nothing else, use ‘type(path) ==
@@ -334,14 +334,12 @@ same file system.</p>
 <p>So either do
 &gt;&gt;&gt; # noinspection PyShadowingNames
 &gt;&gt;&gt; from transparentpath import TransparentPath as Path
-&gt;&gt;&gt; # EITHER DO
 &gt;&gt;&gt; Path.set_global_fs(‘gcs’, bucket=”my_bucket_name”, project=”my_project”)
 &gt;&gt;&gt; mypath = Path(“foo”)  # will use GCS
 &gt;&gt;&gt; other_path = Path(“foo2”)  # will use GCS too
 Or
 &gt;&gt;&gt; # noinspection PyShadowingNames
 &gt;&gt;&gt; from transparentpath import TransparentPath as Path
-&gt;&gt;&gt; # EITHER DO
 &gt;&gt;&gt; mypath = Path(“foo”, fs=’gcs’, bucket=”my_bucket_name”, project=”my_project”)
 &gt;&gt;&gt; other_path = Path(“foo2”)  # will use GCS too</p>
 <p>Note that your script must be able to log to GCS somehow. I generally use a service account with credentials
@@ -355,11 +353,11 @@ name as your current bucket.</p>
 &gt;&gt;&gt; # noinspection PyShadowingNames
 &gt;&gt;&gt; from transparentpath import TransparentPath as Path
 &gt;&gt;&gt; Path.nas_dir = “/media/SERVEUR” # it is the default value, but reset here for example
-&gt;&gt;&gt; Path.set_global_fs(“gcs”, bucket=”my_bucjet”, project=”my_project”)
-&gt;&gt;&gt; p = Path(“/media/SERVEUR”) / “chien” / “chat”
+&gt;&gt;&gt; Path.set_global_fs(“gcs”, bucket=”my_bucket”, project=”my_project”)
+&gt;&gt;&gt; p = Path(“/media/SERVEUR”) / “chien” / “chat”  # Will be gs://my_bucket/chien/chat
 If the line ‘Path.set_global_fs(…’ is not commented out, the resulting path will be ‘gs://my_bucket/chien/chat’.
-If the line ‘Path.set_global_fs(…’ is commented out, the resulting path will be ‘/media/SERVUER/chien/chat’.
-This allows you to create codes that can run identically both localy and on gcs, the only difference will be
+If the line ‘Path.set_global_fs(…’ is commented out, the resulting path will be ‘/media/SERVEUR/chien/chat’.
+This allows you to create codes that can run identically both localy and on gcs, the only difference being
 the line ‘Path.set_global_fs(…’.</p>
 <p>Any method or attribute valid in fsspec.implementations.local.LocalFileSystem, gcs.GCSFileSystem or pathlib.Path
 can be used on a TransparentPath object. However, setting an attribute is not transparent : if, for
@@ -395,7 +393,10 @@ file/directory.</p>
 method and anything using its ouput. Indeed os.open returns a file descriptor, not an IO, and I did not find a
 way to access file descriptors on gcs. For example, in the FileLock package, the acquire() method calls the
 _acquire() method which calls os.open(), so I had to do that:</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">MyFileLock</span><span class="p">(</span><span class="n">FileLock</span><span class="p">):</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">filelock</span> <span class="kn">import</span> <span class="n">FileLock</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">transparentpath</span> <span class="kn">import</span> <span class="n">TransparentPath</span> <span class="k">as</span> <span class="n">Path</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">MyFileLock</span><span class="p">(</span><span class="n">FileLock</span><span class="p">):</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="k">def</span> <span class="nf">_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="gp">&gt;&gt;&gt; </span>        <span class="n">tmp_lock_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock_file</span>
 <span class="gp">&gt;&gt;&gt; </span>        <span class="k">if</span> <span class="ow">not</span> <span class="nb">type</span><span class="p">(</span><span class="n">tmp_lock_file</span><span class="p">)</span> <span class="o">==</span> <span class="n">Path</span><span class="p">:</span>

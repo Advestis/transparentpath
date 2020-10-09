@@ -19,6 +19,9 @@
 ### Changes
 
 
+* Updated documentation. [pcotte]
+
+
 * Clearer myisinstance. [pcotte]
 
 ### Fix

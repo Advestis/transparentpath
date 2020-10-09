@@ -64,6 +64,9 @@ contain the root `toctree` directive. -->
 ### Changes
 
 
+* Updated documentation. [pcotte]
+
+
 * Clearer myisinstance. [pcotte]
 
 ### Fix

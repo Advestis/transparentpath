@@ -66,11 +66,24 @@ if __name__ == "__main__":
     setup(
         name="transparentpath",
         version=version,
-        packages=find_packages(),
+        author="Philippe COTTE",
+        author_email="pcotte@advestis.com",
         include_package_data=True,
+        description="A class that allows one to use a path in a local file system or a gcs file system (more or less) "
+                    "in almost the same way one would use a pathlib.Path object.",
         long_description=long_description,
+        long_description_content_type="text/markdown",
+        url="https://github.com/Advestis/transparentpath",
+        packages=find_packages(),
         install_requires=requirements,
         package_data={"": ["*", ".*"]},
+        classifiers=[
+            "Programming Language :: Python :: 3",
+            "License :: OSI Approved :: GNU General Public License v3 (GPLv3)"
+            "Operating System :: OS Independent",
+            "Development Status :: 5 - Production/Stable"
+        ],
+        python_requires='>=3.6',
     )
 
     if Path("apt-requirements.txt").is_file():

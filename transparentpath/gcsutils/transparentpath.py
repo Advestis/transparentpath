@@ -265,7 +265,7 @@ class MultipleExistenceError(Exception):
 class TransparentPath(os.PathLike):  # noqa : F811
     # noinspection PyUnresolvedReferences,PyRedeclaration
     """Class that allows one to use a path in a local file system or a gcs file system (more or less) in almost the
-    same way one would use a pathlib.Path object. All instences of TransparentPath are absolute, even if created with
+    same way one would use a pathlib.Path object. All instances of TransparentPath are absolute, even if created with
     relative paths.
 
     Doing 'isinstance(path, str)' with a TransparentPath will return True (required to allow 'open(TransparentPath()'
@@ -287,14 +287,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
     So either do
     >>> # noinspection PyShadowingNames
     >>> from transparentpath import TransparentPath as Path
-    >>> # EITHER DO
     >>> Path.set_global_fs('gcs', bucket="my_bucket_name", project="my_project")
     >>> mypath = Path("foo")  # will use GCS
     >>> other_path = Path("foo2")  # will use GCS too
     Or
     >>> # noinspection PyShadowingNames
     >>> from transparentpath import TransparentPath as Path
-    >>> # EITHER DO
     >>> mypath = Path("foo", fs='gcs', bucket="my_bucket_name", project="my_project")
     >>> other_path = Path("foo2")  # will use GCS too
 
@@ -311,11 +309,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
     >>> # noinspection PyShadowingNames
     >>> from transparentpath import TransparentPath as Path
     >>> Path.nas_dir = "/media/SERVEUR" # it is the default value, but reset here for example
-    >>> Path.set_global_fs("gcs", bucket="my_bucjet", project="my_project")
-    >>> p = Path("/media/SERVEUR") / "chien" / "chat"
+    >>> Path.set_global_fs("gcs", bucket="my_bucket", project="my_project")
+    >>> p = Path("/media/SERVEUR") / "chien" / "chat"  # Will be gs://my_bucket/chien/chat
     If the line 'Path.set_global_fs(...' is not commented out, the resulting path will be 'gs://my_bucket/chien/chat'.
-    If the line 'Path.set_global_fs(...' is commented out, the resulting path will be '/media/SERVUER/chien/chat'.
-    This allows you to create codes that can run identically both localy and on gcs, the only difference will be
+    If the line 'Path.set_global_fs(...' is commented out, the resulting path will be '/media/SERVEUR/chien/chat'.
+    This allows you to create codes that can run identically both localy and on gcs, the only difference being
     the line 'Path.set_global_fs(...'.
 
     Any method or attribute valid in fsspec.implementations.local.LocalFileSystem, gcs.GCSFileSystem or pathlib.Path
@@ -361,6 +359,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
     way to access file descriptors on gcs. For example, in the FileLock package, the acquire() method calls the
     _acquire() method which calls os.open(), so I had to do that:
 
+    >>> from filelock import FileLock
+    >>> from transparentpath import TransparentPath as Path
+    >>>
     >>> class MyFileLock(FileLock):
     >>>     def _acquire(self):
     >>>         tmp_lock_file = self._lock_file
@@ -1164,7 +1165,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def glob(self, wildcard: str = "/*", fast: bool = False) -> Iterator[TransparentPath]:
         """Returns a list of TransparentPath matching the wildcard pattern
 
-        By default, the wildcard is '/*'. The '/' is important if your path is a dir and you want to glob inside the 
+        By default, the wildcard is '/*'. The '/' is important if your path is a dir and you want to glob inside the
         dir.
 
         Parameters
