@@ -7,10 +7,19 @@ Changelog
 
 New
 ~~~
+- Instal.sh script. [pcotte]
+- Added doc. [pcotte]
+- Added doc. [pcotte]
 - First commit. [pcotte]
+
+Changes
+~~~~~~~
+- Clearer myisinstance. [pcotte]
 
 Fix
 ~~~
+- Improved myisinstance by including the possibility to specify a list,
+  set or tuple of types. [pcotte]
 - Added more versions to pytests. [pcotte]
 
 Other
