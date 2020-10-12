@@ -1,6 +1,7 @@
 import gcsfs
 import pandas as pd
 import numpy as np
+import dask.dataframe as dd
 from pathlib import Path
 from fsspec.implementations.local import LocalFileSystem
 from transparentpath import TransparentPath
@@ -9,10 +10,14 @@ project = "sandbox-281209"
 bucket = "imora_sand"
 
 df_csv = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]])
-df_excel = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1.1, 2.0], [3.5, 4.6]])
+dd_csv = dd.from_pandas(df_csv, npartitions=1)
 df_parquet = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[5, 6], [7, 8]])
+dd_parquet = dd.from_pandas(df_parquet, npartitions=1)
 df_hdf5 = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[9, 10], [11, 12]])
+dd_hdf5 = dd.from_pandas(df_hdf5, npartitions=1)
 arr_hdf5 = np.array([[1, 2], [3, 4]])
+df_excel = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[13, 14], [15, 16]])
+dd_excel = dd.from_pandas(df_excel, npartitions=1)
 s = "foo\nbar\ndog"
 
 
@@ -263,28 +268,28 @@ class Write:
         pcsv = TransparentPath("chien/chat.csv")
         pcsv.rm(absent="ignore", ignore_kind=True)
         assert not pcsv.is_file()
-        pcsv.write(data=df_csv)
+        pcsv.write(df_csv)
         assert pcsv.is_file()
 
     def write_excel(self):
         pexcel = TransparentPath("chien/chat.xlsx")
         pexcel.rm(absent="ignore", ignore_kind=True)
         assert not pexcel.is_file()
-        pexcel.write(data=df_excel)
+        pexcel.write(df_excel)
         assert pexcel.is_file()
 
     def write_parquet(self):
         pparquet = TransparentPath("chien/chat.parquet")
         pparquet.rm(absent="ignore", ignore_kind=True)
         assert not pparquet.is_file()
-        pparquet.write(data=df_parquet)
+        pparquet.write(df_parquet)
         assert pparquet.is_file()
 
     def write_hdf5(self):
         phdf5 = TransparentPath("chien/chat.hdf5")
         phdf5.rm(absent="ignore", ignore_kind=True)
         assert not phdf5.is_file()
-        with phdf5.write(use_pandas=True) as f:
+        with phdf5.write(None, use_pandas=True) as f:
             f["data"] = df_hdf5
         assert phdf5.is_file()
 
@@ -292,14 +297,14 @@ class Write:
         phdf5.rm(absent="ignore", ignore_kind=True)
         assert not phdf5.is_file()
         # noinspection PyTypeChecker
-        phdf5.write(data={"df1": df_hdf5, "df2": 2 * df_hdf5}, use_pandas=True)
+        phdf5.write({"df1": df_hdf5, "df2": 2 * df_hdf5}, use_pandas=True)
         assert phdf5.is_file()
 
         phdf5 = TransparentPath("chien/chat3.hdf5")
         phdf5.rm(absent="ignore", ignore_kind=True)
         assert not phdf5.is_file()
         # noinspection PyTypeChecker
-        with phdf5.write() as f:
+        with phdf5.write(None) as f:
             f["data"] = arr_hdf5
         assert phdf5.is_file()
 
@@ -307,7 +312,7 @@ class Write:
         ptxt = TransparentPath("chien/chat.txt")
         ptxt.rm(absent="ignore", ignore_kind=True)
         assert not ptxt.is_file()
-        ptxt.write(data=s)
+        ptxt.write(s)
         assert ptxt.is_file()
 
     def cust_open(self):
@@ -318,6 +323,53 @@ class Write:
             ofile.write("zob")
         assert ptxt.is_file()
         ptxt.rm()
+
+    def write_dask(self):
+        def dask_csv():
+            pcsv = TransparentPath("chien/chat_dask.csv")
+            pcsv.rm(absent="ignore", ignore_kind=True)
+            assert not pcsv.is_file()
+            pcsv.write(dd_csv)
+            assert pcsv.is_file()
+
+        def dask_parquet():
+            pparquet = TransparentPath("chien/chat_dask.parquet")
+            pparquet.rm(absent="ignore", ignore_kind=True)
+            assert not pparquet.is_file()
+            pparquet.write(dd_parquet)
+            assert pparquet.with_suffix("").is_dir(exist=True)
+
+        def dask_hdf5():
+            phdf5 = TransparentPath("chien/chat_dask.hdf5")
+            phdf5.rm(absent="ignore", ignore_kind=True)
+            assert not phdf5.is_file()
+            phdf5.write(dd_hdf5, set_name="data")
+            assert phdf5.is_file()
+
+        def dask_hdf5_2():
+            phdf5_2 = TransparentPath("chien/chat_dask_2.hdf5")
+            phdf5_2.rm(absent="ignore", ignore_kind=True)
+            assert not phdf5_2.is_file()
+            phdf5_2.write(dd_hdf5, set_name="data", use_pandas=True)
+            assert phdf5_2.is_file()
+
+        def dask_excel():
+            pexcel = TransparentPath("chien/chat_dask.excel")
+            pexcel.rm(absent="ignore", ignore_kind=True)
+            assert not pexcel.is_file()
+            pexcel.write(dd_excel)
+            assert pexcel.is_file()
+
+        dask_csv()
+        print("    ...write_dask_csv tested")
+        dask_parquet()
+        print("    ...write_dask_parquet tested")
+        dask_hdf5()
+        print("    ...write_dask_hdf5 tested")
+        dask_hdf5_2()
+        print("    ...write_dask_hdf5_2 tested")
+        dask_excel()
+        print("    ...write_dask_excel tested")
 
 
 # noinspection PyMethodMayBeStatic
@@ -364,6 +416,50 @@ class Read:
         s2 = ptxt.read()
         assert s2 == s
         ptxt.rm()
+
+    def read_dask(self):
+        def dask_csv():
+            pcsv = TransparentPath("chien/chat_dask.csv")
+            df2 = pcsv.read(use_dask=True, index_col=0)
+            pd.testing.assert_frame_equal(dd_csv, df2)
+            pcsv.rm()
+
+        def dask_excel():
+            pexcel = TransparentPath("chien/chat_dask.xlsx")
+            df2 = pexcel.read(use_dask=True, index_col=0)
+            pd.testing.assert_frame_equal(dd_excel, df2)
+            pexcel.rm()
+
+        def dask_parquet():
+            pparquet = TransparentPath("chien/chat_dask.parquet")
+            df2 = pparquet.read(use_dask=True)
+            pd.testing.assert_frame_equal(dd_parquet, df2)
+            pparquet.rm()
+
+        def dask_hdf5():
+            phdf5 = TransparentPath("chien/chat_dask.hdf5")
+            with phdf5.read() as f:
+                df2 = dd.from_pandas(pd.DataFrame(f["data"]))
+            pd.testing.assert_frame_equal(dd_hdf5, df2)
+            phdf5.rm()
+
+        def dask_hdf5_2():
+            phdf5_2 = TransparentPath("chien/chat_2_dask.hdf5")
+            with phdf5_2.read(use_pandas=True) as f:
+                df2 = f["data"]
+            pd.testing.assert_frame_equal(dd_hdf5, df2)
+            phdf5_2.rm()
+
+        dask_csv()
+        print("    ...read_dask_csv tested")
+        dask_parquet()
+        print("    ...read_dask_parquet tested")
+        dask_hdf5()
+        print("    ...read_dask_hdf5 tested")
+        dask_hdf5_2()
+        print("    ...read_dask_hdf5_2 tested")
+        dask_excel()
+        print("    ...read_dask_excel tested")
 
 
 class Methods:
@@ -513,6 +609,8 @@ def do_test(fs, bucket=None, project=None):
     print("    ...write_txt tested")
     write.cust_open()
     print("    ...write_cust_open tested")
+    write.write_dask()
+    print("    ...write_dask tested")
 
     TransparentPath.set_global_fs(fs, bucket, project)
     print(f"\n  Testing Read {fs}")
@@ -527,6 +625,8 @@ def do_test(fs, bucket=None, project=None):
     print("    ...read_hdf5 tested")
     read.read_txt()
     print("    ...read_txt tested")
+    read.read_dask()
+    print("    ...read_dask tested")
 
     TransparentPath.set_global_fs(fs, bucket, project)
     print(f"\n  Testing Methods {fs}")
@@ -594,9 +694,12 @@ def test_all():
 
     if loc:
         do_test("local")
+        TransparentPath("chien").rmdir()
     else:
         print("Local test skipped.")
+
     if gcs:
         do_test("gcs", project=project, bucket=bucket)
+        TransparentPath("chien").rmdir()
     else:
         print("GCS test skipped.")

@@ -4,9 +4,11 @@ import tempfile
 import json
 import zipfile
 import h5py
+import dask.dataframe as dd
+from dask.delayed import delayed
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Tuple, Any, IO, Iterator, Optional
+from typing import Union, Tuple, Any, IO, Iterator, Optional, List
 
 import pandas as pd
 from .methodtranslator import MultiMethodTranslator
@@ -41,6 +43,7 @@ class MyHDFFile(h5py.File):
     >>> with path.write() as ifile:
     >>>     ifile["data"] = np.array([1, 2])
     """
+
     def __init__(self, *args, remote: Union[TransparentPath, None] = None, **kwargs):
         """Overload of h5py.File.__init__, to accept a 'remote' argument
 
@@ -73,6 +76,7 @@ class MyHDFFile(h5py.File):
 
 class MyHDFStore(pd.HDFStore):
     """Same as MyHDFFile but for pd.HDFStore objects"""
+
     def __init__(self, *args, remote: Union[TransparentPath, None] = None, **kwargs):
         self.remote_file = remote
         self.local_path = args[0]
@@ -97,7 +101,7 @@ class Myzipfile(zipfileclass):
     def __init__(self, path, *args, **kwargs):
         if type(path) == TransparentPath and path.fs_kind == "gcs":
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
-            f.close()
+            f.close()  # deletes tmp file, but we can still use its name
             path.get(f.name)
             path = Path(f.name)  # Path is pathlib, not TransparentPath
             super().__init__(path, *args, **kwargs)
@@ -587,8 +591,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
             # ON GCS
 
             # Remove occurences of nas_dir at beginning of path, if any
-            if self.nas_dir is not None and (str(self.path).startswith(os.path.abspath(self.nas_dir) + os.sep)
-                                             or str(self.path) == self.nas_dir):
+            if self.nas_dir is not None and (
+                str(self.path).startswith(os.path.abspath(self.nas_dir) + os.sep) or str(self.path) == self.nas_dir
+            ):
                 self.path = self.path.relative_to(self.nas_dir)
 
             if str(self.path) == "." or str(self.path) == "/":
@@ -761,7 +766,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 exec(f"self.{obj_name} = obj")
             else:
                 return lambda *args, **kwargs: self._obj_missing(obj_name, "fs", *args, **kwargs)
-        
+
         elif obj_name in dir(self.path):
             obj = getattr(self.path, obj_name)
             if not callable(obj):
@@ -1326,7 +1331,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return self.fs.open(self.path, *arg, **kwargs)
 
     def read(
-        self, *args, get_obj: bool = False, use_pandas: bool = False, update_cache: bool = True, **kwargs,
+        self,
+        *args,
+        get_obj: bool = False,
+        use_pandas: bool = False,
+        update_cache: bool = True,
+        use_dask: bool = False,
+        **kwargs,
     ) -> Any:
         """Method used to read the content of the file located at self
         
@@ -1363,6 +1374,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
             to read anything. If False, it won't, potentially saving some time but this might result in a
             FileNotFoundError. (Default value = True)
 
+        use_dask: bool
+            To return a Dask DataFrame instead of a pandas DataFrame. Only makes sense if file suffix is xlsx, csv,
+            parquet. (Default value = False)
+
         args:
             any args to pass to the underlying reading method
 
@@ -1376,16 +1391,29 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
         self.check_multiplicity()
-        if not self.is_file():
-            raise FileNotFoundError(f"Could not find file {self}")
+        if use_dask:
+            if self.suffix != ".csv" and self.suffix != ".parquet" and not self.is_file():
+                raise FileNotFoundError(f"Could not find file {self}")
+            else:
+                if (
+                    not self.is_file()
+                    and not self.is_dir(exist=True)
+                    and not self.with_suffix("").is_dir(exist=True)
+                    and "*" not in str(self)
+                ):
+                    raise FileNotFoundError(f"Could not find file nor directory {self}")
+        else:
+            if not self.is_file():
+                raise FileNotFoundError(f"Could not find file {self}")
+
         if self.suffix == ".csv":
-            return self.read_csv(update_cache=update_cache, **kwargs)
+            return self.read_csv(update_cache=update_cache, use_dask=use_dask, **kwargs)
         elif self.suffix == ".parquet":
             index_col = None
             if "index_col" in kwargs:
                 index_col = kwargs["index_col"]
                 del kwargs["index_col"]
-            content = self.read_parquet(update_cache=update_cache, **kwargs)
+            content = self.read_parquet(update_cache=update_cache, use_dask=use_dask, **kwargs)
             if index_col:
                 content.set_index(content.columns[index_col])
             return content
@@ -1395,27 +1423,44 @@ class TransparentPath(os.PathLike):  # noqa : F811
             jsonified = self.read_text(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
             return json.loads(jsonified)
         elif self.suffix == ".xlsx":
-            return self.read_excel(update_cache=update_cache, **kwargs)
+            return self.read_excel(update_cache=update_cache, use_dask=use_dask, **kwargs)
         else:
             return self.read_text(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
 
-    def read_csv(self, update_cache: bool = True, **kwargs) -> pd.DataFrame:
+    def read_csv(self, update_cache: bool = True, use_dask: bool = False, **kwargs) -> pd.DataFrame:
         if update_cache:
             self.update_cache()
         # noinspection PyTypeChecker,PyUnresolvedReferences
         try:
+            if use_dask:
+                if self.is_dir(exist=True):
+                    return dd.read_csv(self.__fspath__(), **kwargs)
+                else:
+                    return dd.read_csv(self.with_sufix("").__fspath__(), **kwargs)
             return pd.read_csv(self.__fspath__(), **kwargs)
         except pd.errors.ParserError:
             # noinspection PyUnresolvedReferences
-            raise pd.errors.ParserError("Could not read data. Most likely, the file is encrypted."
-                                        " Ask your cloud manager to remove encryption on it.")
+            raise pd.errors.ParserError(
+                "Could not read data. Most likely, the file is encrypted."
+                " Ask your cloud manager to remove encryption on it."
+            )
 
-    def read_parquet(self, update_cache: bool = True, **kwargs) -> Union[pd.DataFrame, pd.Series]:
+    def read_parquet(
+        self, update_cache: bool = True, use_dask: bool = False, **kwargs
+    ) -> Union[pd.DataFrame, pd.Series]:
         if update_cache:
             self.update_cache()
         if self.fs_kind == "local":
+            if use_dask:
+                if self.is_dir(exist=True):
+                    return dd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs)
+                else:
+                    return dd.read_parquet(self.with_suffix("").__fspath__(), engine="pyarrow", **kwargs)
             return pd.read_parquet(str(self), engine="pyarrow", **kwargs)
         else:
+            if use_dask:
+                # Dask's read_parquet supports remote files, pandas does not
+                return dd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs)
             return pd.read_parquet(self.open("rb"), engine="pyarrow", **kwargs)
 
     def read_text(self, *args, get_obj: bool = False, update_cache: bool = True, **kwargs) -> Union[str, IO]:
@@ -1462,7 +1507,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Returns
         -------
         Union[h5py.File, pd.HDFStore]
-        Opened h5py.File/pd.HDFStore
+            Opened h5py.File/pd.HDFStore
 
         """
 
@@ -1483,36 +1528,45 @@ class TransparentPath(os.PathLike):  # noqa : F811
             data = class_to_use(self.path, mode=mode, **kwargs)
         else:
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5")
-            f.close()
+            f.close()  # deletes the tmp file, but we can still use its name
             self.get(f.name)
 
             data = class_to_use(f.name, mode=mode, **kwargs)
             Path(f.name).unlink()
         return data
 
-    def read_excel(self, update_cache: bool = True, **kwargs) -> pd.DataFrame:
+    def read_excel(self, update_cache: bool = True, use_dask: bool = False, **kwargs) -> pd.DataFrame:
         if update_cache:
             self.update_cache()
         # noinspection PyTypeChecker,PyUnresolvedReferences
         try:
             if self.fs_kind == "local":
+                if use_dask:
+                    parts = delayed(pd.read_excel)(self, **kwargs)
+                    return dd.from_delayed(parts)
                 return pd.read_excel(self, **kwargs)
             else:
                 f = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
-                f.close()
+                f.close()  # deletes the tmp file, but we can still use its name
                 self.get(f.name)
-                data = pd.read_excel(f.name, **kwargs)
+                if use_dask:
+                    parts = delayed(pd.read_excel)(f.name, **kwargs)
+                    data = dd.from_delayed(parts)
+                else:
+                    data = pd.read_excel(f.name, **kwargs)
                 Path(f.name).unlink()
                 return data
         except pd.errors.ParserError:
             # noinspection PyUnresolvedReferences
-            raise pd.errors.ParserError("Could not read data. Most likely, the file is encrypted. Ask your cloud"
-                                        " manager to remove encryption on it.")
+            raise pd.errors.ParserError(
+                "Could not read data. Most likely, the file is encrypted. Ask your cloud"
+                " manager to remove encryption on it."
+            )
 
     def write(
         self,
+        data: Any,
         *args,
-        data: Any = None,
         set_name: str = "data",
         use_pandas: bool = False,
         overwrite: bool = True,
@@ -1576,18 +1630,30 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
         self.check_multiplicity()
+
+        if self.suffix != ".hdf5" and self.suffix != ".h5" and data is None:
+            data = args[0]
+            args = args[1:]
+
         if self.suffix == ".csv":
-            self.to_csv(
-                data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
-            )
+            ret = self.to_csv(data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,)
+            if ret is not None:
+                # To skip the assert at the end of the function. Indeed if something is returned it means we used
+                # Dask, which will have written files with a different name than self, so the assert would fail.
+                return
         elif self.suffix == ".parquet":
             self.to_parquet(
                 data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
             )
+            if isinstance(data, dd.DataFrame):
+                assert self.with_suffix("").is_dir(exist=True)
+                return
         elif self.suffix == ".hdf5" or self.suffix == ".h5":
-            return self.to_hdf5(
+            ret = self.to_hdf5(
                 data=data, set_name=set_name, use_pandas=use_pandas, update_cache=update_cache, **kwargs,
             )
+            if ret is not None:
+                return ret
         elif self.suffix == ".json":
             self.to_json(
                 data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
@@ -1608,7 +1674,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def write_stuff(
         self, data: Any, *args, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs
-    ):
+    ) -> None:
         if update_cache:
             self.update_cache()
         if not overwrite and self.is_file() and present != "ignore":
@@ -1623,7 +1689,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def write_bytes(
         self, data: Any, *args, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs,
-    ):
+    ) -> None:
 
         args = list(args)
         if len(args) == 0:
@@ -1635,23 +1701,39 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def to_csv(
         self,
-        data: Union[pd.DataFrame, pd.Series],
+        data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
         overwrite: bool = True,
         present: str = "ignore",
         update_cache: bool = True,
         **kwargs,
-    ) -> None:
+    ) -> Union[None, List[TransparentPath]]:
+        """
+        Warning : if data is a Dask dataframe, the output might be written in multiple file. one can always specify
+        single_file=True, but that is not supported in GCS. If only one file is produced, then this file will be
+        moved to self.
+        """
         if update_cache:
             self.update_cache()
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
 
-        # noinspection PyTypeChecker
-        data.to_csv(self, **kwargs)
+        if isinstance(data, dd.DataFrame):
+            path_to_save = self
+            if not path_to_save.stem.endswith("*"):
+                path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
+            outfiles = [
+                TransparentPath(f, fs=self.fs_kind) for f in dd.to_csv(data, path_to_save.__fspath__(), **kwargs)
+            ]
+            if len(outfiles) == 1:
+                outfiles[0].mv(self)
+            else:
+                return outfiles
+        else:
+            data.to_csv(self.__fspath__(), **kwargs)
 
     def to_parquet(
         self,
-        data: Union[pd.DataFrame, pd.Series],
+        data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
         overwrite: bool = True,
         present: str = "ignore",
         update_cache: bool = True,
@@ -1659,27 +1741,32 @@ class TransparentPath(os.PathLike):  # noqa : F811
         to_dataframe: bool = True,
         **kwargs,
     ) -> None:
+        """
+        Warning : if data is a Dask dataframe, the output will be written in a directory. For convenience, the directory
+        if self.with_suffix(""). Reading is transparent and one can specify a path with .parquet suffix.
+        """
         if update_cache:
             self.update_cache()
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
 
         if to_dataframe and isinstance(data, pd.Series):
+            name = data.name
             data = pd.DataFrame(data=data)
+            if name is not None:
+                data.columns = [name]
 
         if columns_to_string and not isinstance(data.columns[0], str):
             data.columns = data.columns.astype(str)
 
         # noinspection PyTypeChecker
-        data.to_parquet(self.open("wb"), engine="pyarrow", compression="snappy", **kwargs)
+        if isinstance(data, dd.DataFrame):
+            dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
+        else:
+            data.to_parquet(self.open("wb"), engine="pyarrow", compression="snappy", **kwargs)
 
     def to_hdf5(
-        self,
-        data: Any = None,
-        set_name: str = None,
-        update_cache: bool = True,
-        use_pandas: bool = False,
-        **kwargs,
+        self, data: Any = None, set_name: str = None, update_cache: bool = True, use_pandas: bool = False, **kwargs,
     ) -> Union[None, h5py.File, pd.HDFStore]:
         """
 
@@ -1724,15 +1811,27 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 return class_to_use(f, remote=self.path, mode=mode, **kwargs)
         else:
 
+            if isinstance(data, dict):
+                sets = data
+            else:
+                if set_name is None:
+                    set_name = "data"
+                sets = {set_name: data}
+
             class_to_use = h5py.File
             if use_pandas:
                 class_to_use = pd.HDFStore
-            if set_name is None:
-                set_name = "data"
-            sets = {set_name: data}
 
-            if isinstance(data, dict):
-                sets = data
+            if isinstance(data, dd.DataFrame):
+
+                if self.fs_kind == "local":
+                    for aset in sets:
+                        dd.to_hdf(sets[aset], self, aset, mode=mode, **kwargs)
+                else:
+                    with tempfile.TemporaryDirectory() as f:
+                        for aset in sets:
+                            dd.to_hdf(sets[aset], f.name, aset, mode=mode, **kwargs)
+                        TransparentPath(path=f.name, fs="local").put(self.path)
 
             if self.fs_kind == "local":
                 thefile = class_to_use(self.path, mode=mode, **kwargs)
@@ -1740,13 +1839,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     thefile[aset] = sets[aset]
                 thefile.close()
             else:
-                f = tempfile.NamedTemporaryFile(delete=True, suffix=".hdf5")
-                thefile = class_to_use(f.name, mode=mode, **kwargs)
-                for aset in sets:
-                    thefile[aset] = sets[aset]
-                thefile.close()
-                TransparentPath(path=f.name, fs="local").put(self.path)
-                f.close()  # deletes the tmp file
+                with tempfile.NamedTemporaryFile(delete=True, suffix=".hdf5") as f:
+                    thefile = class_to_use(f.name, mode=mode, **kwargs)
+                    for aset in sets:
+                        thefile[aset] = sets[aset]
+                    thefile.close()
+                    TransparentPath(path=f.name, fs="local").put(self.path)
 
     def to_json(self, data: Any, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs):
 
@@ -1757,7 +1855,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def to_excel(
         self,
-        data: Union[pd.DataFrame, pd.Series],
+        data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
         overwrite: bool = True,
         present: str = "ignore",
         update_cache: bool = True,
@@ -1771,12 +1869,19 @@ class TransparentPath(os.PathLike):  # noqa : F811
         # noinspection PyTypeChecker
 
         if self.fs_kind == "local":
+            if isinstance(data, dd.DataFrame):
+                parts = delayed(pd.DataFrame.to_excel)(data, self.__fspath__(), **kwargs)
+                parts.compute()
+                return
             data.to_excel(self, **kwargs)
         else:
-            f = tempfile.NamedTemporaryFile(delete=True, suffix=".xlsx")
-            data.to_excel(f.name, **kwargs)
-            TransparentPath(path=f.name, fs="local").put(self.path)
-            f.close()  # deletes the tmp file
+            with tempfile.NamedTemporaryFile(delete=True, suffix=".xlsx") as f:
+                if isinstance(data, dd.DataFrame):
+                    parts = delayed(pd.DataFrame.to_excel)(data, f.name, **kwargs)
+                    parts.compute()
+                else:
+                    data.to_excel(f.name, **kwargs)
+                TransparentPath(path=f.name, fs="local").put(self.path)
 
     def touch(self, present: str = "ignore", create_parents: bool = True, **kwargs) -> None:
         """Creates the file corresponding to self if does not exist.

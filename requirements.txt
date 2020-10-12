@@ -12,3 +12,4 @@ tables
 h5py
 openpyxl
 xlrd
+dask[dataframe]
