@@ -1430,14 +1430,19 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def read_csv(self, update_cache: bool = True, use_dask: bool = False, **kwargs) -> pd.DataFrame:
         if update_cache:
             self.update_cache()
+
         # noinspection PyTypeChecker,PyUnresolvedReferences
         try:
             if use_dask:
-                if self.is_dir(exist=True):
-                    return dd.read_csv(self.__fspath__(), **kwargs)
+                if self.is_file():
+                    to_use = self
                 else:
-                    return dd.read_csv(self.with_sufix("").__fspath__(), **kwargs)
+                    to_use = self.with_suffix("")
+                index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
+
+                return apply_index_and_date(index_col, parse_dates, dd.read_csv(to_use.__fspath__(), **kwargs))
             return pd.read_csv(self.__fspath__(), **kwargs)
+
         except pd.errors.ParserError:
             # noinspection PyUnresolvedReferences
             raise pd.errors.ParserError(
@@ -1450,18 +1455,32 @@ class TransparentPath(os.PathLike):  # noqa : F811
     ) -> Union[pd.DataFrame, pd.Series]:
         if update_cache:
             self.update_cache()
+
+        index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
+
         if self.fs_kind == "local":
             if use_dask:
                 if self.is_dir(exist=True):
-                    return dd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs)
+                    return apply_index_and_date(
+                        index_col, parse_dates, dd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs)
+                    )
                 else:
-                    return dd.read_parquet(self.with_suffix("").__fspath__(), engine="pyarrow", **kwargs)
-            return pd.read_parquet(str(self), engine="pyarrow", **kwargs)
+                    return apply_index_and_date(
+                        index_col,
+                        parse_dates,
+                        dd.read_parquet(self.with_suffix("").__fspath__(), engine="pyarrow", **kwargs),
+                    )
+            return apply_index_and_date(index_col, parse_dates, pd.read_parquet(str(self), engine="pyarrow", **kwargs))
+
         else:
             if use_dask:
                 # Dask's read_parquet supports remote files, pandas does not
-                return dd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs)
-            return pd.read_parquet(self.open("rb"), engine="pyarrow", **kwargs)
+                return apply_index_and_date(
+                    index_col, parse_dates, dd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs)
+                )
+            return apply_index_and_date(
+                index_col, parse_dates, pd.read_parquet(self.open("rb"), engine="pyarrow", **kwargs)
+            )
 
     def read_text(self, *args, get_obj: bool = False, update_cache: bool = True, **kwargs) -> Union[str, IO]:
         if update_cache:
@@ -1821,8 +1840,16 @@ class TransparentPath(os.PathLike):  # noqa : F811
             class_to_use = h5py.File
             if use_pandas:
                 class_to_use = pd.HDFStore
+                if isinstance(data, dd.DataFrame):
+                    raise NotImplementedError(
+                        "TransparentPath does not support storing Dask objects in pandas's HDFStore yet."
+                    )
 
             if isinstance(data, dd.DataFrame):
+
+                # raise NotImplementedError(f"For whatever fucking stupid reason, Dask will not be able to read your "
+                #                           f"dataframe back, and pandas will read bullshit from it. So don't"
+                #                           f"try to write into HDF5 using Dask.")
 
                 if self.fs_kind == "local":
                     for aset in sets:
@@ -1832,6 +1859,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                         for aset in sets:
                             dd.to_hdf(sets[aset], f.name, aset, mode=mode, **kwargs)
                         TransparentPath(path=f.name, fs="local").put(self.path)
+                return
 
             if self.fs_kind == "local":
                 thefile = class_to_use(self.path, mode=mode, **kwargs)
@@ -2113,3 +2141,28 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 obj.nas_dir = Path(nas_dir)
             else:
                 obj.nas_dir = nas_dir
+
+
+def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
+    index_col = kwargs.get("index_col", None)
+    parse_dates = kwargs.get("parse_dates", None)
+    if index_col is not None:
+        del kwargs["index_col"]
+    if parse_dates is not None:
+        del kwargs["parse_dates"]
+    # noinspection PyTypeChecker
+    return index_col, parse_dates, kwargs
+
+
+def apply_index_and_date(
+    index_col: int, parse_dates: bool, df: Union[pd.DataFrame, dd.DataFrame]
+) -> Union[pd.DataFrame, dd.DataFrame]:
+    if index_col is not None:
+        df = df.set_index(df.columns[index_col])
+        df.index = df.index.rename(None)
+    if parse_dates is not None:
+        if isinstance(df, dd.DataFrame):
+            df.index = df.to_datetime(df.index)
+        else:
+            df.index = pd.to_datetime(df.index)
+    return df
