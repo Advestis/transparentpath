@@ -1677,6 +1677,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         overwrite: bool = True,
         present: str = "ignore",
         update_cache: bool = True,
+        make_parents: bool = False,
         **kwargs,
     ) -> Union[None, pd.HDFStore, h5py.File]:
         """Method used to write the content of the file located at self
@@ -1722,6 +1723,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
             If False, it won't, potentially saving some time but this might result in a FileExistError. (Default
             value = True)
 
+        make_parents: bool
+            If True and if the parent arborescence does not exist, it is created. (Default value = False)
+
         args:
             any args to pass to the underlying writting method
 
@@ -1735,6 +1739,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
         self.check_multiplicity()
+
+        if make_parents and not self.parent.is_dir():
+            self.parent.mkdir()
 
         if self.suffix != ".hdf5" and self.suffix != ".h5" and data is None:
             data = args[0]
@@ -2091,14 +2098,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     f" {TransparentPath(parent, fs=self.fs_kind)}"
                 )
 
-            if self.fs_kind == "local":
-                # Use _obj_missing instead of callign mkdir directly because
-                # file systems mkdir has some kwargs with different name than
-                # pathlib.Path's  mkdir, and this is handled in _obj_missing
-                self._obj_missing("mkdir", kind="translate", **kwargs)
-            else:
-                # Does not mean anything to create a directory in GCS
-                pass
+        if self.fs_kind == "local":
+            # Use _obj_missing instead of callign mkdir directly because
+            # file systems mkdir has some kwargs with different name than
+            # pathlib.Path's  mkdir, and this is handled in _obj_missing
+            self._obj_missing("mkdir", kind="translate", **kwargs)
+        else:
+            # Does not mean anything to create a directory on GCS
+            pass
 
     def stat(self):
         """Calls file system's stat method and translates the key to os.stat_result() keys"""
