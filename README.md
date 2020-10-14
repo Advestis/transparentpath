@@ -68,7 +68,7 @@ from transparentpath import TransparentPath as Path
 mypath = Path("foo") / "bar.csv"
 df = mypath.read(index_col=0, parse_dates=True)
 otherpath = mypath.with_suffix(".parquet")
-otherpath.write(data=df)
+otherpath.write(df)
 
 # Reading and writing a HDF5 file works on GCS :
 import numpy as np
@@ -78,7 +78,10 @@ with mypath.read() as ifile:
 
 # Doing '..' from 'foo/bar/hdf5' will return 'foo'
 # Then doing 'foo' + 'babar.hdf5' will return 'foo/babar.hdf5' ('+' and '/' are synonymes)
-with mypath.cd("..")  + "babar.hdf5" as ofile:
+with (mypath.cd("..")  + "babar.hdf5").write(None) as ofile:
+    # Note here that we must explicitely give 'None' to the 'write' method in order for it
+    # to return the open HDF5 file. We could also give a dict of {arr: "store1"} to directly
+    # write the file.
     ofile["store1"] = arr
 
 
