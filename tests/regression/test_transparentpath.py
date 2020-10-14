@@ -444,7 +444,7 @@ class Read:
 
         def dask_hdf5():
             phdf5 = TransparentPath("chien/chat_dask.hdf5")
-            df2 = dd.read_hdf(phdf5, "/data")
+            df2 = phdf5.read(phdf5, set_names="data", use_dask=True)
             # with phdf5.read() as f:
             #     df2 = dd.from_pandas(pd.DataFrame(f["data"]), npartitions=2)
             # Can't use dd.utils.assert_eq, for partitions will be different (None when read from hdf5 file)
@@ -708,6 +708,5 @@ def test_all():
 
     if gcs:
         do_test("gcs", project=project, bucket=bucket)
-        TransparentPath("chien").rmdir()
     else:
         print("GCS test skipped.")

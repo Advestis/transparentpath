@@ -4,8 +4,6 @@ import tempfile
 import json
 import zipfile
 import h5py
-import dask.dataframe as dd
-from dask.delayed import delayed
 from datetime import datetime
 from pathlib import Path
 from typing import Union, Tuple, Any, IO, Iterator, Optional, List
@@ -16,6 +14,13 @@ from ..jsonencoder.jsonencoder import JSONEncoder
 
 import gcsfs
 from fsspec.implementations.local import LocalFileSystem
+
+import dask.dataframe as dd
+from dask.delayed import delayed
+from dask.distributed import Client
+
+client = Client(processes=False)
+
 
 builtins_open = builtins.open
 builtins_isinstance = builtins.isinstance
@@ -537,6 +542,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
             raise TypeError(f"Unsupported type {type(path)} for path")
 
         self.path = Path(str(path).encode("utf-8").decode("utf-8"), **kwargs)
+
+        # I never remember whether I should use fs='local' or fs_kind='local'. That way I don't need to.
+        if "fs_kind" in kwargs and fs is None:
+            fs = kwargs["fs_kind"]
+            del kwargs["fs_kind"]
 
         # Copy path completely if is a TransparentPath and we did not
         # ask for a new file system
@@ -1418,7 +1428,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 content.set_index(content.columns[index_col])
             return content
         elif self.suffix == ".hdf5" or self.suffix == ".h5":
-            return self.read_hdf5(update_cache=update_cache, use_pandas=use_pandas, **kwargs)
+            return self.read_hdf5(update_cache=update_cache, use_pandas=use_pandas, use_dask=use_dask, **kwargs)
         elif self.suffix == ".json":
             jsonified = self.read_text(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
             return json.loads(jsonified)
@@ -1460,23 +1470,24 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         if self.fs_kind == "local":
             if use_dask:
-                if self.is_dir(exist=True):
-                    return apply_index_and_date(
-                        index_col, parse_dates, dd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs)
-                    )
+                if self.is_file():
+                    to_use = self
                 else:
-                    return apply_index_and_date(
-                        index_col,
-                        parse_dates,
-                        dd.read_parquet(self.with_suffix("").__fspath__(), engine="pyarrow", **kwargs),
-                    )
+                    to_use = self.with_suffix("")
+                return apply_index_and_date(
+                    index_col, parse_dates, dd.read_parquet(to_use.__fspath__(), engine="pyarrow", **kwargs)
+                )
             return apply_index_and_date(index_col, parse_dates, pd.read_parquet(str(self), engine="pyarrow", **kwargs))
 
         else:
             if use_dask:
                 # Dask's read_parquet supports remote files, pandas does not
+                if self.is_file():
+                    to_use = self
+                else:
+                    to_use = self.with_suffix("")
                 return apply_index_and_date(
-                    index_col, parse_dates, dd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs)
+                    index_col, parse_dates, dd.read_parquet(to_use.__fspath__(), engine="pyarrow", **kwargs)
                 )
             return apply_index_and_date(
                 index_col, parse_dates, pd.read_parquet(self.open("rb"), engine="pyarrow", **kwargs)
@@ -1501,7 +1512,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 to_ret = to_ret.decode()
         return to_ret
 
-    def read_hdf5(self, update_cache: bool = True, use_pandas: bool = False, **kwargs) -> Union[h5py.File, pd.HDFStore]:
+    def read_hdf5(
+        self,
+        update_cache: bool = True,
+        use_pandas: bool = False,
+        use_dask: bool = False,
+        set_names: str = "",
+        **kwargs,
+    ) -> Union[h5py.File, pd.HDFStore, dd.DataFrame]:
         """Reads a HDF5 file. Must have been created by h5py.File or pd.HDFStore (specify use_pandas=True if so)
 
         Since h5py.File/pd.HDFStore does not support GCS, first copy it in a tmp file.
@@ -1519,8 +1537,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
         use_pandas: bool
             To use HDFStore instead of h5py.File (Default value = False)
 
+        use_dask: bool
+            To indicate that the HDF5 should be opened using dask.dataframe.read_hdf(). (Default value = False)
+            
+        set_names: str
+            See using dask.dataframe.read_hdf()'s 'key' argument. (Default value = "")
         kwargs
-            The kwargs to pass to h5py.File/pd.HDFStore method
+            The kwargs to pass to h5py.File/pd.HDFStore method, or to dask.dataframe.read_hdf()
 
 
         Returns
@@ -1536,6 +1559,21 @@ class TransparentPath(os.PathLike):  # noqa : F811
             del kwargs["mode"]
         if "r" not in mode:
             raise ValueError("If using read_hdf5, mode must contain 'r'")
+
+        if use_dask:
+            if len(set_names) == 0:
+                raise ValueError("If using Dask, you must specify the dataset name to extract using set_names='aname'"
+                                 "or a wildcard.")
+            if self.fs_kind == "local":
+                return dd.read_hdf(pattern=self, key=set_names, **kwargs)
+            f = tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5")
+            f.close()  # deletes the tmp file, but we can still use its name to download the remote file locally
+            self.get(f.name)
+
+            futures = client.submit(dd.read_hdf, f.name, set_names, **kwargs)
+            data = futures
+            client.submit(delayed_delete, f.name, futures)
+            return data.result()
 
         class_to_use = h5py.File
         if use_pandas:
@@ -1571,9 +1609,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 if use_dask:
                     parts = delayed(pd.read_excel)(f.name, **kwargs)
                     data = dd.from_delayed(parts)
+                    # We should not delete the tmp file yet, since dask does its operations lasily.
+                    # Path(f.name).unlink()
                 else:
                     data = pd.read_excel(f.name, **kwargs)
-                Path(f.name).unlink()
+                    Path(f.name).unlink()
                 return data
         except pd.errors.ParserError:
             # noinspection PyUnresolvedReferences
@@ -1740,8 +1780,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
             path_to_save = self
             if not path_to_save.stem.endswith("*"):
                 path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
+            futures = client.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
             outfiles = [
-                TransparentPath(f, fs=self.fs_kind) for f in dd.to_csv(data, path_to_save.__fspath__(), **kwargs)
+                TransparentPath(f, fs=self.fs_kind) for f in futures.result()
             ]
             if len(outfiles) == 1:
                 outfiles[0].mv(self)
@@ -1818,6 +1859,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if update_cache:
             self.update_cache()
 
+        # If no data is specified, an HDF5 file is returned, opened in write mode, or any other specified mode.
         if data is None:
 
             class_to_use = MyHDFFile
@@ -1855,7 +1897,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     for aset in sets:
                         dd.to_hdf(sets[aset], self, aset, mode=mode, **kwargs)
                 else:
-                    with tempfile.TemporaryDirectory() as f:
+                    with tempfile.NamedTemporaryFile() as f:
                         for aset in sets:
                             dd.to_hdf(sets[aset], f.name, aset, mode=mode, **kwargs)
                         TransparentPath(path=f.name, fs="local").put(self.path)
@@ -2166,3 +2208,9 @@ def apply_index_and_date(
         else:
             df.index = pd.to_datetime(df.index)
     return df
+
+
+def delayed_delete(filename, parent_task):
+    """To be able to submit a file deletion Dask task that must wait on a parent task (like, read_hdf) to finish"""
+    parent_task.result()  # Unused, just to make sure the previous dask task is completed before removing the file
+    Path(filename).unlink()

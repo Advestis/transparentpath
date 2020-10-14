@@ -12,4 +12,5 @@ tables
 h5py
 openpyxl
 xlrd
-dask[dataframe]
+dask[dataframe,distributed]
+bokeh
