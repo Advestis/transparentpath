@@ -6,20 +6,20 @@ import zipfile
 import h5py
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Tuple, Any, IO, Iterator, Optional, List
+from typing import Union, Tuple, Any, IO, Iterator, Optional, List, Callable
 
 import pandas as pd
 from .methodtranslator import MultiMethodTranslator
 from ..jsonencoder.jsonencoder import JSONEncoder
-
+from inspect import signature
 import gcsfs
 from fsspec.implementations.local import LocalFileSystem
 
 import dask.dataframe as dd
 from dask.delayed import delayed
-from dask.distributed import Client
+from dask.distributed import client
 
-client = Client(processes=False)
+cli = client.Client(processes=False)
 
 
 builtins_open = builtins.open
@@ -295,11 +295,30 @@ def apply_index_and_date(
     return df
 
 
-def delayed_delete(filename, parent_task):
-    """To be able to submit a file deletion Dask task that must wait on a parent task (like, read_hdf) to finish"""
-    # noinspection PyUnusedLocal
-    a = parent_task  # Unused, just to make sure the previous dask task is completed before removing the file
-    Path(filename).unlink()
+def check_kwargs(method: Callable, kwargs: dict):
+    """Takes as argument a method and some kwargs. Will like in the method signature et return in two separate dict
+    the kwargs that are in the signature and those that are not.
+
+    If the method does not return any signature or if it explicitely accepts **kwargs, does not do anything
+    """
+    unexpected_kwargs = []
+    s = ""
+    try:
+        sig = signature(method)
+        if "kwargs" in sig.parameters or "kwds" in sig.parameters:
+            return
+        for arg in kwargs:
+            if arg not in sig.parameters:
+                unexpected_kwargs.append(kwargs[arg])
+
+        if len(unexpected_kwargs) > 0:
+            s = f"You provided unexpected kwargs for method {method.__name__}:"
+            s = "\n  - ".join([s] + unexpected_kwargs)
+    except ValueError:
+        return
+
+    if s != "":
+        raise ValueError(s)
 
 
 # noinspection PyRedeclaration
@@ -1384,6 +1403,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
 
         self.check_multiplicity()
+        check_kwargs(self.fs.open, kwargs)
         return self.fs.open(self.path, *arg, **kwargs)
 
     def read(
@@ -1495,8 +1515,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 else:
                     to_use = self.with_suffix("")
                 index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
-
+                check_kwargs(dd.read_csv, kwargs)
                 return apply_index_and_date(index_col, parse_dates, dd.read_csv(to_use.__fspath__(), **kwargs))
+
+            check_kwargs(pd.read_csv, kwargs)
             return pd.read_csv(self.__fspath__(), **kwargs)
 
         except pd.errors.ParserError:
@@ -1514,27 +1536,22 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
 
+        if use_dask:
+            # Dask's read_parquet supports remote files, pandas does not
+            if self.is_file():
+                to_use = self
+            else:
+                to_use = self.with_suffix("")
+            check_kwargs(dd.read_parquet, kwargs)
+            return apply_index_and_date(
+                index_col, parse_dates, dd.read_parquet(to_use.__fspath__(), engine="pyarrow", **kwargs)
+            )
+
+        check_kwargs(pd.read_parquet, kwargs)
         if self.fs_kind == "local":
-            if use_dask:
-                if self.is_file():
-                    to_use = self
-                else:
-                    to_use = self.with_suffix("")
-                return apply_index_and_date(
-                    index_col, parse_dates, dd.read_parquet(to_use.__fspath__(), engine="pyarrow", **kwargs)
-                )
             return apply_index_and_date(index_col, parse_dates, pd.read_parquet(str(self), engine="pyarrow", **kwargs))
 
         else:
-            if use_dask:
-                # Dask's read_parquet supports remote files, pandas does not
-                if self.is_file():
-                    to_use = self
-                else:
-                    to_use = self.with_suffix("")
-                return apply_index_and_date(
-                    index_col, parse_dates, dd.read_parquet(to_use.__fspath__(), engine="pyarrow", **kwargs)
-                )
             return apply_index_and_date(
                 index_col, parse_dates, pd.read_parquet(self.open("rb"), engine="pyarrow", **kwargs)
             )
@@ -1608,17 +1625,18 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         if use_dask:
             if len(set_names) == 0:
-                raise ValueError("If using Dask, you must specify the dataset name to extract using set_names='aname'"
-                                 "or a wildcard.")
+                raise ValueError(
+                    "If using Dask, you must specify the dataset name to extract using set_names='aname'"
+                    "or a wildcard."
+                )
+            check_kwargs(dd.read_hdf, kwargs)
             if self.fs_kind == "local":
                 return dd.read_hdf(pattern=self, key=set_names, **kwargs)
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5")
             f.close()  # deletes the tmp file, but we can still use its name to download the remote file locally
             self.get(f.name)
-
-            futures = client.submit(dd.read_hdf, f.name, set_names, **kwargs)
-            data = futures
-            client.submit(delayed_delete, f.name, futures)
+            data = cli.submit(dd.read_hdf, f.name, set_names, **kwargs)
+            # Do not delete the tmp file, since dask tasks are delayed
             return data.result()
 
         class_to_use = h5py.File
@@ -1628,12 +1646,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if update_cache:
             self.update_cache()
         if self.fs_kind == "local":
+            # Do not check kwargs since HDFStore and h5py both accepct kwargs anyway
             data = class_to_use(self.path, mode=mode, **kwargs)
         else:
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5")
             f.close()  # deletes the tmp file, but we can still use its name
             self.get(f.name)
-
+            # Do not check kwargs since HDFStore and h5py both accepct kwargs anyway
             data = class_to_use(f.name, mode=mode, **kwargs)
             Path(f.name).unlink()
         return data
@@ -1641,6 +1660,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def read_excel(self, update_cache: bool = True, use_dask: bool = False, **kwargs) -> pd.DataFrame:
         if update_cache:
             self.update_cache()
+
+        check_kwargs(pd.read_excel, kwargs)
         # noinspection PyTypeChecker,PyUnresolvedReferences
         try:
             if self.fs_kind == "local":
@@ -1655,8 +1676,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 if use_dask:
                     parts = delayed(pd.read_excel)(f.name, **kwargs)
                     data = dd.from_delayed(parts)
-                    # We should not delete the tmp file yet, since dask does its operations lasily.
-                    # Path(f.name).unlink()
+                    # We should not delete the tmp file, since dask does its operations lasily.
                 else:
                     data = pd.read_excel(f.name, **kwargs)
                     Path(f.name).unlink()
@@ -1830,18 +1850,18 @@ class TransparentPath(os.PathLike):  # noqa : F811
             raise FileExistsError()
 
         if isinstance(data, dd.DataFrame):
+            check_kwargs(dd.to_csv, kwargs)
             path_to_save = self
             if not path_to_save.stem.endswith("*"):
                 path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
-            futures = client.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
-            outfiles = [
-                TransparentPath(f, fs=self.fs_kind) for f in futures.result()
-            ]
+            futures = cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
+            outfiles = [TransparentPath(f, fs=self.fs_kind) for f in futures.result()]
             if len(outfiles) == 1:
                 outfiles[0].mv(self)
             else:
                 return outfiles
         else:
+            check_kwargs(data.to_csv, kwargs)
             data.to_csv(self.__fspath__(), **kwargs)
 
     def to_parquet(
@@ -1874,8 +1894,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         # noinspection PyTypeChecker
         if isinstance(data, dd.DataFrame):
+            check_kwargs(dd.to_parquet, kwargs)
             dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
         else:
+            check_kwargs(data.to_parquet, kwargs)
             data.to_parquet(self.open("wb"), engine="pyarrow", compression="snappy", **kwargs)
 
     def to_hdf5(
@@ -1946,13 +1968,16 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 #                           f"dataframe back, and pandas will read bullshit from it. So don't"
                 #                           f"try to write into HDF5 using Dask.")
 
+                check_kwargs(dd.to_hdf, kwargs)
                 if self.fs_kind == "local":
                     for aset in sets:
                         dd.to_hdf(sets[aset], self, aset, mode=mode, **kwargs)
                 else:
                     with tempfile.NamedTemporaryFile() as f:
-                        for aset in sets:
-                            dd.to_hdf(sets[aset], f.name, aset, mode=mode, **kwargs)
+                        futures = cli.map(
+                            dd.to_hdf, list(sets.values()), [f.name] * len(sets), list(sets.keys()), mode=mode, **kwargs
+                        )
+                        cli.gather(futures)
                         TransparentPath(path=f.name, fs="local").put(self.path)
                 return
 
@@ -1993,6 +2018,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         if self.fs_kind == "local":
             if isinstance(data, dd.DataFrame):
+                check_kwargs(pd.DataFrame.to_excel, kwargs)
                 parts = delayed(pd.DataFrame.to_excel)(data, self.__fspath__(), **kwargs)
                 parts.compute()
                 return
@@ -2000,9 +2026,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
         else:
             with tempfile.NamedTemporaryFile(delete=True, suffix=".xlsx") as f:
                 if isinstance(data, dd.DataFrame):
+                    check_kwargs(pd.DataFrame.to_excel, kwargs)
                     parts = delayed(pd.DataFrame.to_excel)(data, f.name, **kwargs)
                     parts.compute()
                 else:
+                    check_kwargs(data.to_excel, kwargs)
                     data.to_excel(f.name, **kwargs)
                 TransparentPath(path=f.name, fs="local").put(self.path)
 
