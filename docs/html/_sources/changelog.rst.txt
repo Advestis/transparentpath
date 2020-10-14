@@ -7,6 +7,13 @@ Changelog
 
 New
 ~~~
+- Can now specify gcs path using gs://bucketname/stuff. [pcotte]
+- Removed delayed_delete. Added check_kwargs. [pcotte]
+- Can specify make_parents to write() method. [pcotte]
+- Can now usr str methods and attributes on TransparentPath objects.
+  [pcotte]
+- Can now read and write dask dataframes. [pcotte]
+- Can now read and write dask dataframes. [pcotte]
 - Instal.sh script. [pcotte]
 - Added doc. [pcotte]
 - Added doc. [pcotte]
@@ -14,6 +21,7 @@ New
 
 Changes
 ~~~~~~~
+- Made full documentation. [pcotte]
 - Updated documentation. [pcotte]
 - Clearer myisinstance. [pcotte]
 
