@@ -270,6 +270,38 @@ class MultipleExistenceError(Exception):
         return self.message
 
 
+def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
+    index_col = kwargs.get("index_col", None)
+    parse_dates = kwargs.get("parse_dates", None)
+    if index_col is not None:
+        del kwargs["index_col"]
+    if parse_dates is not None:
+        del kwargs["parse_dates"]
+    # noinspection PyTypeChecker
+    return index_col, parse_dates, kwargs
+
+
+def apply_index_and_date(
+    index_col: int, parse_dates: bool, df: Union[pd.DataFrame, dd.DataFrame]
+) -> Union[pd.DataFrame, dd.DataFrame]:
+    if index_col is not None:
+        df = df.set_index(df.columns[index_col])
+        df.index = df.index.rename(None)
+    if parse_dates is not None:
+        if isinstance(df, dd.DataFrame):
+            df.index = df.to_datetime(df.index)
+        else:
+            df.index = pd.to_datetime(df.index)
+    return df
+
+
+def delayed_delete(filename, parent_task):
+    """To be able to submit a file deletion Dask task that must wait on a parent task (like, read_hdf) to finish"""
+    # noinspection PyUnusedLocal
+    a = parent_task  # Unused, just to make sure the previous dask task is completed before removing the file
+    Path(filename).unlink()
+
+
 # noinspection PyRedeclaration
 class TransparentPath(os.PathLike):  # noqa : F811
     # noinspection PyUnresolvedReferences,PyRedeclaration
@@ -1148,7 +1180,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                         return
             # ...deletes the directory
             else:
-                self.fs.rm(str(self.path), **kwargs)
+                self.fs.rm(self.__fspath__(), **kwargs)
             assert not self.is_dir(exist=True)
         # Asked to remove a file...
         else:
@@ -1168,7 +1200,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     else:
                         return
                 else:
-                    self.fs.rm(str(self.path), **kwargs)
+                    self.fs.rm(self.__fspath__(), **kwargs)
             assert not self.is_file()
 
     def rmdir(self, absent: str = "raise", ignore_kind: bool = False) -> None:
@@ -2019,7 +2051,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         elif self.is_dir():
             raise IsADirectoryError("Can not touch a directory")
 
-        self.fs.touch(str(self), **kwargs)
+        self.fs.touch(self.__fspath__(), **kwargs)
         assert self.is_file()
 
     def mkdir(self, present: str = "ignore", **kwargs) -> None:
@@ -2081,7 +2113,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             "mtime": "st_mtime",
         }
 
-        stat = self.fs.stat(self)
+        stat = self.fs.stat(self.__fspath__())
         statkeys = list(stat.keys())
         for key in statkeys:
             if key in key_translation:
@@ -2126,7 +2158,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             )
         if type(dst) != TransparentPath:
             dst = TransparentPath(dst, fs="gcs")
-        self.fs.put(self, dst)
+        self.fs.put(self.__fspath__(), dst)
 
     def get(self, loc: Union[str, Path, TransparentPath]):
         """used to get a remote file to local.
@@ -2148,7 +2180,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             )
         if type(loc) != TransparentPath:
             loc = TransparentPath(loc, fs="local")
-        self.fs.get(self, loc)
+        self.fs.get(self.__fspath__(), loc)
 
     def mv(self, other: Union[str, Path, TransparentPath]):
         """Used to move two files on the same file system."""
@@ -2162,7 +2194,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 "local, use get(). To push a local file to "
                 "remote, use put()."
             )
-        self.fs.mv(self, other)
+        self.fs.mv(self.__fspath__(), other)
 
     def exist(self):
         """To prevent typo of 'exist()' without an -s"""
@@ -2170,7 +2202,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def exists(self):
         self.update_cache()
-        return self.fs.exists(self)
+        return self.fs.exists(self.__fspath__())
 
     def update_cache(self):
         """Calls FileSystem's invalidate_cache() to discard the cache then calls a non-distruptive method (fs.info(
@@ -2197,34 +2229,3 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 obj.nas_dir = Path(nas_dir)
             else:
                 obj.nas_dir = nas_dir
-
-
-def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
-    index_col = kwargs.get("index_col", None)
-    parse_dates = kwargs.get("parse_dates", None)
-    if index_col is not None:
-        del kwargs["index_col"]
-    if parse_dates is not None:
-        del kwargs["parse_dates"]
-    # noinspection PyTypeChecker
-    return index_col, parse_dates, kwargs
-
-
-def apply_index_and_date(
-    index_col: int, parse_dates: bool, df: Union[pd.DataFrame, dd.DataFrame]
-) -> Union[pd.DataFrame, dd.DataFrame]:
-    if index_col is not None:
-        df = df.set_index(df.columns[index_col])
-        df.index = df.index.rename(None)
-    if parse_dates is not None:
-        if isinstance(df, dd.DataFrame):
-            df.index = df.to_datetime(df.index)
-        else:
-            df.index = pd.to_datetime(df.index)
-    return df
-
-
-def delayed_delete(filename, parent_task):
-    """To be able to submit a file deletion Dask task that must wait on a parent task (like, read_hdf) to finish"""
-    parent_task.result()  # Unused, just to make sure the previous dask task is completed before removing the file
-    Path(filename).unlink()
