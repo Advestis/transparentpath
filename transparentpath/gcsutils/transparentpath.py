@@ -782,16 +782,24 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if not callable(obj):
                 # Fetch the self.path's attributes to set it to self
                 if type(obj) == type(self.path):  # noqa: E721
-                    exec(f"self.{obj_name} = TransparentPath(obj, fs=self.fs_kind)")
+                    setattr(self, obj_name, TransparentPath(obj, fs=self.fs_kind))
                     return TransparentPath(obj, fs=self.fs_kind)
                 else:
-                    exec(f"self.{obj_name} = obj")
+                    setattr(self, obj_name, obj)
                     return obj
             elif self.fs_kind == "local":
                 return lambda *args, **kwargs: self._obj_missing(obj_name, "pathlib", *args, **kwargs)
             else:
                 raise AttributeError(f"{obj_name} is not an attribute nor a method of TransparentPath")
 
+        elif obj_name in dir(""):
+            obj = getattr("", obj_name)
+            if not callable(obj):
+                # Fetch the string's attributes to set it to self
+                setattr(self, obj_name, obj)
+                return obj
+            else:
+                return lambda *args, **kwargs: self._obj_missing(obj_name, "str", *args, **kwargs)
         else:
             raise AttributeError(f"{obj_name} is not an attribute nor a method of TransparentPath")
 
@@ -943,9 +951,15 @@ class TransparentPath(os.PathLike):  # noqa : F811
         # absolute path
         elif kind == "pathlib":
             # If arrives there, then it must be a method. If it had been an
-            # attribute, it would have been caught in __getattre__.
+            # attribute, it would have been caught in __getattr__.
             the_method = getattr(Path, obj_name)
             to_ret = the_method(self.path, *args, **kwargs)
+            return to_ret
+        elif kind == "str":
+            # If arrives there, then it must be a method, and of str. If it had been an
+            # attribute, it would have been caught in __getattr__.
+            the_method = getattr(str, obj_name)
+            to_ret = the_method(str(self), *args, **kwargs)
             return to_ret
         else:
             raise ValueError(f"Unknown value {kind} for attribute kind")
