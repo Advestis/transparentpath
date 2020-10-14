@@ -287,13 +287,13 @@ one element.</p>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">h5py._hl.files.File</span></code></p>
 <p>Class to override h5py.File to handle files on GCS.</p>
 <p>This allows to do :
-&gt;&gt;&gt; from transparentpath import TransparentPath
-&gt;&gt;&gt; import numpy as np
-&gt;&gt;&gt; TransparentPath.set_global_fs(“gcs”, bucket=”bucket_name”, project=”project_name”)
-&gt;&gt;&gt; path = TransparentPath(“chien.hdf5”)
+&gt;&gt;&gt; from transparentpath import TransparentPath  # doctest: +SKIP
+&gt;&gt;&gt; import numpy as np  # doctest: +SKIP
+&gt;&gt;&gt; TransparentPath.set_global_fs(“gcs”, bucket=”bucket_name”, project=”project_name”)  # doctest: +SKIP
+&gt;&gt;&gt; path = TransparentPath(“chien.hdf5”  # doctest: +SKIP
 &gt;&gt;&gt;
-&gt;&gt;&gt; with path.write() as ifile:
-&gt;&gt;&gt;     ifile[“data”] = np.array([1, 2])</p>
+&gt;&gt;&gt; with path.write() as ifile:  # doctest: +SKIP
+&gt;&gt;&gt;     ifile[“data”] = np.array([1, 2])  # doctest: +SKIP</p>
 </dd></dl>
 
 <dl class="py class">
@@ -329,40 +329,66 @@ just instantiate your paths like that:</p>
 </pre></div>
 </div>
 <p>If using GCS, you will have to provide a bucket, and a project name. You can either use the class ‘set_global_fs’
-method, or specify the appropriate keywords when calling your first path. Then all the other paths will use the
-same file system.</p>
-<p>So either do
-&gt;&gt;&gt; # noinspection PyShadowingNames
-&gt;&gt;&gt; from transparentpath import TransparentPath as Path
-&gt;&gt;&gt; Path.set_global_fs(‘gcs’, bucket=”my_bucket_name”, project=”my_project”)
-&gt;&gt;&gt; mypath = Path(“foo”)  # will use GCS
-&gt;&gt;&gt; other_path = Path(“foo2”)  # will use GCS too
-Or
-&gt;&gt;&gt; # noinspection PyShadowingNames
-&gt;&gt;&gt; from transparentpath import TransparentPath as Path
-&gt;&gt;&gt; mypath = Path(“foo”, fs=’gcs’, bucket=”my_bucket_name”, project=”my_project”)
-&gt;&gt;&gt; other_path = Path(“foo2”)  # will use GCS too</p>
+method, specify the appropriate keywords when calling your first path, or giving a path that starts with
+‘gs://bucketname/’. Then all the other paths will use the same file system.</p>
+<p>So either do</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># noinspection PyShadowingNames</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">transparentpath</span> <span class="kn">import</span> <span class="n">TransparentPath</span> <span class="k">as</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Path</span><span class="o">.</span><span class="n">set_global_fs</span><span class="p">(</span><span class="s1">&#39;gcs&#39;</span><span class="p">,</span> <span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;my_bucket_name&quot;</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">)</span>  
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># will use GCS</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mypath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;foo&quot;</span><span class="p">)</span>  
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># will use GCS</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">other_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;foo2&quot;</span><span class="p">)</span>  
+</pre></div>
+</div>
+<p>Or</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># noinspection PyShadowingNames</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">transparentpath</span> <span class="kn">import</span> <span class="n">TransparentPath</span> <span class="k">as</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mypath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;foo&quot;</span><span class="p">,</span> <span class="n">fs</span><span class="o">=</span><span class="s1">&#39;gcs&#39;</span><span class="p">,</span> <span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;my_bucket_name&quot;</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">)</span>  
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># will use GCS</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">other_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;foo2&quot;</span><span class="p">)</span>  
+</pre></div>
+</div>
+<p>Or</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># noinspection PyShadowingNames</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">transparentpath</span> <span class="kn">import</span> <span class="n">TransparentPath</span> <span class="k">as</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mypath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;gs://my_bucket_name/foo&quot;</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">)</span>  
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># will use GCS</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">other_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;foo2&quot;</span><span class="p">)</span>  
+</pre></div>
+</div>
+<p>However, no matter how you initialise a remote file, gs://bucketname will never figure in its name. It will not be
+stored in the underlying pathlib.Path object, and calling str(mypath) will not show it either. However, you can
+retreive the full path including gs://bucketname if any by calling</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">mypath</span><span class="o">.</span><span class="n">__fspath__</span><span class="p">()</span>  
+<span class="go">gs://my_bucket_name/foo</span>
+</pre></div>
+</div>
 <p>Note that your script must be able to log to GCS somehow. I generally use a service account with credentials
 stored in a json file, and add the envirronement variable ‘GOOGLE_APPLICATION_CREDENTIALS=path_to_project_cred.json’
 in my .bashrc. I haven’t tested any other method, but I guess that as long as gsutil works, TransparentPath will
-too.</p>
+too.
+When trying to instantiate a remote path, TransparentPath will try to call the ‘ls()’ method of gcsfs. If it
+fails, it will raise an error.</p>
 <p>Since the bucket name is provided in set_fs or set_global_fs, you <strong>must not</strong> specify it in your paths.
 Do not specify ‘gs://’ either, it is added when/if needed. Also, you should never create a directory with the same
 name as your current bucket.</p>
-<p>If your directories architecture on GCS is the same than localy up to some root directory, you can do:
-&gt;&gt;&gt; # noinspection PyShadowingNames
-&gt;&gt;&gt; from transparentpath import TransparentPath as Path
-&gt;&gt;&gt; Path.nas_dir = “/media/SERVEUR” # it is the default value, but reset here for example
-&gt;&gt;&gt; Path.set_global_fs(“gcs”, bucket=”my_bucket”, project=”my_project”)
-&gt;&gt;&gt; p = Path(“/media/SERVEUR”) / “chien” / “chat”  # Will be gs://my_bucket/chien/chat
-If the line ‘Path.set_global_fs(…’ is not commented out, the resulting path will be ‘gs://my_bucket/chien/chat’.
+<p>If your directories architecture on GCS is the same than localy up to some root directory, you can do:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># noinspection PyShadowingNames</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">transparentpath</span> <span class="kn">import</span> <span class="n">TransparentPath</span> <span class="k">as</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Path</span><span class="o">.</span><span class="n">nas_dir</span> <span class="o">=</span> <span class="s2">&quot;/media/SERVEUR&quot;</span> <span class="c1"># it is the default value, but reset here for example</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Path</span><span class="o">.</span><span class="n">set_global_fs</span><span class="p">(</span><span class="s2">&quot;gcs&quot;</span><span class="p">,</span> <span class="n">bucket</span><span class="o">=</span><span class="s2">&quot;my_bucket&quot;</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">)</span>  
+<span class="gp">&gt;&gt;&gt; </span><span class="n">p</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;/media/SERVEUR&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;chien&quot;</span> <span class="o">/</span> <span class="s2">&quot;chat&quot;</span>  <span class="c1"># Will be gs://my_bucket/chien/chat  </span>
+</pre></div>
+</div>
+<p>If the line ‘Path.set_global_fs(…’ is not commented out, the resulting path will be ‘gs://my_bucket/chien/chat’.
 If the line ‘Path.set_global_fs(…’ is commented out, the resulting path will be ‘/media/SERVEUR/chien/chat’.
 This allows you to create codes that can run identically both localy and on gcs, the only difference being
 the line ‘Path.set_global_fs(…’.</p>
 <p>Any method or attribute valid in fsspec.implementations.local.LocalFileSystem, gcs.GCSFileSystem or pathlib.Path
 can be used on a TransparentPath object. However, setting an attribute is not transparent : if, for
 example, you want to change the path’s name, you need to do</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">p</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;new_name&quot;</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">p</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;new_name&quot;</span>  
 </pre></div>
 </div>
 <p>instead of ‘p.name = “new_name”’. ‘p.path’ points to the underlying pathlib.Path object.</p>
@@ -394,13 +420,13 @@ method and anything using its ouput. Indeed os.open returns a file descriptor, n
 way to access file descriptors on gcs. For example, in the FileLock package, the acquire() method calls the
 _acquire() method which calls os.open(), so I had to do that:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">filelock</span> <span class="kn">import</span> <span class="n">FileLock</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">transparentpath</span> <span class="kn">import</span> <span class="n">TransparentPath</span> <span class="k">as</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">transparentpath</span> <span class="kn">import</span> <span class="n">TransparentPath</span> <span class="k">as</span> <span class="n">Tp</span>
 <span class="go">&gt;&gt;&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">MyFileLock</span><span class="p">(</span><span class="n">FileLock</span><span class="p">):</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="k">def</span> <span class="nf">_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="gp">&gt;&gt;&gt; </span>        <span class="n">tmp_lock_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock_file</span>
-<span class="gp">&gt;&gt;&gt; </span>        <span class="k">if</span> <span class="ow">not</span> <span class="nb">type</span><span class="p">(</span><span class="n">tmp_lock_file</span><span class="p">)</span> <span class="o">==</span> <span class="n">Path</span><span class="p">:</span>
-<span class="gp">&gt;&gt;&gt; </span>            <span class="n">tmp_lock_file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tmp_lock_file</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="k">if</span> <span class="ow">not</span> <span class="nb">type</span><span class="p">(</span><span class="n">tmp_lock_file</span><span class="p">)</span> <span class="o">==</span> <span class="n">Tp</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>            <span class="n">tmp_lock_file</span> <span class="o">=</span> <span class="n">Tp</span><span class="p">(</span><span class="n">tmp_lock_file</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span>        <span class="k">try</span><span class="p">:</span>
 <span class="gp">&gt;&gt;&gt; </span>            <span class="n">fd</span> <span class="o">=</span> <span class="n">tmp_lock_file</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span>        <span class="k">except</span> <span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">,</span> <span class="ne">FileExistsError</span><span class="p">):</span>
@@ -411,15 +437,15 @@ _acquire() method which calls os.open(), so I had to do that:</p>
 </pre></div>
 </div>
 <p>The original method was:</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="gp">&gt;&gt;&gt; </span>    <span class="n">open_mode</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">O_WRONLY</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">O_CREAT</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">O_EXCL</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">O_TRUNC</span>
-<span class="gp">&gt;&gt;&gt; </span>    <span class="k">try</span><span class="p">:</span>
-<span class="gp">&gt;&gt;&gt; </span>        <span class="n">fd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lock_file</span><span class="p">,</span> <span class="n">open_mode</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span>    <span class="k">except</span> <span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">):</span>
-<span class="gp">&gt;&gt;&gt; </span>        <span class="k">pass</span>
-<span class="gp">&gt;&gt;&gt; </span>    <span class="k">else</span><span class="p">:</span>
-<span class="gp">&gt;&gt;&gt; </span>        <span class="bp">self</span><span class="o">.</span><span class="n">_lock_file_fd</span> <span class="o">=</span> <span class="n">fd</span>
-<span class="gp">&gt;&gt;&gt; </span>    <span class="k">return</span> <span class="kc">None</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>  
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">open_mode</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">O_WRONLY</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">O_CREAT</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">O_EXCL</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">O_TRUNC</span>  
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">try</span><span class="p">:</span>  
+<span class="gp">&gt;&gt;&gt; </span>        <span class="n">fd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lock_file</span><span class="p">,</span> <span class="n">open_mode</span><span class="p">)</span>  
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">except</span> <span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">):</span>  
+<span class="gp">&gt;&gt;&gt; </span>        <span class="k">pass</span>  
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">else</span><span class="p">:</span>  
+<span class="gp">&gt;&gt;&gt; </span>        <span class="bp">self</span><span class="o">.</span><span class="n">_lock_file_fd</span> <span class="o">=</span> <span class="n">fd</span>  
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">return</span> <span class="kc">None</span>  
 </pre></div>
 </div>
 <p>I tried to implement a working version of any method valid in pathlib.Path or in file systems, but futur changes
@@ -690,7 +716,7 @@ before.</p>
 
 <dl class="py method">
 <dt id="transparentpath.gcsutils.transparentpath.TransparentPath.read">
-<code class="sig-name descname">read</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="n">get_obj</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">use_pandas</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Any<a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.read" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">read</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="n">get_obj</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">use_pandas</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">use_dask</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Any<a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.read" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method used to read the content of the file located at self</p>
 <p>Will raise FileNotFound error if there is no file. Calls a specific method to read self based on the suffix
 of self.path:</p>
@@ -714,6 +740,8 @@ else the string contained in the IO Buffer (Default value = False)</p></li>
 perfermed by them directly. If update_cache is True, the FileSystem will update its cache before trying
 to read anything. If False, it won’t, potentially saving some time but this might result in a
 FileNotFoundError. (Default value = True)</p></li>
+<li><p><strong>use_dask</strong> (<em>bool</em>) – To return a Dask DataFrame instead of a pandas DataFrame. Only makes sense if file suffix is xlsx, csv,
+parquet. (Default value = False)</p></li>
 <li><p><strong>args</strong> – any args to pass to the underlying reading method</p></li>
 <li><p><strong>kwargs</strong> – any kwargs to pass to the underlying reading method</p></li>
 </ul>
@@ -729,17 +757,17 @@ FileNotFoundError. (Default value = True)</p></li>
 
 <dl class="py method">
 <dt id="transparentpath.gcsutils.transparentpath.TransparentPath.read_csv">
-<code class="sig-name descname">read_csv</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; pandas.core.frame.DataFrame<a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.read_csv" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">read_csv</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">use_dask</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; pandas.core.frame.DataFrame<a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.read_csv" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
 <dt id="transparentpath.gcsutils.transparentpath.TransparentPath.read_excel">
-<code class="sig-name descname">read_excel</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; pandas.core.frame.DataFrame<a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.read_excel" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">read_excel</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">use_dask</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; pandas.core.frame.DataFrame<a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.read_excel" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
 <dt id="transparentpath.gcsutils.transparentpath.TransparentPath.read_hdf5">
-<code class="sig-name descname">read_hdf5</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">use_pandas</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>h5py._hl.files.File<span class="p">, </span>pandas.io.pytables.HDFStore<span class="p">]</span><a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.read_hdf5" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">read_hdf5</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">use_pandas</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">use_dask</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">set_names</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">''</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>h5py._hl.files.File<span class="p">, </span>pandas.io.pytables.HDFStore<span class="p">, </span>dask.dataframe.core.DataFrame<span class="p">]</span><a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.read_hdf5" title="Permalink to this definition">¶</a></dt>
 <dd><p>Reads a HDF5 file. Must have been created by h5py.File or pd.HDFStore (specify use_pandas=True if so)</p>
 <p>Since h5py.File/pd.HDFStore does not support GCS, first copy it in a tmp file.</p>
 <dl class="field-list simple">
@@ -750,22 +778,23 @@ directly. If update_cache is True, the FileSystem will update its cache before t
 If False, it won’t, potentially saving some time but this might result in a FileNotFoundError. (Default
 value = True)</p></li>
 <li><p><strong>use_pandas</strong> (<em>bool</em>) – To use HDFStore instead of h5py.File (Default value = False)</p></li>
-<li><p><strong>kwargs</strong> – The kwargs to pass to h5py.File/pd.HDFStore method</p></li>
+<li><p><strong>use_dask</strong> (<em>bool</em>) – To indicate that the HDF5 should be opened using dask.dataframe.read_hdf(). (Default value = False)</p></li>
+<li><p><strong>set_names</strong> (<em>str</em>) – See using dask.dataframe.read_hdf()’s ‘key’ argument. (Default value = “”)</p></li>
+<li><p><strong>kwargs</strong> – The kwargs to pass to h5py.File/pd.HDFStore method, or to dask.dataframe.read_hdf()</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p><ul class="simple">
-<li><p><em>Union[h5py.File, pd.HDFStore]</em></p></li>
-<li><p><em>Opened h5py.File/pd.HDFStore</em></p></li>
-</ul>
-</p>
+<dd class="field-even"><p>Opened h5py.File/pd.HDFStore</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Union[h5py.File, pd.HDFStore]</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="transparentpath.gcsutils.transparentpath.TransparentPath.read_parquet">
-<code class="sig-name descname">read_parquet</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>pandas.core.frame.DataFrame<span class="p">, </span>pandas.core.series.Series<span class="p">]</span><a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.read_parquet" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">read_parquet</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">use_dask</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>pandas.core.frame.DataFrame<span class="p">, </span>pandas.core.series.Series<span class="p">]</span><a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.read_parquet" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -890,12 +919,15 @@ is gcs (Default value = None).</p></li>
 
 <dl class="py method">
 <dt id="transparentpath.gcsutils.transparentpath.TransparentPath.to_csv">
-<code class="sig-name descname">to_csv</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>pandas.core.frame.DataFrame<span class="p">, </span>pandas.core.series.Series<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">present</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'ignore'</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.to_csv" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<code class="sig-name descname">to_csv</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>pandas.core.frame.DataFrame<span class="p">, </span>pandas.core.series.Series<span class="p">, </span>dask.dataframe.core.DataFrame<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">present</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'ignore'</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>None<span class="p">, </span>List<span class="p">[</span><a class="reference internal" href="#transparentpath.gcsutils.transparentpath.TransparentPath" title="transparentpath.gcsutils.transparentpath.TransparentPath">transparentpath.gcsutils.transparentpath.TransparentPath</a><span class="p">]</span><span class="p">]</span><a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.to_csv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Warning : if data is a Dask dataframe, the output might be written in multiple file. one can always specify
+single_file=True, but that is not supported in GCS. If only one file is produced, then this file will be
+moved to self.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt id="transparentpath.gcsutils.transparentpath.TransparentPath.to_excel">
-<code class="sig-name descname">to_excel</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>pandas.core.frame.DataFrame<span class="p">, </span>pandas.core.series.Series<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">present</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'ignore'</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.to_excel" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">to_excel</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>pandas.core.frame.DataFrame<span class="p">, </span>pandas.core.series.Series<span class="p">, </span>dask.dataframe.core.DataFrame<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">present</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'ignore'</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.to_excel" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -930,8 +962,10 @@ value = True)</p></li>
 
 <dl class="py method">
 <dt id="transparentpath.gcsutils.transparentpath.TransparentPath.to_parquet">
-<code class="sig-name descname">to_parquet</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>pandas.core.frame.DataFrame<span class="p">, </span>pandas.core.series.Series<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">present</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'ignore'</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">columns_to_string</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">to_dataframe</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.to_parquet" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<code class="sig-name descname">to_parquet</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>pandas.core.frame.DataFrame<span class="p">, </span>pandas.core.series.Series<span class="p">, </span>dask.dataframe.core.DataFrame<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">present</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'ignore'</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">columns_to_string</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">to_dataframe</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.to_parquet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Warning : if data is a Dask dataframe, the output will be written in a directory. For convenience, the directory
+if self.with_suffix(“”). Reading is transparent and one can specify a path with .parquet suffix.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt id="transparentpath.gcsutils.transparentpath.TransparentPath.touch">
@@ -1026,7 +1060,7 @@ Uses the with_suffix method of pathlib.Path</p>
 
 <dl class="py method">
 <dt id="transparentpath.gcsutils.transparentpath.TransparentPath.write">
-<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">set_name</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'data'</span></em>, <em class="sig-param"><span class="n">use_pandas</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">present</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'ignore'</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>None<span class="p">, </span>pandas.io.pytables.HDFStore<span class="p">, </span>h5py._hl.files.File<span class="p">]</span><a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.write" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Any</span></em>, <em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="n">set_name</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'data'</span></em>, <em class="sig-param"><span class="n">use_pandas</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">present</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'ignore'</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">make_parents</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>None<span class="p">, </span>pandas.io.pytables.HDFStore<span class="p">, </span>h5py._hl.files.File<span class="p">]</span><a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.write" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method used to write the content of the file located at self</p>
 <p>Calls a specific method to write data based on the suffix of self.path:</p>
 <blockquote>
@@ -1052,6 +1086,7 @@ hsf5 and parquet files.</p></li>
 directly. If update_cache is True, the FileSystem will update its cache before trying to read anything.
 If False, it won’t, potentially saving some time but this might result in a FileExistError. (Default
 value = True)</p></li>
+<li><p><strong>make_parents</strong> (<em>bool</em>) – If True and if the parent arborescence does not exist, it is created. (Default value = False)</p></li>
 <li><p><strong>args</strong> – any args to pass to the underlying writting method</p></li>
 <li><p><strong>kwargs</strong> – any kwargs to pass to the underlying reading method</p></li>
 </ul>
@@ -1067,14 +1102,27 @@ value = True)</p></li>
 
 <dl class="py method">
 <dt id="transparentpath.gcsutils.transparentpath.TransparentPath.write_bytes">
-<code class="sig-name descname">write_bytes</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Any</span></em>, <em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">present</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'ignore'</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.write_bytes" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">write_bytes</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Any</span></em>, <em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">present</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'ignore'</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.write_bytes" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
 <dt id="transparentpath.gcsutils.transparentpath.TransparentPath.write_stuff">
-<code class="sig-name descname">write_stuff</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Any</span></em>, <em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">present</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'ignore'</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.write_stuff" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">write_stuff</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Any</span></em>, <em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">present</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'ignore'</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#transparentpath.gcsutils.transparentpath.TransparentPath.write_stuff" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
+</dd></dl>
+
+<dl class="py function">
+<dt id="transparentpath.gcsutils.transparentpath.apply_index_and_date">
+<code class="sig-prename descclassname">transparentpath.gcsutils.transparentpath.</code><code class="sig-name descname">apply_index_and_date</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">index_col</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">parse_dates</span><span class="p">:</span> <span class="n">bool</span></em>, <em class="sig-param"><span class="n">df</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>pandas.core.frame.DataFrame<span class="p">, </span>dask.dataframe.core.DataFrame<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>pandas.core.frame.DataFrame<span class="p">, </span>dask.dataframe.core.DataFrame<span class="p">]</span><a class="headerlink" href="#transparentpath.gcsutils.transparentpath.apply_index_and_date" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="transparentpath.gcsutils.transparentpath.check_kwargs">
+<code class="sig-prename descclassname">transparentpath.gcsutils.transparentpath.</code><code class="sig-name descname">check_kwargs</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">method</span><span class="p">:</span> <span class="n">Callable</span></em>, <em class="sig-param"><span class="n">kwargs</span><span class="p">:</span> <span class="n">dict</span></em><span class="sig-paren">)</span><a class="headerlink" href="#transparentpath.gcsutils.transparentpath.check_kwargs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes as argument a method and some kwargs. Will like in the method signature et return in two separate dict
+the kwargs that are in the signature and those that are not.</p>
+<p>If the method does not return any signature or if it explicitely accepts <a href="#id5"><span class="problematic" id="id6">**</span></a>kwargs, does not do anything</p>
 </dd></dl>
 
 <dl class="py function">
@@ -1114,6 +1162,11 @@ value = True)</p></li>
 </dd>
 </dl>
 </dd></dl>
+
+<dl class="py function">
+<dt id="transparentpath.gcsutils.transparentpath.get_index_and_date_from_kwargs">
+<code class="sig-prename descclassname">transparentpath.gcsutils.transparentpath.</code><code class="sig-name descname">get_index_and_date_from_kwargs</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">dict</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>int<span class="p">, </span>bool<span class="p">, </span>dict<span class="p">]</span><a class="headerlink" href="#transparentpath.gcsutils.transparentpath.get_index_and_date_from_kwargs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="py function">
 <dt id="transparentpath.gcsutils.transparentpath.myisinstance">

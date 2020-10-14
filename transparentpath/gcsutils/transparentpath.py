@@ -40,13 +40,13 @@ class MyHDFFile(h5py.File):
     """Class to override h5py.File to handle files on GCS.
 
     This allows to do :
-    >>> from transparentpath import TransparentPath
-    >>> import numpy as np
-    >>> TransparentPath.set_global_fs("gcs", bucket="bucket_name", project="project_name")
-    >>> path = TransparentPath("chien.hdf5")
+    >>> from transparentpath import TransparentPath  # doctest: +SKIP
+    >>> import numpy as np  # doctest: +SKIP
+    >>> TransparentPath.set_global_fs("gcs", bucket="bucket_name", project="project_name")  # doctest: +SKIP
+    >>> path = TransparentPath("chien.hdf5"  # doctest: +SKIP
     >>>
-    >>> with path.write() as ifile:
-    >>>     ifile["data"] = np.array([1, 2])
+    >>> with path.write() as ifile:  # doctest: +SKIP
+    >>>     ifile["data"] = np.array([1, 2])  # doctest: +SKIP
     """
 
     def __init__(self, *args, remote: Union[TransparentPath, None] = None, **kwargs):
@@ -341,36 +341,61 @@ class TransparentPath(os.PathLike):  # noqa : F811
     >>> other_path = mypath / "stuff"
 
     If using GCS, you will have to provide a bucket, and a project name. You can either use the class 'set_global_fs'
-    method, or specify the appropriate keywords when calling your first path. Then all the other paths will use the
-    same file system.
+    method, specify the appropriate keywords when calling your first path, or giving a path that starts with
+    'gs://bucketname/'. Then all the other paths will use the same file system.
 
     So either do
+
     >>> # noinspection PyShadowingNames
     >>> from transparentpath import TransparentPath as Path
-    >>> Path.set_global_fs('gcs', bucket="my_bucket_name", project="my_project")
-    >>> mypath = Path("foo")  # will use GCS
-    >>> other_path = Path("foo2")  # will use GCS too
+    >>> Path.set_global_fs('gcs', bucket="my_bucket_name", project="my_project")  # doctest: +SKIP
+    >>> # will use GCS
+    >>> mypath = Path("foo")  # doctest: +SKIP
+    >>> # will use GCS
+    >>> other_path = Path("foo2")  # doctest: +SKIP
+
     Or
+
     >>> # noinspection PyShadowingNames
     >>> from transparentpath import TransparentPath as Path
-    >>> mypath = Path("foo", fs='gcs', bucket="my_bucket_name", project="my_project")
-    >>> other_path = Path("foo2")  # will use GCS too
+    >>> mypath = Path("foo", fs='gcs', bucket="my_bucket_name", project="my_project")  # doctest: +SKIP
+    >>> # will use GCS
+    >>> other_path = Path("foo2")  # doctest: +SKIP
+
+    Or
+
+    >>> # noinspection PyShadowingNames
+    >>> from transparentpath import TransparentPath as Path
+    >>> mypath = Path("gs://my_bucket_name/foo", project="my_project")  # doctest: +SKIP
+    >>> # will use GCS
+    >>> other_path = Path("foo2")  # doctest: +SKIP
+
+    However, no matter how you initialise a remote file, gs://bucketname will never figure in its name. It will not be
+    stored in the underlying pathlib.Path object, and calling str(mypath) will not show it either. However, you can
+    retreive the full path including gs://bucketname if any by calling
+
+    >>> mypath.__fspath__()  # doctest: +SKIP
+    gs://my_bucket_name/foo
 
     Note that your script must be able to log to GCS somehow. I generally use a service account with credentials
     stored in a json file, and add the envirronement variable 'GOOGLE_APPLICATION_CREDENTIALS=path_to_project_cred.json'
     in my .bashrc. I haven't tested any other method, but I guess that as long as gsutil works, TransparentPath will
     too.
+    When trying to instantiate a remote path, TransparentPath will try to call the 'ls()' method of gcsfs. If it
+    fails, it will raise an error.
 
     Since the bucket name is provided in set_fs or set_global_fs, you **must not** specify it in your paths.
     Do not specify 'gs://' either, it is added when/if needed. Also, you should never create a directory with the same
     name as your current bucket.
 
     If your directories architecture on GCS is the same than localy up to some root directory, you can do:
+
     >>> # noinspection PyShadowingNames
     >>> from transparentpath import TransparentPath as Path
     >>> Path.nas_dir = "/media/SERVEUR" # it is the default value, but reset here for example
-    >>> Path.set_global_fs("gcs", bucket="my_bucket", project="my_project")
-    >>> p = Path("/media/SERVEUR") / "chien" / "chat"  # Will be gs://my_bucket/chien/chat
+    >>> Path.set_global_fs("gcs", bucket="my_bucket", project="my_project")  # doctest: +SKIP
+    >>> p = Path("/media/SERVEUR") / "chien" / "chat"  # Will be gs://my_bucket/chien/chat  # doctest: +SKIP
+
     If the line 'Path.set_global_fs(...' is not commented out, the resulting path will be 'gs://my_bucket/chien/chat'.
     If the line 'Path.set_global_fs(...' is commented out, the resulting path will be '/media/SERVEUR/chien/chat'.
     This allows you to create codes that can run identically both localy and on gcs, the only difference being
@@ -380,7 +405,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     can be used on a TransparentPath object. However, setting an attribute is not transparent : if, for
     example, you want to change the path's name, you need to do
 
-    >>> p.path.name = "new_name"
+    >>> p.path.name = "new_name"  # doctest: +SKIP
 
     instead of 'p.name = "new_name"'. 'p.path' points to the underlying pathlib.Path object.
 
@@ -420,13 +445,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
     _acquire() method which calls os.open(), so I had to do that:
 
     >>> from filelock import FileLock
-    >>> from transparentpath import TransparentPath as Path
+    >>> from transparentpath import TransparentPath as Tp
     >>>
     >>> class MyFileLock(FileLock):
     >>>     def _acquire(self):
     >>>         tmp_lock_file = self._lock_file
-    >>>         if not type(tmp_lock_file) == Path:
-    >>>             tmp_lock_file = Path(tmp_lock_file)
+    >>>         if not type(tmp_lock_file) == Tp:
+    >>>             tmp_lock_file = Tp(tmp_lock_file)
     >>>         try:
     >>>             fd = tmp_lock_file.open("x")
     >>>         except (IOError, OSError, FileExistsError):
@@ -437,15 +462,15 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     The original method was:
 
-    >>> def _acquire(self):
-    >>>     open_mode = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_TRUNC
-    >>>     try:
-    >>>         fd = os.open(self._lock_file, open_mode)
-    >>>     except (IOError, OSError):
-    >>>         pass
-    >>>     else:
-    >>>         self._lock_file_fd = fd
-    >>>     return None
+    >>> def _acquire(self):  # doctest: +SKIP
+    >>>     open_mode = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_TRUNC  # doctest: +SKIP
+    >>>     try:  # doctest: +SKIP
+    >>>         fd = os.open(self._lock_file, open_mode)  # doctest: +SKIP
+    >>>     except (IOError, OSError):  # doctest: +SKIP
+    >>>         pass  # doctest: +SKIP
+    >>>     else:  # doctest: +SKIP
+    >>>         self._lock_file_fd = fd  # doctest: +SKIP
+    >>>     return None  # doctest: +SKIP
 
     I tried to implement a working version of any method valid in pathlib.Path or in file systems, but futur changes
     in any of those will not be taken into account quickly.
@@ -560,7 +585,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Parameters
         ----------
         path: Union[pathlib.Path, TransparentPath, str]
-            The path of the object, without 'gs://' and without bucket name. (Default value = '.')
+            The path of the object (Default value = '.')
 
         nocheck: bool
             If True, will not call check_multiplicity (quicker but less secure). (Default value = False)
@@ -592,14 +617,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
         ):
             raise TypeError(f"Unsupported type {type(path)} for path")
 
-        self.path = Path(str(path).encode("utf-8").decode("utf-8"), **kwargs)
-
         # I never remember whether I should use fs='local' or fs_kind='local'. That way I don't need to.
         if "fs_kind" in kwargs and fs is None:
             fs = kwargs["fs_kind"]
             del kwargs["fs_kind"]
 
-        # Copy path completely if is a TransparentPath and we did not
+        # Copy path completely if it is a TransparentPath and we did not
         # ask for a new file system
         if type(path) == TransparentPath and fs is None:
             # noinspection PyUnresolvedReferences
@@ -612,7 +635,55 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.fs = path.fs
             # noinspection PyUnresolvedReferences
             self.nas_dir = path.nas_dir
+            # noinspection PyUnresolvedReferences
+            self.path = path.path
             return
+
+        # In case we initiate a path containing 'gs://'
+        # If True, then path can not be a TransparentPath for a TransparentPath does not contain gs:// anymore
+        if "gs://" in str(path):
+
+            if project is None and TransparentPath.project is None:
+                raise ValueError("You specified a path starting with 'gs://' but did not specify any GCP project")
+
+            if fs == "local":
+                raise ValueError(
+                    "You specified a path starting with 'gs://' but ask for it to be local. This is not possible."
+                )
+            fs = "gcs"
+            splitted = str(path).split("gs://")
+            if len(splitted) == 0:
+                if bucket is None and TransparentPath.bucket is None:
+                    raise ValueError(
+                        "If using a path starting with 'gs://', you must include the bucket name unless it"
+                        "is specified with bucket= or if TransparentPath already has been set to use a"
+                        "specified bucket"
+                    )
+                path = str(path).replace("gs://", "")
+
+            elif len(splitted) > 0:
+                bucket_from_path = splitted[1].split("/")[0]
+                if bucket is not None:
+                    if bucket != bucket_from_path:
+                        raise ValueError(
+                            f"Bucket name {bucket_from_path} was found in your path name, but it does "
+                            f"not match the bucket name you specified with bucket={bucket}"
+                        )
+                else:
+                    bucket = bucket_from_path
+                if TransparentPath.bucket is not None:
+                    if TransparentPath.bucket != bucket_from_path:
+                        raise ValueError(
+                            f"Bucket name {bucket_from_path} was found in your path name, but it does "
+                            f"not match the bucket name you specified for TransparentPath: {TransparentPath.bucket}"
+                        )
+                else:
+                    TransparentPath.bucket = bucket_from_path
+                path = str(path).replace("gs://", "").replace(bucket_from_path, "")
+                if path.startswith("/"):
+                    path = path[1:]
+
+        self.path = Path(str(path).encode("utf-8").decode("utf-8"), **kwargs)
 
         self.project = project if project is not None else TransparentPath.project
         self.bucket = bucket if bucket is not None else TransparentPath.bucket
