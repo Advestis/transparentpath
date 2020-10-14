@@ -46,6 +46,15 @@ local_path = Path("chien", fs="local")  # will NOT use GCS
 other_path = Path("foo2")  # will use GCS
 ```
 
+or
+
+```python
+# noinspection PyShadowingNames
+from transparentpath import TransparentPath as Path
+mypath = Path("gs://my_bucket_name/foo", project="my_project")
+# will use GCS
+other_path = Path("foo2")
+```
 
 Set TransparentPath to point to your local machine:
 ```python
@@ -70,7 +79,7 @@ df = mypath.read(index_col=0, parse_dates=True)
 otherpath = mypath.with_suffix(".parquet")
 otherpath.write(df)
 
-# Reading and writing a HDF5 file works on GCS :
+# Reading and writing a HDF5 file works on GCS and on local:
 import numpy as np
 mypath = Path("foo") / "bar.hdf5"  # could be .h5 too
 with mypath.read() as ifile:
@@ -96,11 +105,24 @@ mypath.is_file()
 files = mypath.parent.glob("/*.csv")  # Returns a Iterator[TransparentPath], can be casted to list
 ```
 
-Do not hesitate to read the documentation in **docs/** for more methods.
+### Dask
+
+TransparentPath supports writing and reading Dask dataframes from and to csv, excel, parquet and HDF5, both locally and
+remotely. Writing Dask dataframes does not require any additionnal arguments to be passed for the type will be checked
+before calling the appropriate writting method. Reading however requires you to pass the *use_Dask* argument to the
+`read()` method. If the file to read is HDF5, you will also need to specify *set_names*, mathcing the argument *key*
+of Dask's `read_hdf()` method.
+
+Note that if reading a remote HDF5, the file will be downloaded in /tmp, then read. If not using Dask, the file is
+deleted after being read. but since Dask uses delayed processes, deleting the file might occure before the file is
+actually read, so the file is kept. Up to you to empty your /tmp directory if it is not done automatically by your
+system.
+
+
+Do not hesitate to read the documentation in **docs/** for more details.
 
 
 ## Behavior
-
 
 All instances of TransparentPath are absolute, even if created with relative paths.
 
