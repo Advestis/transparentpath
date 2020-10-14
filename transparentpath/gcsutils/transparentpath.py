@@ -560,7 +560,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Parameters
         ----------
         path: Union[pathlib.Path, TransparentPath, str]
-            The path of the object, without 'gs://' and without bucket name. (Default value = '.')
+            The path of the object (Default value = '.')
 
         nocheck: bool
             If True, will not call check_multiplicity (quicker but less secure). (Default value = False)
@@ -592,14 +592,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
         ):
             raise TypeError(f"Unsupported type {type(path)} for path")
 
-        self.path = Path(str(path).encode("utf-8").decode("utf-8"), **kwargs)
-
         # I never remember whether I should use fs='local' or fs_kind='local'. That way I don't need to.
         if "fs_kind" in kwargs and fs is None:
             fs = kwargs["fs_kind"]
             del kwargs["fs_kind"]
 
-        # Copy path completely if is a TransparentPath and we did not
+        # Copy path completely if it is a TransparentPath and we did not
         # ask for a new file system
         if type(path) == TransparentPath and fs is None:
             # noinspection PyUnresolvedReferences
@@ -612,7 +610,54 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.fs = path.fs
             # noinspection PyUnresolvedReferences
             self.nas_dir = path.nas_dir
+            # noinspection PyUnresolvedReferences
+            self.path = path.path
             return
+
+        # In case we initiate a path containing 'gs://'
+        # If True, then path can not be a TransparentPath for a TransparentPath does not contain gs:// anymore
+        if "gs://" in str(path):
+
+            if project is None and TransparentPath.project is None:
+                raise ValueError("You specified a path starting with 'gs://' but did not specify any GCP project")
+
+            if fs == "local":
+                raise ValueError("You specified a path starting with 'gs://' but ask for it to be local. This is not"
+                                 "possible.")
+            fs = "gcs"
+            splitted = str(path).split("gs://")
+            if len(splitted) == 0:
+                if bucket is None and TransparentPath.bucket is None:
+                    raise ValueError(
+                        "If using a path starting with 'gs://', you must include the bucket name unless it"
+                        "is specified with bucket= or if TransparentPath already has been set to use a"
+                        "specified bucket"
+                    )
+                path = str(path).replace("gs://", "")
+
+            elif len(splitted) > 0:
+                bucket_from_path = splitted[1].split("/")[0]
+                if bucket is not None:
+                    if bucket != bucket_from_path:
+                        raise ValueError(
+                            f"Bucket name {bucket_from_path} was found in your path name, but it does "
+                            f"not match the bucket name you specified with bucket={bucket}"
+                        )
+                else:
+                    bucket = bucket_from_path
+                if TransparentPath.bucket is not None:
+                    if TransparentPath.bucket != bucket_from_path:
+                        raise ValueError(
+                            f"Bucket name {bucket_from_path} was found in your path name, but it does "
+                            f"not match the bucket name you specified for TransparentPath: {TransparentPath.bucket}"
+                        )
+                else:
+                    TransparentPath.bucket = bucket_from_path
+                path = str(path).replace("gs://", "").replace(bucket_from_path, "")
+                if path.startswith("/"):
+                    path = path[1:]
+
+        self.path = Path(str(path).encode("utf-8").decode("utf-8"), **kwargs)
 
         self.project = project if project is not None else TransparentPath.project
         self.bucket = bucket if bucket is not None else TransparentPath.bucket
