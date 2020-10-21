@@ -19,9 +19,6 @@ import dask.dataframe as dd
 from dask.delayed import delayed
 from dask.distributed import client
 
-cli = client.Client(processes=False)
-
-
 builtins_open = builtins.open
 builtins_isinstance = builtins.isinstance
 
@@ -483,6 +480,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     nas_dir = "/media/SERVEUR"
     unset = True
     cwd = os.getcwd()
+    cli = None
 
     _attributes = ["fs", "path", "fs_kind", "project", "bucket"]
 
@@ -1539,6 +1537,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
         self.check_multiplicity()
         if use_dask:
+            if TransparentPath.cli is None:
+                TransparentPath.cli = client.Client(processes=False)
             if self.suffix != ".csv" and self.suffix != ".parquet" and not self.is_file():
                 raise FileNotFoundError(f"Could not find file {self}")
             else:
@@ -1706,7 +1706,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5")
             f.close()  # deletes the tmp file, but we can still use its name to download the remote file locally
             self.get(f.name)
-            data = cli.submit(dd.read_hdf, f.name, set_names, **kwargs)
+            data = TransparentPath.cli.submit(dd.read_hdf, f.name, set_names, **kwargs)
             # Do not delete the tmp file, since dask tasks are delayed
             return data.result()
 
@@ -1921,11 +1921,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
             raise FileExistsError()
 
         if isinstance(data, dd.DataFrame):
+            if TransparentPath.cli is None:
+                TransparentPath.cli = client.Client(processes=False)
             check_kwargs(dd.to_csv, kwargs)
             path_to_save = self
             if not path_to_save.stem.endswith("*"):
                 path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
-            futures = cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
+            futures = TransparentPath.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
             outfiles = [TransparentPath(f, fs=self.fs_kind) for f in futures.result()]
             if len(outfiles) == 1:
                 outfiles[0].mv(self)
@@ -1965,6 +1967,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         # noinspection PyTypeChecker
         if isinstance(data, dd.DataFrame):
+            if TransparentPath.cli is None:
+                TransparentPath.cli = client.Client(processes=False)
             check_kwargs(dd.to_parquet, kwargs)
             dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
         else:
@@ -2039,16 +2043,18 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 #                           f"dataframe back, and pandas will read bullshit from it. So don't"
                 #                           f"try to write into HDF5 using Dask.")
 
+                if TransparentPath.cli is None:
+                    TransparentPath.cli = client.Client(processes=False)
                 check_kwargs(dd.to_hdf, kwargs)
                 if self.fs_kind == "local":
                     for aset in sets:
                         dd.to_hdf(sets[aset], self, aset, mode=mode, **kwargs)
                 else:
                     with tempfile.NamedTemporaryFile() as f:
-                        futures = cli.map(
+                        futures = TransparentPath.cli.map(
                             dd.to_hdf, list(sets.values()), [f.name] * len(sets), list(sets.keys()), mode=mode, **kwargs
                         )
-                        cli.gather(futures)
+                        TransparentPath.cli.gather(futures)
                         TransparentPath(path=f.name, fs="local").put(self.path)
                 return
 
@@ -2089,6 +2095,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         if self.fs_kind == "local":
             if isinstance(data, dd.DataFrame):
+                if TransparentPath.cli is None:
+                    TransparentPath.cli = client.Client(processes=False)
                 check_kwargs(pd.DataFrame.to_excel, kwargs)
                 parts = delayed(pd.DataFrame.to_excel)(data, self.__fspath__(), **kwargs)
                 parts.compute()
@@ -2097,6 +2105,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
         else:
             with tempfile.NamedTemporaryFile(delete=True, suffix=".xlsx") as f:
                 if isinstance(data, dd.DataFrame):
+                    if TransparentPath.cli is None:
+                        TransparentPath.cli = client.Client(processes=False)
                     check_kwargs(pd.DataFrame.to_excel, kwargs)
                     parts = delayed(pd.DataFrame.to_excel)(data, f.name, **kwargs)
                     parts.compute()
