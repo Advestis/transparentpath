@@ -149,4 +149,3 @@ docsbuild/source/changelog.rst
 docsbuild/source/*.rst
 !docsbuild/source/modules.rst
 !docsbuild/source/index.rst
-docs
