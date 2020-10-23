@@ -7,6 +7,7 @@ Changelog
 
 New
 ~~~
+- Changed documentation location to use on github pages. [pcotte]
 - Can now specify gcs path using gs://bucketname/stuff. [pcotte]
 - Removed delayed_delete. Added check_kwargs. [pcotte]
 - Can specify make_parents to write() method. [pcotte]
