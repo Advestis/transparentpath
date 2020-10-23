@@ -22,6 +22,7 @@ doc:
 	@sphinx-apidoc -f -o ./docsbuild/source/ transparentpath
 	@make -C docsbuild html
 	@if ! [ -f ./docsbuild/build/html/.nojekyll ] ; then touch ./docsbuild/build/html/.nojekyll ; fi
+	@if ! [ -d ./docs ] ; then mkdir ./docs ; fi
 	@cp -a ./docsbuild/build/html/. ./docs/
 
 %: Makefile
