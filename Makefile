@@ -1,4 +1,9 @@
-PACKAGE = "transparentpath"
+PACKAGE = $(basename pwd)
+current_dir := $(notdir $(patsubst %/,%,$(dir $(mkfile_path))))
+
+
+test:
+	@echo $(current_dir)
 
 help:
 	@echo "Run :"
