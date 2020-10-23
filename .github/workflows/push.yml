@@ -23,6 +23,8 @@ jobs:
           pip install setuptools
           python setup.py sdist
           make doc
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
           git add .
           git commit -m "docs"
           git push -u origin master:gh_pages
