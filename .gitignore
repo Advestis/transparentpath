@@ -143,3 +143,9 @@ cython_debug/
 chien/
 dask-worker-space/
 docsbuild/build/
+docsbuild/source/_static
+docsbuild/source/_templates
+docsbuild/source/changelog.rst
+docsbuild/source/*.rst
+!docsbuild/source/modules.rst
+!docsbuild/source/index.rst
