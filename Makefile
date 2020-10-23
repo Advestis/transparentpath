@@ -1,9 +1,6 @@
-PACKAGE = $(basename pwd)
-current_dir := $(notdir $(patsubst %/,%,$(dir $(mkfile_path))))
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+PACKAGE := $(notdir $(patsubst %/,%,$(dir $(mkfile_path))))
 
-
-test:
-	@echo $(current_dir)
 
 help:
 	@echo "Run :"
@@ -24,7 +21,7 @@ doc:
 	@gitchangelog > ./docsbuild/source/changelog.rst
 	@if [ ! -d ./docsbuild/source/_static ]; then mkdir -p ./docsbuild/source/_static; fi
 	@if [ ! -d ./docsbuild/source/_templates ]; then mkdir -p ./docsbuild/source/_templates; fi
-	@sphinx-apidoc -f -o ./docsbuild/source/ transparentpath
+	@sphinx-apidoc -f -o ./docsbuild/source/ $(PACKAGE)
 	@make -C docsbuild html
 	@if ! [ -f ./docsbuild/build/html/.nojekyll ] ; then touch ./docsbuild/build/html/.nojekyll ; fi
 	@if ! [ -d ./docs ] ; then mkdir ./docs ; fi
