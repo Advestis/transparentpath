@@ -21,6 +21,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install setuptools
           python setup.py sdist
+          make doc
+          git add .
+          git commit -m "docs"
+          git push -u origin master:gh_pages
       - name: topypi
         uses: pypa/gh-action-pypi-publish@master
         with:
