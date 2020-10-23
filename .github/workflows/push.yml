@@ -15,9 +15,8 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - name: build
-        with:
           token: ${{ secrets.token_cicd }}}
+      - name: build
         run: |
           git clone https://github.com/Advestis/transparentpath .
           python -m pip install --upgrade pip
