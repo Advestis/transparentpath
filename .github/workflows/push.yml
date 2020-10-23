@@ -36,6 +36,7 @@ jobs:
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
           branch: "gh-pages"
+          force: true
       - name: topypi
         uses: pypa/gh-action-pypi-publish@master
         with:
