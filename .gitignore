@@ -142,4 +142,4 @@ cython_debug/
 .idea/
 chien/
 dask-worker-space/
-!docsbuild/build/
+docsbuild/build/
