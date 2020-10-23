@@ -142,3 +142,4 @@ cython_debug/
 .idea/
 chien/
 dask-worker-space/
+!docs/build/
