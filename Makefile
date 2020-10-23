@@ -12,20 +12,10 @@ help:
 
 doc:
 	@echo "Making documentation..."
-	@pip3 install sphinx
-	@pip3 install sphinxcontrib-apidoc
-	@pip3 install sphinx-rtd-theme
-	@pip3 install --upgrade recommonmark
-	@pip3 install sphinx-markdown-builder
-	@pip3 install gitchangelog
-	@gitchangelog > ./docsbuild/source/changelog.rst
-	@if [ ! -d ./docsbuild/source/_static ]; then mkdir -p ./docsbuild/source/_static; fi
-	@if [ ! -d ./docsbuild/source/_templates ]; then mkdir -p ./docsbuild/source/_templates; fi
-	@sphinx-apidoc -f -o ./docsbuild/source/ $(PACKAGE)
-	@make -C docsbuild html
-	@if ! [ -f ./docsbuild/build/html/.nojekyll ] ; then touch ./docsbuild/build/html/.nojekyll ; fi
-	@if ! [ -d ./docs ] ; then mkdir ./docs ; fi
-	@cp -a ./docsbuild/build/html/. ./docs/
+	@pip3 install pdoc3
+	@pdoc --html tablewriter -o docs
+	@mv docs/tablewriter/* docs/
+	@rm -r docs/tablewriter
 
 %: Makefile
 	@echo "Running python setup.py "$@"..."
