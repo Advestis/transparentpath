@@ -10,3 +10,4 @@ if [ ! -d ./source/_templates ]; then mkdir -p ./source/_templates; fi
 sphinx-apidoc -f -o source/ transparentpath
 make html
 make markdown
+cp -a _build/html/. docs/
