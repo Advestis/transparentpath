@@ -2,6 +2,8 @@
 permalink: /docs/index.html
 ---
 
+**The complete documentation is available at https://advestis.github.io/transparentpath/**
+
 # TransparentPath
 
 A class that allows one to use a path in a local file system or a gcs file system (more or less) in almost the
