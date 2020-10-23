@@ -9,4 +9,7 @@ if [ ! -d ./docs/source/_static ]; then mkdir -p ./docs/source/_static; fi
 if [ ! -d ./docs/source/_templates ]; then mkdir -p ./docs/source/_templates; fi
 sphinx-apidoc -f -o ./docs/source/ transparentpath
 cd docs && make html
-if ! [ -f ./docs/build/html/.nojekyll ] ; then touch ./docs/build/html/.nojekyll ; fi
+if ! [ -f ./build/html/.nojekyll ] ; then
+  touch ./build/html/.nojekyll
+fi
+
