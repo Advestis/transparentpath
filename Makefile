@@ -13,9 +13,9 @@ help:
 doc:
 	@echo "Making documentation..."
 	@pip3 install pdoc3
-	@pdoc --html tablewriter -o docs
-	@mv docs/tablewriter/* docs/
-	@rm -r docs/tablewriter
+	@pdoc --html $(PACKAGE) -o docs
+	@mv docs/$(PACKAGE)/* docs/
+	@rm -r docs/$(PACKAGE)
 
 %: Makefile
 	@echo "Running python setup.py "$@"..."
