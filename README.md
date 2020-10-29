@@ -187,7 +187,7 @@ example, you want to change the path's name, you need to do
 ```python
 from transparentpath import TransparentPath as Path
 mypath = Path("chien.txt")
-mypath.path.name = "new_name.txt"  # instead of p.name = "new_name.txt"
+mypath.__path.name = "new_name.txt"  # instead of p.name = "new_name.txt"
 ```
 
 *p.path* points to the underlying pathlib.Path object.

@@ -399,10 +399,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     the line 'Path.set_global_fs(...'.
 
     Any method or attribute valid in fsspec.implementations.local.LocalFileSystem, gcs.GCSFileSystem or pathlib.Path
-    can be used on a TransparentPath object. However, setting an attribute is not transparent : if, for
-    example, you want to change the path's name, you need to do
-
-    >>> p.path.name = "new_name"  # doctest: +SKIP
+    can be used on a TransparentPath object.
 
     instead of 'p.name = "new_name"'. 'p.path' points to the underlying pathlib.Path object.
 
@@ -634,7 +631,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             # noinspection PyUnresolvedReferences
             self.nas_dir = path.nas_dir
             # noinspection PyUnresolvedReferences
-            self.path = path.path
+            self.__path = path.path
             return
 
         # In case we initiate a path containing 'gs://'
@@ -681,7 +678,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 if path.startswith("/"):
                     path = path[1:]
 
-        self.path = Path(str(path).encode("utf-8").decode("utf-8"), **kwargs)
+        self.__path = Path(str(path).encode("utf-8").decode("utf-8"), **kwargs)
 
         self.project = project if project is not None else TransparentPath.project
         self.bucket = bucket if bucket is not None else TransparentPath.bucket
@@ -704,16 +701,16 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.set_fs(self.fs_kind, self.bucket, self.project)
 
         if self.fs_kind == "local":
-            self.path = self.path.absolute()
+            self.__path = self.__path.absolute()
 
         if collapse:
-            self.path = collapse_ddots(self.path)
+            self.__path = collapse_ddots(self.__path)
 
         if self.fs_kind == "local":
 
             # ON LOCAL
 
-            if len(self.path.parts) > 0 and self.path.parts[0] == "..":
+            if len(self.__path.parts) > 0 and self.__path.parts[0] == "..":
                 raise ValueError("The path can not start with '..'")
 
         else:
@@ -722,27 +719,35 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
             # Remove occurences of nas_dir at beginning of path, if any
             if self.nas_dir is not None and (
-                str(self.path).startswith(os.path.abspath(self.nas_dir) + os.sep) or str(self.path) == self.nas_dir
+                    str(self.__path).startswith(os.path.abspath(self.nas_dir) + os.sep) or str(self.__path) == self.nas_dir
             ):
-                self.path = self.path.relative_to(self.nas_dir)
+                self.__path = self.__path.relative_to(self.nas_dir)
 
-            if str(self.path) == "." or str(self.path) == "/":
-                self.path = Path(self.bucket)
-            elif len(self.path.parts) > 0:
-                if self.path.parts[0] == "..":
+            if str(self.__path) == "." or str(self.__path) == "/":
+                self.__path = Path(self.bucket)
+            elif len(self.__path.parts) > 0:
+                if self.__path.parts[0] == "..":
                     raise ValueError("Trying to access a path before bucket")
-                if str(self.path)[0] == "/":
-                    self.path = Path(str(self.path)[1:])
+                if str(self.__path)[0] == "/":
+                    self.__path = Path(str(self.__path)[1:])
 
-                if not str(self.path.parts[0]) == self.bucket:
-                    self.path = Path(self.bucket) / self.path
+                if not str(self.__path.parts[0]) == self.bucket:
+                    self.__path = Path(self.bucket) / self.__path
             else:
-                self.path = Path(self.bucket) / self.path
-            if len(self.path.parts) > 1 and self.bucket in self.path.parts[1:]:
+                self.__path = Path(self.bucket) / self.__path
+            if len(self.__path.parts) > 1 and self.bucket in self.__path.parts[1:]:
                 raise ValueError("You should never use you bucket name as a directory or file name.")
 
         if nocheck is False:
             self.check_multiplicity()
+
+    @property
+    def path(self):
+        return self.__path
+
+    @path.setter
+    def path(self, value):
+        raise AttributeError("Can not set protected attribute 'path'")
 
     def __contains__(self, item: str) -> bool:
         """Overload of 'in' operator
@@ -759,17 +764,15 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return False
         p1 = collapse_ddots(self)
         p2 = collapse_ddots(other)
-        if p1.path != p2.path:
+        if p1.__fspath__() != p2.__fspath__():
             return False
         if p1.fs_kind != p2.fs_kind:
             return False
         if p1.fs != p2.fs:
             return False
-        if p1.fs_kind == "gcs":
-            if p1.bucket != p2.bucket:
-                return False
-            if p1.project != p2.project:
-                return False
+        if p1.fs_kind == "gcs" and p1.project != p2.project:
+            # A difference in buckets would have been seen at fspath comparison
+            return False
         return True
 
     def __lt__(self, other: TransparentPath) -> bool:
@@ -790,6 +793,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         >>> p = TransparentPath("/chat")
         >>> p + "chien"
         /chat/chien
+
         If you want to add a string without having a '/' poping, use 'append':
         >>> from transparentpath import TransparentPath
         >>> p = TransparentPath("/chat")
@@ -826,14 +830,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
         if type(other) == str:
-            return TransparentPath(self.path / other, fs=self.fs_kind)
+            return TransparentPath(self.__path / other, fs=self.fs_kind)
         else:
             raise TypeError(f"Can not divide a TransparentPath by a {type(other)}, only by a string.")
 
     def __itruediv__(self, other: str) -> TransparentPath:
         """itruediv will be an actual itruediv only if other is a str"""
         if type(other) == str:
-            self.path /= other
+            self.__path /= other
             return self
         else:
             raise TypeError(f"Can not divide a TransparentPath by a {type(other)}, only by a string.")
@@ -846,16 +850,19 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def __str__(self) -> str:
         """Will not contain gs://, even if the file system is GCS. To get the path with gs://, use self.__fspath__()"""
-        return str(self.path)
+        return str(self.__path)
 
     def __repr__(self) -> str:
-        return str(self.path)
+        return str(self.__path)
 
     def __fspath__(self) -> str:
         if self.fs_kind == "local":
-            return str(self.path)
+            return str(self.__path)
         else:
-            return "gs://" + str(self.path)
+            return "gs://" + str(self.__path)
+
+    def __hash__(self):
+        return self.__fspath__()
 
     def __getattr__(self, obj_name: str) -> Any:
         """Overload of the __getattr__ method
@@ -897,11 +904,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
             else:
                 return lambda *args, **kwargs: self._obj_missing(obj_name, "fs", *args, **kwargs)
 
-        elif obj_name in dir(self.path):
-            obj = getattr(self.path, obj_name)
+        elif obj_name in dir(self.__path):
+            obj = getattr(self.__path, obj_name)
             if not callable(obj):
                 # Fetch the self.path's attributes to set it to self
-                if type(obj) == type(self.path):  # noqa: E721
+                if type(obj) == type(self.__path):  # noqa: E721
                     setattr(self, obj_name, TransparentPath(obj, fs=self.fs_kind))
                     return TransparentPath(obj, fs=self.fs_kind)
                 else:
@@ -1073,7 +1080,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             # If arrives there, then it must be a method. If it had been an
             # attribute, it would have been caught in __getattr__.
             the_method = getattr(Path, obj_name)
-            to_ret = the_method(self.path, *args, **kwargs)
+            to_ret = the_method(self.__path, *args, **kwargs)
             return to_ret
         elif kind == "str":
             # If arrives there, then it must be a method, and of str. If it had been an
@@ -1115,13 +1122,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
             # Assumes first given arg in args must be concatenated with
             # absolute self.path
             if len(args) > 0:
-                new_args = [str(self.path / str(args[0]))]
+                new_args = [str(self.__path / str(args[0]))]
                 if len(args) > 1:
                     new_args.append(args[1:])
             new_args = tuple(new_args)
         else:
             # noinspection PyTypeChecker
-            new_args = tuple([str(self.path)] + list(args))
+            new_args = tuple([str(self.__path)] + list(args))
         return new_args
 
     def check_multiplicity(self) -> None:
@@ -1129,12 +1136,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Raises MultipleExistenceError if so, does nothing if not.
         """
         self.update_cache()
-        if str(self.path) == self.bucket or str(self.path) == "/":
+        if str(self.__path) == self.bucket or str(self.__path) == "/":
             return
         if not self.exists():
             return
 
-        thels = self.fs.ls(str(collapse_ddots(self.path / "..")))
+        thels = self.fs.ls(str(collapse_ddots(self.__path / "..")))
         if len(thels) > 1:
             thels = [Path(apath).name for apath in thels if Path(apath).name == self.name]
             if len(thels) > 1:
@@ -1180,7 +1187,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         self.check_multiplicity()
         if self.fs_kind == "local":
-            return self.path.is_dir()
+            return self.__path.is_dir()
         else:
             if exist and not self.exists():
                 return False
@@ -1204,7 +1211,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return False
 
         if self.fs_kind == "local":
-            return self.path.is_file()
+            return self.__path.is_file()
         else:
             # GCS is shit and sometimes needs to be checked twice
             if self.info()["type"] == "file" and self.info()["type"] == "file":
@@ -1337,7 +1344,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.check_multiplicity()
 
         if wildcard.startswith("/") or wildcard.startswith("\\"):
-            path_to_glob = (self.path / wildcard[1:]).__fspath__()
+            path_to_glob = (self.__path / wildcard[1:]).__fspath__()
         else:
             path_to_glob = self.append(wildcard).__fspath__()
 
@@ -1362,7 +1369,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         TransparentPath
 
         """
-        return TransparentPath(self.path.with_suffix(suffix), fs=self.fs_kind)
+        return TransparentPath(self.__path.with_suffix(suffix), fs=self.fs_kind)
 
     def ls(self, path: str = "", fast: bool = False) -> Iterator[TransparentPath]:
         """ls-like method. Returns an Iterator of absolute TransparentPaths.
@@ -1473,7 +1480,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         self.check_multiplicity()
         check_kwargs(self.fs.open, kwargs)
-        return self.fs.open(self.path, *arg, **kwargs)
+        return self.fs.open(self.__path, *arg, **kwargs)
 
     def read(
         self,
@@ -1718,7 +1725,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.update_cache()
         if self.fs_kind == "local":
             # Do not check kwargs since HDFStore and h5py both accepct kwargs anyway
-            data = class_to_use(self.path, mode=mode, **kwargs)
+            data = class_to_use(self.__path, mode=mode, **kwargs)
         else:
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5")
             f.close()  # deletes the tmp file, but we can still use its name
@@ -2016,10 +2023,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if use_pandas:
                 class_to_use = MyHDFStore
             if self.fs_kind == "local":
-                return class_to_use(self.path, mode=mode, **kwargs)
+                return class_to_use(self.__path, mode=mode, **kwargs)
             else:
                 f = tempfile.NamedTemporaryFile(delete=True, suffix=".hdf5")
-                return class_to_use(f, remote=self.path, mode=mode, **kwargs)
+                return class_to_use(f, remote=self.__path, mode=mode, **kwargs)
         else:
 
             if isinstance(data, dict):
@@ -2055,11 +2062,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
                             dd.to_hdf, list(sets.values()), [f.name] * len(sets), list(sets.keys()), mode=mode, **kwargs
                         )
                         TransparentPath.cli.gather(futures)
-                        TransparentPath(path=f.name, fs="local").put(self.path)
+                        TransparentPath(path=f.name, fs="local").put(self.__path)
                 return
 
             if self.fs_kind == "local":
-                thefile = class_to_use(self.path, mode=mode, **kwargs)
+                thefile = class_to_use(self.__path, mode=mode, **kwargs)
                 for aset in sets:
                     thefile[aset] = sets[aset]
                 thefile.close()
@@ -2069,7 +2076,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     for aset in sets:
                         thefile[aset] = sets[aset]
                     thefile.close()
-                    TransparentPath(path=f.name, fs="local").put(self.path)
+                    TransparentPath(path=f.name, fs="local").put(self.__path)
 
     def to_json(self, data: Any, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs):
 
@@ -2113,7 +2120,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 else:
                     check_kwargs(data.to_excel, kwargs)
                     data.to_excel(f.name, **kwargs)
-                TransparentPath(path=f.name, fs="local").put(self.path)
+                TransparentPath(path=f.name, fs="local").put(self.__path)
 
     def touch(self, present: str = "ignore", create_parents: bool = True, **kwargs) -> None:
         """Creates the file corresponding to self if does not exist.
@@ -2340,7 +2347,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def set_nas_dir(obj, nas_dir):
         if nas_dir is not None:
             if isinstance(nas_dir, TransparentPath):
-                obj.nas_dir = nas_dir.path
+                obj.nas_dir = nas_dir.__path
             elif isinstance(nas_dir, str):
                 obj.nas_dir = Path(nas_dir)
             else:

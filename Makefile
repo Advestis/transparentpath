@@ -29,4 +29,3 @@ doc:
 	@if [ -d "dist" ] && [ $@ != "sdist" ] ; then rm -r dist ; fi
 	@if [ -d "build" ] ; then rm -r build ; fi
 	@if ls "$(PACKAGE)".egg-info* &> /dev/null ; then rm -r "$(PACKAGE)".egg-info* ; fi
-
