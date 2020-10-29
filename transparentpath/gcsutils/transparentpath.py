@@ -768,8 +768,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return False
         if p1.fs_kind != p2.fs_kind:
             return False
-        if p1.fs != p2.fs:
-            return False
         if p1.fs_kind == "gcs" and p1.project != p2.project:
             # A difference in buckets would have been seen at fspath comparison
             return False
@@ -861,8 +859,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
         else:
             return "gs://" + str(self.__path)
 
-    def __hash__(self):
-        return self.__fspath__()
+    def __hash__(self) -> int:
+        hash_number = int.from_bytes(self.__fspath__().encode(), 'little') + int.from_bytes(self.fs_kind.encode(), 'little')
+        if self.fs_kind == "gcs":
+            hash_number += int.from_bytes(self.project.encode(), 'little')
+        return hash_number
 
     def __getattr__(self, obj_name: str) -> Any:
         """Overload of the __getattr__ method
