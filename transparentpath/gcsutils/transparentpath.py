@@ -2304,7 +2304,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             )
         if type(loc) != TransparentPath:
             loc = TransparentPath(loc, fs="local")
-        self.fs.get(self.__fspath__(), loc)
+        self.fs.get(self.__fspath__(), loc.__fspath__())
 
     def mv(self, other: Union[str, Path, TransparentPath]):
         """Used to move two files on the same file system."""
