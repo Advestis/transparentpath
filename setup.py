@@ -59,7 +59,13 @@ except UnicodeDecodeError:
         long_description = "".join(lines)
 
 requirements = Path("requirements.txt").read_text().splitlines()
-version = get_version()
+try:
+    version = get_version()
+except FileNotFoundError as e:
+    if "git" in str(e):
+        version = None
+    else:
+        raise e
 
 
 if __name__ == "__main__":
