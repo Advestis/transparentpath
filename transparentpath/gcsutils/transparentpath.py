@@ -635,7 +635,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return
 
         # In case we initiate a path containing 'gs://'
-        # If True, then path can not be a TransparentPath for a TransparentPath does not contain gs:// anymore
         if "gs://" in str(path):
 
             if project is None and TransparentPath.project is None:
