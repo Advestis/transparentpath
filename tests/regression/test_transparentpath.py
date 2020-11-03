@@ -8,7 +8,7 @@ from fsspec.implementations.local import LocalFileSystem
 from transparentpath import TransparentPath
 
 project = "sandbox-281209"
-bucket = "imora_sand"
+bucket = "code_test_sand"
 
 df_csv = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]])
 dd_csv = dd.from_pandas(df_csv, npartitions=1)
