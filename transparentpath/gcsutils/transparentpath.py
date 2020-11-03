@@ -665,13 +665,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                         )
                 else:
                     bucket = bucket_from_path
-                if TransparentPath.bucket is not None:
-                    if TransparentPath.bucket != bucket_from_path:
-                        raise ValueError(
-                            f"Bucket name {bucket_from_path} was found in your path name, but it does "
-                            f"not match the bucket name you specified for TransparentPath: {TransparentPath.bucket}"
-                        )
-                else:
+                if TransparentPath.bucket is None:
                     TransparentPath.bucket = bucket_from_path
                 path = str(path).replace("gs://", "").replace(bucket_from_path, "")
                 if path.startswith("/"):
