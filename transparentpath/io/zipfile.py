@@ -1,15 +1,14 @@
-imports_ok = False
+class Myzipfile:
+    def __init__(self):
+        raise ImportError(
+            "zipfile does not seem to be installed. You will not be able to use pandas objects through "
+            "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'."
+        )
+
 
 try:
     # noinspection PyUnresolvedReferences
     import zipfile
-    imports_ok = True
-except ImportError:
-    import warnings
-    warnings.warn("zipfile does not seem to be installed. You will not be able to use pandas objects through "
-                  "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'.")
-
-if imports_ok:
     import tempfile
     from pathlib import Path
     from..gcsutils.transparentpath import TransparentPath
@@ -35,11 +34,7 @@ if imports_ok:
 
 
     zipfile.ZipFile = Myzipfile
-
-else:
-    class Myzipfile:
-        def __init__(self):
-            raise ImportError(
-                "zipfile does not seem to be installed. You will not be able to use pandas objects through "
-                "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'."
-            )
+except ImportError:
+    import warnings
+    warnings.warn("zipfile does not seem to be installed. You will not be able to use pandas objects through "
+                  "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'.")
