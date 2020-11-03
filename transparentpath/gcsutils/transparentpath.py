@@ -859,7 +859,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return "gs://" + str(self.__path)
 
     def __hash__(self) -> int:
-        hash_number = int.from_bytes(self.__fspath__().encode(), 'little') + int.from_bytes(self.fs_kind.encode(), 'little')
+        hash_number = int.from_bytes(self.__fspath__().encode(), 'little')\
+                      + int.from_bytes(self.fs_kind.encode(), 'little')
         if self.fs_kind == "gcs":
             hash_number += int.from_bytes(self.project.encode(), 'little')
         return hash_number
