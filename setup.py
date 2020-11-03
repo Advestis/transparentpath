@@ -87,6 +87,7 @@ if __name__ == "__main__":
         packages=find_packages(),
         install_requires=requirements,
         package_data={"": ["*", ".*"]},
+        extras_requires={"dask": "dask[dataframe,distributed]"},
         classifiers=[
             "Programming Language :: Python :: 3",
             "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
