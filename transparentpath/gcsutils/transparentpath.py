@@ -1335,16 +1335,15 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
         self.rm(absent=absent, ignore_kind=ignore_kind, recursive=True)
 
-    def glob(self, wildcard: str = "/*", fast: bool = False) -> Iterator[TransparentPath]:
+    def glob(self, wildcard: str = "*", fast: bool = False) -> Iterator[TransparentPath]:
         """Returns a list of TransparentPath matching the wildcard pattern
 
-        By default, the wildcard is '/*'. The '/' is important if your path is a dir and you want to glob inside the
-        dir.
+        By default, the wildcard is '*'. It means 'thepath/*', so will glob in the directory.
 
         Parameters
         -----------
         wildcard: str
-            The wilcard pattern to match, relative to self (Default value = "/*")
+            The wilcard pattern to match, relative to self (Default value = "*")
 
         fast: bool
             If True, does not check multiplicity when converting output paths to TransparentPath, significantly 
@@ -1360,10 +1359,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         self.check_multiplicity()
 
+        if not self.is_dir(exist=True):
+            raise NotADirectoryError("The path must be a directory if you want to glob in it")
+
         if wildcard.startswith("/") or wildcard.startswith("\\"):
-            path_to_glob = (self.__path / wildcard[1:]).__fspath__()
-        else:
-            path_to_glob = self.append(wildcard).__fspath__()
+            wildcard = wildcard[1:]
+
+        path_to_glob = (self.__path / wildcard).__fspath__()
 
         if fast:
             to_ret = map(self.cast_fast, self.fs.glob(path_to_glob))
@@ -1859,7 +1861,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
         self.check_multiplicity()
-        if "dask" in type(data):
+        if "dask" in str(type(data)):
             check_dask()
 
         if make_parents and not self.parent.is_dir():
