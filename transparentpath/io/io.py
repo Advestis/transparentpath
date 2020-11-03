@@ -2,40 +2,12 @@ import json
 import builtins
 import tempfile
 import sys
-import zipfile
 from typing import Any, Callable, List, IO, Union, Tuple
 from pathlib import Path
 from ..gcsutils.transparentpath import TransparentPath
 
 from ..jsonencoder.jsonencoder import JSONEncoder
 from inspect import signature
-
-try:
-    # noinspection PyUnresolvedReferences
-    import dask.dataframe as dd
-    # noinspection PyUnresolvedReferences
-    from dask.delayed import delayed
-    # noinspection PyUnresolvedReferences
-    from dask.distributed import client
-except ImportError:
-    import warnings
-    warnings.warn("Daks does not seem to be installed. You will not be able to use Dask DataFrames through "
-                  "TransparentPath.\nYou can change that by running 'pip install transparentpath[dask]'.")
-
-try:
-    # noinspection PyUnresolvedReferences
-    import h5py
-except ImportError:
-    import warnings
-    warnings.warn()
-
-try:
-    # noinspection PyUnresolvedReferences
-    import pandas as pd
-except ImportError:
-    import warnings
-    warnings.warn("pandas does not seem to be installed. You will not be able to use pandas objects through "
-                  "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'.")
 
 
 def check_dask():
