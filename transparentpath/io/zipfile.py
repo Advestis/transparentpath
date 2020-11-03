@@ -1,9 +1,10 @@
+errormessage = "zipfile does not seem to be installed. You will not be able to use pandas objects through "\
+               "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'."
+
+
 class Myzipfile:
     def __init__(self):
-        raise ImportError(
-            "zipfile does not seem to be installed. You will not be able to use pandas objects through "
-            "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'."
-        )
+        raise ImportError(errormessage)
 
 
 try:
@@ -36,5 +37,4 @@ try:
     zipfile.ZipFile = Myzipfile
 except ImportError:
     import warnings
-    warnings.warn("zipfile does not seem to be installed. You will not be able to use pandas objects through "
-                  "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'.")
+    warnings.warn(errormessage)

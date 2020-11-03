@@ -87,7 +87,13 @@ if __name__ == "__main__":
         packages=find_packages(),
         install_requires=requirements,
         package_data={"": ["*", ".*"]},
-        extras_requires={"dask": "dask[dataframe,distributed]"},
+        extras_requires={
+            "hdf5": "h5py,tables",
+            "zipfile": "zipfile",
+            "pandas": "pandas,xlrd,openpyxl,pyarrow",
+            "dask": "dask[dataframe,distributed],xlrd,openpyxl,pyarrow",
+            "all": "h5py,tables,zipfile,pandas,xlrd,openpyxl,pyarrow,dask[dataframe,distributed]"
+        },
         classifiers=[
             "Programming Language :: Python :: 3",
             "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",

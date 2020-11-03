@@ -8,10 +8,7 @@ def apply_index_and_date_pd(index_col, parse_dates, df):
 
 class MyHDFStore:
     def __init__(self):
-        raise ImportError(
-            "pandas does not seem to be installed. You will not be able to use pandas objects through "
-            "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'."
-        )
+        raise ImportError(errormessage)
 
 
 try:
@@ -53,5 +50,4 @@ try:
 
 except ImportError:
     import warnings
-    warnings.warn("pandas does not seem to be installed. You will not be able to use pandas objects through "
-                  "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'.")
+    warnings.warn(errormessage)

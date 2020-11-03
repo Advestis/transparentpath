@@ -9,6 +9,10 @@ from ..gcsutils.transparentpath import TransparentPath
 from ..jsonencoder.jsonencoder import JSONEncoder
 from inspect import signature
 
+from .dask import apply_index_and_date_dd, client_
+from .pandas import apply_index_and_date_pd, MyHDFStore
+from .hdf5 import MyHDFFile
+
 
 def check_dask():
     if "dask" not in sys.modules:
@@ -53,22 +57,17 @@ def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
     return index_col, parse_dates, kwargs
 
 
-def apply_index_and_date(
-    index_col: int, parse_dates: bool, df: Union[pd.DataFrame, dd.DataFrame]
-) -> Union[pd.DataFrame, dd.DataFrame]:
-    if index_col is not None:
-        df = df.set_index(df.columns[index_col])
-        df.index = df.index.rename(None)
-    if parse_dates is not None:
-        if isinstance(df, dd.DataFrame):
-            df.index = dd.to_datetime(df.index)
-        else:
-            df.index = pd.to_datetime(df.index)
-    return df
+def apply_index_and_date(index_col: int, parse_dates: bool, df):
+    if "pandas" in str(type(df)):
+        return apply_index_and_date_pd(index_col, parse_dates, df)
+    elif "dask" in str(type(df)):
+        return apply_index_and_date_dd(index_col, parse_dates, df)
+    else:
+        raise TypeError(f"Unexpected type {type(df)} for argument df")
 
 
 def check_kwargs(method: Callable, kwargs: dict):
-    """Takes as argument a method and some kwargs. Will like in the method signature et return in two separate dict
+    """Takes as argument a method and some kwargs. Will look in the method signature and return in two separate dicts
     the kwargs that are in the signature and those that are not.
 
     If the method does not return any signature or if it explicitely accepts **kwargs, does not do anything

@@ -1,9 +1,11 @@
+errormessage = "h5py does not seem to be installed. You will not be able to use HDF5 files through "\
+               "TransparentPath.\nYou can change that by running 'pip install transparentpath[h5py]'."
+hdf5_ok = False
+
+
 class MyHDFFile:
     def __init__(self):
-        raise ImportError(
-            "h5py does not seem to be installed. You will not be able to use HDF5 files through "
-            "TransparentPath.\nYou can change that by running 'pip install transparentpath[h5py]'."
-        )
+        raise ImportError(errormessage)
 
 
 try:
@@ -12,6 +14,8 @@ try:
     import tempfile
     from typing import Union
     from..gcsutils.transparentpath import TransparentPath
+
+    hdf5_ok = True
 
 
     class MyHDFFile(h5py.File):
@@ -59,5 +63,4 @@ try:
 
 except ImportError:
     import warnings
-    warnings.warn("h5py does not seem to be installed. You will not be able to use HDF5 files through "
-                  "TransparentPath.\nYou can change that by running 'pip install transparentpath[h5py]'.")
+    warnings.warn(errormessage)
