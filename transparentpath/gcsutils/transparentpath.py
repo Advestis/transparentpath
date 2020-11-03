@@ -847,7 +847,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def __str__(self) -> str:
         """Will not contain gs://, even if the file system is GCS. To get the path with gs://, use self.__fspath__()"""
-        return str(self.__path)
+        return self.__fspath__()
 
     def __repr__(self) -> str:
         return str(self.__path)
