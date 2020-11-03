@@ -61,11 +61,15 @@ except UnicodeDecodeError:
 requirements = Path("requirements.txt").read_text().splitlines()
 try:
     version = get_version()
+    with open("VERSION.txt", "w") as vfile:
+        vfile.write(version)
 except FileNotFoundError as e:
-    if "git" in str(e):
+    # noinspection PyBroadException
+    try:
+        with open("VERSION.txt", "r") as vfile:
+            version = vfile.readline()
+    except Exception:
         version = None
-    else:
-        raise e
 
 
 if __name__ == "__main__":
