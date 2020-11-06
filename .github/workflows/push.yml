@@ -1,9 +1,9 @@
 on:
   push:
     branches:
-      - master
+      - debug
 
-name: master
+name: debug
 jobs:
   publish:
     runs-on: ubuntu-latest
