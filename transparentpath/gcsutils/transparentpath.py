@@ -2278,7 +2278,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             )
         if type(dst) != TransparentPath:
             dst = TransparentPath(dst, fs="gcs")
-        raise ValueError(f"self.path: {self.__fspath__()}\ndst: {dst}")
+        # raise ValueError(f"self.path: {self.__fspath__()}\ndst: {dst}")
         self.fs.put(self.__fspath__(), dst)
 
     def get(self, loc: Union[str, Path, TransparentPath]):
