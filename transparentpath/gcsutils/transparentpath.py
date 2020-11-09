@@ -158,7 +158,7 @@ def myopen(*args, **kwargs) -> IO:
     if type(thefile) == str and "gs://" in thefile:
         if "gcs" not in TransparentPath.fss:
             raise OSError("You are trying to access a file on GCS without having set a proper GCSFileSystem first.")
-        thefile = TransparentPath(thefile.replace(f"gs://{TransparentPath.bucket}", ""), fs="gcs")
+        thefile = TransparentPath(thefile)
     if isinstance(thefile, TransparentPath):
         return thefile.open(*args[1:], **kwargs)
     elif (
@@ -712,7 +712,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
             # Remove occurences of nas_dir at beginning of path, if any
             if self.nas_dir is not None and (
-                    str(self.__path).startswith(os.path.abspath(self.nas_dir) + os.sep) or str(self.__path) == self.nas_dir
+                    str(self.__path).startswith(os.path.abspath(self.nas_dir) + os.sep)
+                    or str(self.__path) == self.nas_dir
             ):
                 self.__path = self.__path.relative_to(self.nas_dir)
 
@@ -2278,7 +2279,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
             )
         if type(dst) != TransparentPath:
             dst = TransparentPath(dst, fs="gcs")
-        # raise ValueError(f"self.path: {self.__fspath__()}\ndst: {dst}")
         self.fs.put(self.__fspath__(), dst)
 
     def get(self, loc: Union[str, Path, TransparentPath]):
