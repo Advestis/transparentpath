@@ -164,6 +164,7 @@ def myopen(*args, **kwargs) -> IO:
     elif (
         isinstance(thefile, str) or isinstance(thefile, Path) or isinstance(thefile, int) or isinstance(thefile, bytes)
     ):
+        raise ValueError(f"thefile: {thefile}\n type thefle: {type(thefile)}\n args: {args}")
         return builtins_open(*args, **kwargs)
     else:
         raise ValueError(f"Unknown type {type(thefile)} for path argument")
