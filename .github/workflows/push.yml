@@ -23,16 +23,30 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install setuptools
-          make install
           make sdist
+      - name: commit version
+        run: |
+          git add VERSION.txt
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "version"
+      - name: Push version
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.TOKEN_CICD }}
+          branch: "master"
+          force: true
+      - name: make doc
+        run: |
           make doc
-      - name: commit
+      - name: commit doc
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add .
           git commit -m "docs"
-      - name: Push changes
+      - name: Push doc
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
