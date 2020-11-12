@@ -1,7 +1,5 @@
 FROM python:3.6-slim
 
-#COPY --from=thomasweise/docker-texlive-full / /
-
 # Install: git setuptools
 RUN apt-get update
 RUN apt-get install -y git gcc python3-dev

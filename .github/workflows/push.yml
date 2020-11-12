@@ -66,5 +66,5 @@ jobs:
         with:
           username: ${{ secrets.docker_login }}
           password: ${{ secrets.docker_passwd }}
-          repository: advestis/transparentpath
+          repository: advestisrepositories/transparentpath
           tag_with_ref: true
