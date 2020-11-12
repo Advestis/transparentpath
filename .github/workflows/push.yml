@@ -43,6 +43,8 @@ jobs:
         with:
           user: ${{ secrets.pypi_login }}
           password: ${{ secrets.pypi_passwd }}
+          skip_existing: true
+          verbose: true
       - name: todocker
         uses: docker/build-push-action@v1
         with:
