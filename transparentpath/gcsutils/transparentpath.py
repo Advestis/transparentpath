@@ -63,6 +63,7 @@ class MyHDFFile(h5py.File):
         self.local_path = args[0]
         # noinspection PyUnresolvedReferences,PyProtectedMember
         if isinstance(self.local_path, tempfile._TemporaryFileWrapper):
+            # noinspection PyUnresolvedReferences
             h5py.File.__init__(self, args[0].name, *args[1:], **kwargs)
         else:
             h5py.File.__init__(self, *args, **kwargs)
@@ -72,7 +73,9 @@ class MyHDFFile(h5py.File):
         a 'with' statement."""
         h5py.File.__exit__(self, *args)
         if self.remote_file is not None:
+            # noinspection PyUnresolvedReferences
             TransparentPath(self.local_path.name, fs="local").put(self.remote_file)
+            # noinspection PyUnresolvedReferences
             self.local_path.close()
 
 
@@ -293,7 +296,7 @@ def apply_index_and_date(
 
 
 def check_kwargs(method: Callable, kwargs: dict):
-    """Takes as argument a method and some kwargs. Will like in the method signature et return in two separate dict
+    """Takes as argument a method and some kwargs. Will look in the method signature and return in two separate dict
     the kwargs that are in the signature and those that are not.
 
     If the method does not return any signature or if it explicitely accepts **kwargs, does not do anything
@@ -712,7 +715,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
             # Remove occurences of nas_dir at beginning of path, if any
             if self.nas_dir is not None and (
-                    str(self.__path).startswith(os.path.abspath(self.nas_dir) + os.sep) or str(self.__path) == self.nas_dir
+                    str(self.__path).startswith(os.path.abspath(self.nas_dir) + os.sep)
+                    or str(self.__path) == self.nas_dir
             ):
                 self.__path = self.__path.relative_to(self.nas_dir)
 
@@ -729,7 +733,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             else:
                 self.__path = Path(self.bucket) / self.__path
             if len(self.__path.parts) > 1 and self.bucket in self.__path.parts[1:]:
-                raise ValueError("You should never use you bucket name as a directory or file name.")
+                raise ValueError("You should never use your bucket name as a directory or file name.")
 
         if nocheck is False:
             self.check_multiplicity()
@@ -885,7 +889,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         if obj_name in TransparentPath._attributes:
             raise AttributeError(
-                f"Attribute {obj_name} is expected to belong to TransparentPath but is not found. Something somehaw "
+                f"Attribute {obj_name} is expected to belong to TransparentPath but is not found. Something somehow "
                 f"tried to access this attribute before a proper call to __init__. "
             )
 
@@ -1390,9 +1394,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
         self.update_cache()
         thepath = self / path
+        # noinspection PyUnresolvedReferences
         if not thepath.exists():
             raise FileNotFoundError(f"Could not find location {self}")
 
+        # noinspection PyUnresolvedReferences
         if thepath.is_file():
             raise NotADirectoryError("Can not ls on a file!")
 
@@ -1442,13 +1448,17 @@ class TransparentPath(os.PathLike):  # noqa : F811
         newpath = self / path
 
         if self.fs_kind == "local":
+            # noinspection PyUnresolvedReferences
             if len(newpath.parts) == 0:
                 return TransparentPath(newpath, fs=self.fs_kind)
+            # noinspection PyUnresolvedReferences
             if newpath.parts[0] == "..":
                 raise ValueError("The first part of a path can not be '..'")
         else:
+            # noinspection PyUnresolvedReferences
             if len(newpath.parts) == 1:  # On gcs, first part is bucket
                 return TransparentPath(newpath, fs=self.fs_kind)
+            # noinspection PyUnresolvedReferences
             if newpath.parts[1] == "..":
                 raise ValueError("Trying to access a path before bucket")
 
@@ -1546,6 +1556,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if self.suffix != ".csv" and self.suffix != ".parquet" and not self.is_file():
                 raise FileNotFoundError(f"Could not find file {self}")
             else:
+                # noinspection PyUnresolvedReferences
                 if (
                     not self.is_file()
                     and not self.is_dir(exist=True)
@@ -1853,6 +1864,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
             )
             if isinstance(data, dd.DataFrame):
+                # noinspection PyUnresolvedReferences
                 assert self.with_suffix("").is_dir(exist=True)
                 return
         elif self.suffix == ".hdf5" or self.suffix == ".h5":
