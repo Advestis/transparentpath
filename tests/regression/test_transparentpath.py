@@ -64,7 +64,7 @@ class Init(object):
         self.init_gcs_success(reinit=False)
         p = TransparentPath("chien")
         assert str(p.path) == f"{bucket}/chien"
-        assert str(p) == f"{bucket}/chien"
+        assert str(p) == f"gs://{bucket}/chien"
         assert p.__fspath__() == f"gs://{bucket}/chien"
 
         assert p.fs_kind == "gcs"
@@ -75,11 +75,11 @@ class Init(object):
         assert list(TransparentPath.fss.keys())[0] == "gcs"
         assert isinstance(TransparentPath.fss["gcs"], gcsfs.GCSFileSystem)
         p2 = p / ".."
-        assert str(p2) == p2.bucket
+        assert str(p2) == f"gs://{p2.bucket}"
         p2 = TransparentPath()
-        assert str(p2) == p2.bucket
+        assert str(p2) == f"gs://{p2.bucket}"
         p2 = TransparentPath("/")
-        assert str(p2) == p2.bucket
+        assert str(p2) == f"gs://{p2.bucket}"
         self.reinit()
 
         self.init_gcs_success(reinit=False)
@@ -99,7 +99,7 @@ class Init(object):
 
         TransparentPath(f"gs://{bucket}/chien")
         assert str(p.path) == f"{bucket}/chien"
-        assert str(p) == f"{bucket}/chien"
+        assert str(p) == f"gs://{bucket}/chien"
         assert p.__fspath__() == f"gs://{bucket}/chien"
 
         assert p.fs_kind == "gcs"
@@ -160,7 +160,7 @@ class Init(object):
         self.before_init()
         p = TransparentPath("chien", fs="gcs", project=project, bucket=bucket)
         assert str(p.path) == f"{bucket}/chien"
-        assert str(p) == f"{bucket}/chien"
+        assert str(p) == f"gs://{bucket}/chien"
         assert p.__fspath__() == f"gs://{bucket}/chien"
 
         assert p.fs_kind == "gcs"
@@ -196,7 +196,7 @@ class Init(object):
 
         p = TransparentPath(f"gs://{bucket}/chien", project=project)
         assert str(p.path) == f"{bucket}/chien"
-        assert str(p) == f"{bucket}/chien"
+        assert str(p) == f"gs://{bucket}/chien"
         assert p.__fspath__() == f"gs://{bucket}/chien"
 
         assert p.fs_kind == "gcs"
@@ -229,7 +229,7 @@ class Init(object):
         self.init_local(False)
         p = TransparentPath("chien", fs="gcs", project=project, bucket=bucket)
         assert str(p.path) == f"{bucket}/chien"
-        assert str(p) == f"{bucket}/chien"
+        assert str(p) == f"gs://{bucket}/chien"
         assert p.__fspath__() == f"gs://{bucket}/chien"
 
         assert p.fs_kind == "gcs"
@@ -267,7 +267,7 @@ class Init(object):
 
         p = TransparentPath(f"gs://{bucket}/chien", project=project)
         assert str(p.path) == f"{bucket}/chien"
-        assert str(p) == f"{bucket}/chien"
+        assert str(p) == f"gs://{bucket}/chien"
         assert p.__fspath__() == f"gs://{bucket}/chien"
 
         assert p.fs_kind == "gcs"
@@ -605,10 +605,10 @@ class Methods:
         self.p.rm(absent="ignore", ignore_kind=True)
         if self.p.fs_kind == "gcs":
             assert TransparentPath("/") == TransparentPath()
-            assert str(TransparentPath("/")) == self.p.bucket
-            assert str(TransparentPath()) == self.p.bucket
-            assert str(self.p.cd("/")) == self.p.bucket
-            assert str(self.p.cd(self.p.bucket)) == self.p.bucket
+            assert str(TransparentPath("/")) == f"gs://{self.p.bucket}"
+            assert str(TransparentPath()) == f"gs://{self.p.bucket}"
+            assert str(self.p.cd("/")) == f"gs://{self.p.bucket}"
+            assert str(self.p.cd(self.p.bucket)) == f"gs://{self.p.bucket}"
             assert self.p.cd("/chien") == TransparentPath("chien")
 
         assert self.p.cd("../../../") == TransparentPath()
@@ -664,6 +664,10 @@ class Methods:
         assert glob_res == expectation
 
         glob_res = list(self.p.glob("/*"))
+        glob_res.sort()
+        assert glob_res == expectation
+
+        glob_res = list(self.p.glob("*"))
         glob_res.sort()
         assert glob_res == expectation
 

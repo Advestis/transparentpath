@@ -2,6 +2,7 @@ import builtins
 import os
 import tempfile
 import json
+import sys
 import zipfile
 import h5py
 from datetime import datetime
@@ -116,6 +117,13 @@ class Myzipfile(zipfileclass):
 
 
 zipfile.ZipFile = Myzipfile
+
+
+def check_dask():
+    if "dask" not in sys.modules:
+        raise ImportError("Daks does not seem to be installed. You will not be able to use Dask DataFrames"
+                          " in TransparentPath.\n You can change that by running"
+                          " 'pip install transparentpath[dask]'.")
 
 
 def mysmallisinstance(obj1: Any, obj2) -> bool:
@@ -289,7 +297,7 @@ def apply_index_and_date(
         df.index = df.index.rename(None)
     if parse_dates is not None:
         if isinstance(df, dd.DataFrame):
-            df.index = df.to_datetime(df.index)
+            df.index = dd.to_datetime(df.index)
         else:
             df.index = pd.to_datetime(df.index)
     return df
@@ -668,7 +676,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
                         )
                 else:
                     bucket = bucket_from_path
-                if TransparentPath.bucket is None:
+                if TransparentPath.bucket is not None:
+                    if TransparentPath.bucket != bucket_from_path:
+                        raise ValueError(
+                            f"Bucket name {bucket_from_path} was found in your path name, but it does "
+                            f"not match the bucket name you specified for TransparentPath: {TransparentPath.bucket}"
+                        )
+                else:
                     TransparentPath.bucket = bucket_from_path
                 path = str(path).replace("gs://", "").replace(bucket_from_path, "")
                 if path.startswith("/"):
@@ -1596,6 +1610,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         # noinspection PyTypeChecker,PyUnresolvedReferences
         try:
             if use_dask:
+                check_dask()
                 if self.is_file():
                     to_use = self
                 else:
@@ -1623,6 +1638,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
 
         if use_dask:
+            check_dask()
             # Dask's read_parquet supports remote files, pandas does not
             if self.is_file():
                 to_use = self
@@ -1710,6 +1726,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             raise ValueError("If using read_hdf5, mode must contain 'r'")
 
         if use_dask:
+            check_dask()
             if len(set_names) == 0:
                 raise ValueError(
                     "If using Dask, you must specify the dataset name to extract using set_names='aname'"
@@ -1752,6 +1769,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         try:
             if self.fs_kind == "local":
                 if use_dask:
+                    check_dask()
                     parts = delayed(pd.read_excel)(self, **kwargs)
                     return dd.from_delayed(parts)
                 return pd.read_excel(self, **kwargs)
@@ -1760,6 +1778,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 f.close()  # deletes the tmp file, but we can still use its name
                 self.get(f.name)
                 if use_dask:
+                    check_dask()
                     parts = delayed(pd.read_excel)(f.name, **kwargs)
                     data = dd.from_delayed(parts)
                     # We should not delete the tmp file, since dask does its operations lasily.
@@ -1845,6 +1864,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
         self.check_multiplicity()
+        if "dask" in str(type(data)):
+            check_dask()
 
         if make_parents and not self.parent.is_dir():
             self.parent.mkdir()
