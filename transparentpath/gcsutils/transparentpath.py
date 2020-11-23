@@ -1598,7 +1598,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         elif self.suffix == ".json":
             jsonified = self.read_text(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
             return json.loads(jsonified)
-        elif self.suffix == ".xlsx":
+        elif self.suffix in [".xlsx", ".xls", ".xlsm"]:
             return self.read_excel(update_cache=update_cache, use_dask=use_dask, **kwargs)
         else:
             return self.read_text(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
