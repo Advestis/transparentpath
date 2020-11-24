@@ -85,8 +85,15 @@ class Init(object):
         self.init_gcs_success(reinit=False)
         failed = False
         try:
-            TransparentPath(f"gs://{bucket + 'chat'}/chien")
+            TransparentPath(f"gs://{bucket + 'chat'}/chien", bucket=bucket)
         except ValueError:
+            failed = True
+        assert failed
+
+        failed = False
+        try:
+            TransparentPath(f"gs://{bucket + 'chat'}/chien")
+        except NotADirectoryError:
             failed = True
         assert failed
 
