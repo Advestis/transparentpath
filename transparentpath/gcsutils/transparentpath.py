@@ -41,7 +41,7 @@ class MyHDFFile(h5py.File):
     >>> from transparentpath import TransparentPath  # doctest: +SKIP
     >>> import numpy as np  # doctest: +SKIP
     >>> TransparentPath.set_global_fs("gcs", bucket="bucket_name", project="project_name")  # doctest: +SKIP
-    >>> path = TransparentPath("chien.hdf5"  # doctest: +SKIP
+    >>> path = TransparentPath("chien.hdf5")  # doctest: +SKIP
     >>>
     >>> with path.write() as ifile:  # doctest: +SKIP
     >>>     ifile["data"] = np.array([1, 2])  # doctest: +SKIP
@@ -75,7 +75,9 @@ class MyHDFFile(h5py.File):
         h5py.File.__exit__(self, *args)
         if self.remote_file is not None:
             # noinspection PyUnresolvedReferences
-            TransparentPath(self.local_path.name, fs="local").put(self.remote_file)
+            TransparentPath(self.local_path.name, fs="local").put(
+                self.remote_file
+            )
             # noinspection PyUnresolvedReferences
             self.local_path.close()
 
@@ -95,7 +97,9 @@ class MyHDFStore(pd.HDFStore):
     def __exit__(self, exc_type, exc_value, traceback):
         pd.HDFStore.__exit__(self, exc_type, exc_value, traceback)
         if self.remote_file is not None:
-            TransparentPath(self.local_path.name, fs="local").put(self.remote_file)
+            TransparentPath(self.local_path.name, fs="local").put(
+                self.remote_file
+            )
             self.local_path.close()
 
 
@@ -105,7 +109,7 @@ class Myzipfile(zipfileclass):
     """
 
     def __init__(self, path, *args, **kwargs):
-        if type(path) == TransparentPath and path.fs_kind == "gcs":
+        if type(path) == TransparentPath and "gcs" in path.fs_kind:
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
             f.close()  # deletes tmp file, but we can still use its name
             path.get(f.name)
@@ -121,9 +125,11 @@ zipfile.ZipFile = Myzipfile
 
 def check_dask():
     if "dask" not in sys.modules:
-        raise ImportError("Daks does not seem to be installed. You will not be able to use Dask DataFrames"
-                          " in TransparentPath.\n You can change that by running"
-                          " 'pip install transparentpath[dask]'.")
+        raise ImportError(
+            "Daks does not seem to be installed. You will not be able to use Dask DataFrames"
+            " in TransparentPath.\n You can change that by running"
+            " 'pip install transparentpath[dask]'."
+        )
 
 
 def mysmallisinstance(obj1: Any, obj2) -> bool:
@@ -169,7 +175,7 @@ def myopen(*args, **kwargs) -> IO:
     if type(thefile) == str and "gs://" in thefile:
         if "gcs" not in TransparentPath.fss:
             raise OSError("You are trying to access a file on GCS without having set a proper GCSFileSystem first.")
-        thefile = TransparentPath(thefile.replace(f"gs://{TransparentPath.bucket}", ""), fs="gcs")
+        thefile = TransparentPath(thefile)
     if isinstance(thefile, TransparentPath):
         return thefile.open(*args[1:], **kwargs)
     elif (
@@ -200,6 +206,10 @@ def collapse_ddots(path: Union[Path, TransparentPath, str]) -> TransparentPath:
     """
     # noinspection PyUnresolvedReferences
     thetype = path.fs_kind if type(path) == TransparentPath else None
+    # noinspection PyUnresolvedReferences
+    thebucket = path.bucket if type(path) == TransparentPath else None
+    # noinspection PyUnresolvedReferences
+    theproject = path.project if type(path) == TransparentPath else None
 
     newpath = Path(path) if type(path) == str else path
 
@@ -218,17 +228,21 @@ def collapse_ddots(path: Union[Path, TransparentPath, str]) -> TransparentPath:
 
     if str(newpath) == str(path):
         return path
-    return TransparentPath(newpath, collapse=False, nocheck=True, fs=thetype) if thetype is not None else newpath
+    return (
+        TransparentPath(newpath, collapse=False, nocheck=True, fs=thetype, bucket=thebucket, project=theproject)
+        if thetype is not None
+        else newpath
+    )
 
 
-def get_fs(gcs: str, project: str, bucket: str) -> Union[gcsfs.GCSFileSystem, LocalFileSystem]:
+def get_fs(fs_kind: str, project: str, bucket: str) -> Union[gcsfs.GCSFileSystem, LocalFileSystem]:
     """Gets the FileSystem object of either gcs or local (Default)
 
 
     Parameters
     ----------
-    gcs: str
-        Returns GCSFileSystem if 'gcs'', LocalFilsSystem if 'local'.
+    fs_kind: str
+        Returns GCSFileSystem if 'gcs_*', LocalFilsSystem if 'local'.
 
     project: str
         project name for GCS
@@ -242,7 +256,7 @@ def get_fs(gcs: str, project: str, bucket: str) -> Union[gcsfs.GCSFileSystem, Lo
         The FileSystem object and the string 'gcs' or 'local'
 
     """
-    if gcs == "gcs":
+    if "gcs" in fs_kind:
         bucket = bucket.replace("/", "")
         fs = gcsfs.GCSFileSystem(project=project)
         # Will raise RefreshError if connection fails
@@ -505,7 +519,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     translations = {
         "mkdir": MultiMethodTranslator(
-            "mkdir", ["local", "gcs"], ["mkdir", "self.do_nothing"], [{"parents": "create_parents"}, {"parents": ""}],
+            "mkdir", ["local", "gcs"], ["mkdir", "self._do_nothing"], [{"parents": "create_parents"}, {"parents": ""}],
         ),
     }
 
@@ -550,7 +564,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if fs != "gcs" and fs != "local":
+        if "gcs" not in fs and fs != "local":
             raise ValueError(f"Unknown value {fs} for parameter 'gcs'")
 
         main_fs = None
@@ -562,13 +576,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if project is not None:
             cls.project = project
 
-        TransparentPath.set_nas_dir(cls, nas_dir)
+        TransparentPath._set_nas_dir(cls, nas_dir)
 
-        if cls.fs_kind == "gcs":
+        if "gcs" in cls.fs_kind:
             if cls.bucket is None:
                 raise ValueError("Need to provide a bucket name!")
             if cls.project is None:
                 raise ValueError("Need to provide a project name!")
+            cls.fs_kind = f"gcs_{cls.project}"
 
         cls.fss[cls.fs_kind] = get_fs(cls.fs_kind, cls.project, cls.bucket)
         TransparentPath.unset = False
@@ -616,6 +631,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
+        if path is None:
+            path = "."
+
         if (
             not (type(path) == type(Path("dummy")))  # noqa: E721
             and not (type(path) == str)
@@ -648,14 +666,16 @@ class TransparentPath(os.PathLike):  # noqa : F811
         # In case we initiate a path containing 'gs://'
         if "gs://" in str(path):
 
-            if project is None and TransparentPath.project is None:
-                raise ValueError("You specified a path starting with 'gs://' but did not specify any GCP project")
+            if project is None:
+                if TransparentPath.project is None:
+                    raise ValueError("You specified a path starting with 'gs://' but did not specify any GCP project")
+                project = TransparentPath.project
 
             if fs == "local":
                 raise ValueError(
                     "You specified a path starting with 'gs://' but ask for it to be local. This is not possible."
                 )
-            fs = "gcs"
+            fs = f"gcs_{project}"
             splitted = str(path).split("gs://")
             if len(splitted) == 0:
                 if bucket is None and TransparentPath.bucket is None:
@@ -666,7 +686,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     )
                 path = str(path).replace("gs://", "")
 
-            elif len(splitted) > 0:
+            else:
                 bucket_from_path = splitted[1].split("/")[0]
                 if bucket is not None:
                     if bucket != bucket_from_path:
@@ -687,22 +707,23 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.project = project if project is not None else TransparentPath.project
         self.bucket = bucket if bucket is not None else TransparentPath.bucket
         self.fs_kind = fs if fs is not None else TransparentPath.fs_kind
+        if self.fs_kind == "":
+            self.fs_kind = "local"
         self.fs = None
         self.nas_dir = TransparentPath.nas_dir
 
-        if self.fs_kind == "gcs":
+        if "gcs" in self.fs_kind:
             if self.project is None:
                 raise ValueError("If File System is to be GCS, please provide the project name")
             if self.bucket is None:
                 raise ValueError("If File System is to be GCS, please provide the bucket name")
+            self.fs_kind = f"gcs_{self.project}"
 
-        # Set the file system of this class's instance.
-        # If an instance of same file system exists in class's fss, will use
-        # it. Else, will create a new one and share it with class for future
-        # re-use.
-        # If no fs was specified and no file system was previously set for
-        # class, will use local by default and set it for class.
-        self.set_fs(self.fs_kind, self.bucket, self.project)
+        # Set the file system of this class's instance. If an instance of same file system exists in class's fss,
+        # will use it. Else, will create a new one and share it with class for future re-use.
+        # If no fs was specified and no file system was previously set for class, will use local by default and set it
+        # for class.
+        self._set_fs()
 
         if self.fs_kind == "local":
             self.__path = self.__path.absolute()
@@ -723,8 +744,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
             # Remove occurences of nas_dir at beginning of path, if any
             if self.nas_dir is not None and (
-                    str(self.__path).startswith(os.path.abspath(self.nas_dir) + os.sep)
-                    or str(self.__path) == self.nas_dir
+                str(self.__path).startswith(os.path.abspath(self.nas_dir) + os.sep) or str(self.__path) == self.nas_dir
             ):
                 self.__path = self.__path.relative_to(self.nas_dir)
 
@@ -744,7 +764,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 raise ValueError("You should never use your bucket name as a directory or file name.")
 
         if nocheck is False:
-            self.check_multiplicity()
+            self._check_multiplicity()
 
     @property
     def path(self):
@@ -772,9 +792,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if p1.__fspath__() != p2.__fspath__():
             return False
         if p1.fs_kind != p2.fs_kind:
-            return False
-        if p1.fs_kind == "gcs" and p1.project != p2.project:
-            # A difference in buckets would have been seen at fspath comparison
             return False
         return True
 
@@ -833,7 +850,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
         if type(other) == str:
-            return TransparentPath(self.__path / other, fs=self.fs_kind)
+            return TransparentPath(self.__path / other, fs=self.fs_kind, project=self.project, bucket=self.bucket)
         else:
             raise TypeError(f"Can not divide a TransparentPath by a {type(other)}, only by a string.")
 
@@ -865,10 +882,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return "gs://" + str(self.__path)
 
     def __hash__(self) -> int:
-        hash_number = int.from_bytes(self.__fspath__().encode(), 'little')\
-                      + int.from_bytes(self.fs_kind.encode(), 'little')
-        if self.fs_kind == "gcs":
-            hash_number += int.from_bytes(self.project.encode(), 'little')
+        hash_number = int.from_bytes((self.fs_kind + self.__fspath__()).encode(), "little") + int.from_bytes(
+            self.fs_kind.encode(), "little"
+        )
         return hash_number
 
     def __getattr__(self, obj_name: str) -> Any:
@@ -916,8 +932,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if not callable(obj):
                 # Fetch the self.path's attributes to set it to self
                 if type(obj) == type(self.__path):  # noqa: E721
-                    setattr(self, obj_name, TransparentPath(obj, fs=self.fs_kind))
-                    return TransparentPath(obj, fs=self.fs_kind)
+                    setattr(
+                        self, obj_name, TransparentPath(obj, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+                    )
+                    return TransparentPath(obj, fs=self.fs_kind, bucket=self.bucket, project=self.project)
                 else:
                     setattr(self, obj_name, obj)
                     return obj
@@ -937,33 +955,38 @@ class TransparentPath(os.PathLike):  # noqa : F811
         else:
             raise AttributeError(f"{obj_name} is not an attribute nor a method of TransparentPath")
 
-    def set_fs(
-        self,
-        fs: str,
-        bucket: Optional[str] = None,
-        project: Optional[str] = None,
-        nas_dir: Optional[Union[TransparentPath, Path, str]] = None,
-    ) -> None:
-        """Can be called to set the file system, if 'fs' keyword was not given at object creation. If not called, 
-        default file system is that of TransparentPath. If TransparentPath has no file system yet, creates a local 
-        one by default. If the first parameter is 'lcoal', the file system is local, and bucket and project are 
-        not needed. If the first parameter is 'gcs', file system is GCS and bucket and project are needed.
+    # /////////////// #
+    # PRIVATE METHODS #
+    # /////////////// #
 
+    @staticmethod
+    def _set_nas_dir(obj, nas_dir):
+        if nas_dir is not None:
+            if isinstance(nas_dir, TransparentPath):
+                obj.nas_dir = nas_dir.__path
+            elif isinstance(nas_dir, str):
+                obj.nas_dir = Path(nas_dir)
+            else:
+                obj.nas_dir = nas_dir
 
-        Parameters
-        ----------
-        fs: str
-            'gcs' will use GCSFileSystem, 'local' will use LocalFileSystem
+    def _update_cache(self):
+        """Calls FileSystem's invalidate_cache() to discard the cache then calls a non-distruptive method (fs.info(
+        bucket)) to update it.
 
-        bucket: str
-            The bucket name if using gcs (Default value =  None)
+        If local, on need to update the chache. Not even sure it needs to be invalidated...
+        """
+        self.fs.invalidate_cache()
+        if "gcs" in self.fs_kind:
+            self.fs.info(self.bucket)
 
-        project: str
-             The project name if using gcs (Default value = None)
+    def _cast_fast(self, path: str) -> TransparentPath:
+        return TransparentPath(path, fs=self.fs_kind, nocheck=True, bucket=self.bucket, project=self.project)
 
-        nas_dir: Union[TransparentPath, Path, str]
-            If specified, TransparentPath will delete any occurence of 'nas_dir' at the beginning of created paths if fs
-            is gcs (Default value = none).
+    def _cast_slow(self, path: str) -> TransparentPath:
+        return TransparentPath(path, fs=self.fs_kind, nocheck=False, bucket=self.bucket, project=self.project)
+
+    def _set_fs(self) -> None:
+        """ Create a new filesystem objet from self, or get the existing one
 
 
         Returns
@@ -972,44 +995,33 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if fs == "":
-            if not TransparentPath.fs_kind == "":
-                raise ValueError("You must specify a value for 'fs'")
-            TransparentPath.set_global_fs("local")
-            fs = "local"
-
-        if fs != "gcs" and fs != "local":
-            raise ValueError(f"Unknown value {fs} for parameter 'gcs'")
-
-        self.fs_kind = fs
-        self.bucket = bucket
-        self.project = project
-        TransparentPath.set_nas_dir(self, nas_dir)
-
-        if self.fs_kind == "gcs":
+        if "gcs" in self.fs_kind:
             if self.bucket is None:
                 raise ValueError("Need to provide a bucket name!")
             if self.project is None:
                 raise ValueError("Need to provide a project name!")
+            self.fs_kind = f"{self.fs_kind}"
 
         # If class has same kind of file system instance, use it
         use_common = False
+
         if self.fs_kind in TransparentPath.fss:
             use_common = True
-            # Special case if gcs : bucket and project must be the same as
-            # class's to use common instance of file system
-            if self.fs_kind == "gcs" and (
-                self.bucket != TransparentPath.bucket or self.project != TransparentPath.project
-            ):
-                use_common = False
 
         if use_common:
             self.fs = TransparentPath.fss[self.fs_kind]
             self.nas_dir = TransparentPath.nas_dir
+            if "gcs" in self.fs_kind and f"{self.bucket}/" not in self.fs.buckets:
+                raise NotADirectoryError(
+                    f"Bucket {self.bucket} does not exist in "
+                    f"project {self.project}, or you can not "
+                    f"see it. Available buckets are:\n"
+                    f"{self.fs.buckets}"
+                )
         # Else, init a new file system instance and share it with
         # TransparentPath
         else:
-            self.fs = get_fs(self.fs_kind, self.project, self.bucket)
+            self.fs = get_fs(self.fs_kind.replace(f"_{self.project}", ""), self.project, self.bucket)
             TransparentPath.fss[self.fs_kind] = self.fs
             # If TransparentPath's main fs_kind was not set, set it
             if TransparentPath.unset:
@@ -1048,10 +1060,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self.check_multiplicity()
+        self._check_multiplicity()
         # Append the absolute path to self.path according to whether the object
         # needs it and whether we are in gcs or local
-        new_args = self.transform_path(obj_name, *args)
+        new_args = self._transform_path(obj_name, *args)
 
         # Object is a method and exists in FileSystem object but has a
         # different name or its kwargs have different names, so use the
@@ -1098,7 +1110,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         else:
             raise ValueError(f"Unknown value {kind} for attribute kind")
 
-    def transform_path(self, method_name: str, *args: Tuple) -> Tuple:
+    def _transform_path(self, method_name: str, *args: Tuple) -> Tuple:
         """
         File system methods take self.path as first argument, so add its absolute path as first argument of args. 
         Some, like ls or glob, are given a relative path to append to self.path, so we need to change the first 
@@ -1138,11 +1150,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
             new_args = tuple([str(self.__path)] + list(args))
         return new_args
 
-    def check_multiplicity(self) -> None:
+    def _check_multiplicity(self) -> None:
         """Checks if several objects correspond to the path.
         Raises MultipleExistenceError if so, does nothing if not.
         """
-        self.update_cache()
+        self._update_cache()
         if str(self.__path) == self.bucket or str(self.__path) == "/":
             return
         if not self.exists():
@@ -1153,6 +1165,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
             thels = [Path(apath).name for apath in thels if Path(apath).name == self.name]
             if len(thels) > 1:
                 raise MultipleExistenceError(self, thels)
+
+    def _do_nothing(self) -> None:
+        """ does nothing (you don't say) """
+        pass
+
+    # ////////////// #
+    # PUBLIC METHODS #
+    # ////////////// #
 
     def get_absolute(self) -> TransparentPath:
         """Returns self, since all TransparentPaths are absolute
@@ -1171,10 +1191,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def rmbucket(self, name: Optional[str] = None) -> None:
         raise NotImplementedError
 
-    def do_nothing(self) -> None:
-        """ does nothing (you don't say) """
-        pass
-
     def is_dir(self, exist: bool = False) -> bool:
         """Check if self is a directory
 
@@ -1192,7 +1208,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self.check_multiplicity()
+        self._check_multiplicity()
         if self.fs_kind == "local":
             return self.__path.is_dir()
         else:
@@ -1213,7 +1229,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self.check_multiplicity()
+        self._check_multiplicity()
         if not self.exists():
             return False
 
@@ -1256,7 +1272,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         None
 
         """
-        self.check_multiplicity()
+        self._check_multiplicity()
 
         if absent != "raise" and absent != "ignore":
             raise ValueError(f"Unexpected value for argument 'absent' : {absent}")
@@ -1347,7 +1363,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self.check_multiplicity()
+        self._check_multiplicity()
 
         if not self.is_dir(exist=True):
             raise NotADirectoryError("The path must be a directory if you want to glob in it")
@@ -1358,9 +1374,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         path_to_glob = (self.__path / wildcard).__fspath__()
 
         if fast:
-            to_ret = map(self.cast_fast, self.fs.glob(path_to_glob))
+            to_ret = map(self._cast_fast, self.fs.glob(path_to_glob))
         else:
-            to_ret = map(self.cast_slow, self.fs.glob(path_to_glob))
+            to_ret = map(self._cast_slow, self.fs.glob(path_to_glob))
         return to_ret
 
     def with_suffix(self, suffix: str) -> TransparentPath:
@@ -1378,7 +1394,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         TransparentPath
 
         """
-        return TransparentPath(self.__path.with_suffix(suffix), fs=self.fs_kind)
+        return TransparentPath(
+            self.__path.with_suffix(suffix), fs=self.fs_kind, bucket=self.bucket, project=self.project
+        )
 
     def ls(self, path: str = "", fast: bool = False) -> Iterator[TransparentPath]:
         """ls-like method. Returns an Iterator of absolute TransparentPaths.
@@ -1400,7 +1418,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Iterator[TransparentPath]
 
         """
-        self.update_cache()
+        self._update_cache()
         thepath = self / path
         # noinspection PyUnresolvedReferences
         if not thepath.exists():
@@ -1411,9 +1429,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
             raise NotADirectoryError("Can not ls on a file!")
 
         if fast:
-            to_ret = map(self.cast_fast, self.fs.ls(str(thepath)),)
+            to_ret = map(self._cast_fast, self.fs.ls(str(thepath)),)
         else:
-            to_ret = map(self.cast_slow, self.fs.ls(str(thepath)),)
+            to_ret = map(self._cast_slow, self.fs.ls(str(thepath)),)
 
         return to_ret
 
@@ -1442,37 +1460,37 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         # Will collapse any '..'
 
-        self.update_cache()
-        if self.fs_kind == "gcs" and str(path) == self.bucket:
-            return TransparentPath(fs=self.fs_kind)
+        self._update_cache()
+        if "gcs" in self.fs_kind and str(path) == self.bucket:
+            return TransparentPath(fs=self.fs_kind, bucket=self.bucket, project=self.project)
 
         # If asked to cd to home, return path script calling directory
         if path == "" or path is None:
-            return TransparentPath(fs=self.fs_kind)
+            return TransparentPath(fs=self.fs_kind, bucket=self.bucket, project=self.project)
         # If asked for an absolute path
         if path[0] == "/":
-            return TransparentPath(path, fs=self.fs_kind)
+            return TransparentPath(path, fs=self.fs_kind, bucket=self.bucket, project=self.project)
 
         newpath = self / path
 
         if self.fs_kind == "local":
             # noinspection PyUnresolvedReferences
             if len(newpath.parts) == 0:
-                return TransparentPath(newpath, fs=self.fs_kind)
+                return TransparentPath(newpath, fs=self.fs_kind, bucket=self.bucket, project=self.project)
             # noinspection PyUnresolvedReferences
             if newpath.parts[0] == "..":
                 raise ValueError("The first part of a path can not be '..'")
         else:
             # noinspection PyUnresolvedReferences
             if len(newpath.parts) == 1:  # On gcs, first part is bucket
-                return TransparentPath(newpath, fs=self.fs_kind)
+                return TransparentPath(newpath, fs=self.fs_kind, bucket=self.bucket, project=self.project)
             # noinspection PyUnresolvedReferences
             if newpath.parts[1] == "..":
                 raise ValueError("Trying to access a path before bucket")
 
         newpath = collapse_ddots(newpath)
 
-        return TransparentPath(newpath, fs=self.fs_kind)
+        return TransparentPath(newpath, fs=self.fs_kind, bucket=self.bucket, project=self.project)
 
     def open(self, *arg, **kwargs) -> IO:
         """ Uses the file system open method
@@ -1493,7 +1511,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self.check_multiplicity()
+        self._check_multiplicity()
         check_kwargs(self.fs.open, kwargs)
         return self.fs.open(self.__path, *arg, **kwargs)
 
@@ -1557,7 +1575,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Any
 
         """
-        self.check_multiplicity()
+        self._check_multiplicity()
         if use_dask:
             if TransparentPath.cli is None:
                 TransparentPath.cli = client.Client(processes=False)
@@ -1599,7 +1617,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def read_csv(self, update_cache: bool = True, use_dask: bool = False, **kwargs) -> pd.DataFrame:
         if update_cache:
-            self.update_cache()
+            self._update_cache()
 
         # noinspection PyTypeChecker,PyUnresolvedReferences
         try:
@@ -1627,7 +1645,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self, update_cache: bool = True, use_dask: bool = False, **kwargs
     ) -> Union[pd.DataFrame, pd.Series]:
         if update_cache:
-            self.update_cache()
+            self._update_cache()
 
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
 
@@ -1654,7 +1672,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def read_text(self, *args, get_obj: bool = False, update_cache: bool = True, **kwargs) -> Union[str, IO]:
         if update_cache:
-            self.update_cache()
+            self._update_cache()
         byte_mode = True
         if len(args) == 0:
             byte_mode = False
@@ -1741,7 +1759,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             class_to_use = pd.HDFStore
 
         if update_cache:
-            self.update_cache()
+            self._update_cache()
         if self.fs_kind == "local":
             # Do not check kwargs since HDFStore and h5py both accepct kwargs anyway
             data = class_to_use(self.__path, mode=mode, **kwargs)
@@ -1756,7 +1774,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def read_excel(self, update_cache: bool = True, use_dask: bool = False, **kwargs) -> pd.DataFrame:
         if update_cache:
-            self.update_cache()
+            self._update_cache()
 
         check_kwargs(pd.read_excel, kwargs)
         # noinspection PyTypeChecker,PyUnresolvedReferences
@@ -1857,7 +1875,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Union[None, pd.HDFStore, h5py.File]
 
         """
-        self.check_multiplicity()
+        self._check_multiplicity()
         if "dask" in str(type(data)):
             check_dask()
 
@@ -1910,7 +1928,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self, data: Any, *args, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs
     ) -> None:
         if update_cache:
-            self.update_cache()
+            self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
 
@@ -1947,7 +1965,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         moved to self.
         """
         if update_cache:
-            self.update_cache()
+            self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
 
@@ -1959,7 +1977,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if not path_to_save.stem.endswith("*"):
                 path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
             futures = TransparentPath.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
-            outfiles = [TransparentPath(f, fs=self.fs_kind) for f in futures.result()]
+            outfiles = [
+                TransparentPath(f, fs=self.fs_kind, bucket=self.bucket, project=self.project) for f in futures.result()
+            ]
             if len(outfiles) == 1:
                 outfiles[0].mv(self)
             else:
@@ -1983,7 +2003,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if self.with_suffix(""). Reading is transparent and one can specify a path with .parquet suffix.
         """
         if update_cache:
-            self.update_cache()
+            self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
 
@@ -2038,7 +2058,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             del kwargs["mode"]
 
         if update_cache:
-            self.update_cache()
+            self._update_cache()
 
         # If no data is specified, an HDF5 file is returned, opened in write mode, or any other specified mode.
         if data is None:
@@ -2086,7 +2106,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
                             dd.to_hdf, list(sets.values()), [f.name] * len(sets), list(sets.keys()), mode=mode, **kwargs
                         )
                         TransparentPath.cli.gather(futures)
-                        TransparentPath(path=f.name, fs="local").put(self.__path)
+                        TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(
+                            self.__path
+                        )
                 return
 
             if self.fs_kind == "local":
@@ -2100,7 +2122,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     for aset in sets:
                         thefile[aset] = sets[aset]
                     thefile.close()
-                    TransparentPath(path=f.name, fs="local").put(self.__path)
+                    TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.__path)
 
     def to_json(self, data: Any, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs):
 
@@ -2118,7 +2140,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         **kwargs,
     ) -> None:
         if update_cache:
-            self.update_cache()
+            self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
 
@@ -2144,7 +2166,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 else:
                     check_kwargs(data.to_excel, kwargs)
                     data.to_excel(f.name, **kwargs)
-                TransparentPath(path=f.name, fs="local").put(self.__path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.__path)
 
     def touch(self, present: str = "ignore", create_parents: bool = True, **kwargs) -> None:
         """Creates the file corresponding to self if does not exist.
@@ -2173,7 +2195,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self.update_cache()
+        self._update_cache()
         if present != "raise" and present != "ignore":
             raise ValueError(f"Unexpected value for argument 'present' : {present}")
 
@@ -2182,7 +2204,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         if not self.exists():
             for parent in self.parents:
-                p = TransparentPath(parent, fs=self.fs_kind)
+                p = TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket, project=self.project)
                 if p.is_file():
                     raise FileExistsError(
                         f"A parent directory can not be created because there is already a file at {p}"
@@ -2230,12 +2252,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
             raise FileExistsError(f"There is already an object at {self}")
 
         for parent in self.parents:
-            if TransparentPath(parent, fs=self.fs_kind).is_file():
+            if TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket, project=self.project).is_file():
                 raise FileExistsError(
                     "A parent directory can not be "
                     "created because there is already a"
                     " file at"
-                    f" {TransparentPath(parent, fs=self.fs_kind)}"
+                    f" {TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket, project=self.project)}"
                 )
 
         if self.fs_kind == "local":
@@ -2278,7 +2300,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return pd.Series(stat)
 
     def append(self, other: str) -> TransparentPath:
-        return TransparentPath(str(self) + other, fs=self.fs_kind)
+        return TransparentPath(str(self) + other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
 
     def put(self, dst: Union[str, Path, TransparentPath]):
         """used to push a local file to the cloud.
@@ -2287,7 +2309,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         or a str, it will be casted into a GCS TransparentPath, so a gcs file system must have been set up once
         before. """
 
-        if "gcs" not in TransparentPath.fss:
+        if "gcs" not in "".join(TransparentPath.fss):
             raise ValueError("You need to set up a gcs file system before using the put() command.")
         if not self.fs_kind == "local":
             raise ValueError(
@@ -2297,7 +2319,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 "). "
             )
         # noinspection PyUnresolvedReferences
-        if type(dst) == TransparentPath and dst.fs_kind != "gcs":
+        if type(dst) == TransparentPath and "gcs" not in dst.fs_kind:
             raise ValueError(
                 "The second argument can not be a local "
                 "TransparentPath. To move a file "
@@ -2313,7 +2335,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self must be a gcs TransparentPath. If loc is a TransparentPath, it must be local. If it is a pathlib.Path or
         a str, it will be casted into a local TransparentPath. """
 
-        if not self.fs_kind == "gcs":
+        if "gcs" not in self.fs_kind:
             raise ValueError(
                 "The calling instance of get() must be on GCS. To move a file localy, use the mv() method."
             )
@@ -2326,14 +2348,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 " local, use get()"
             )
         if type(loc) != TransparentPath:
-            loc = TransparentPath(loc, fs="local")
+            loc = TransparentPath(loc, fs="local", bucket=self.bucket, project=self.project)
         self.fs.get(self.__fspath__(), loc.__fspath__())
 
     def mv(self, other: Union[str, Path, TransparentPath]):
         """Used to move two files on the same file system."""
 
         if not type(other) == TransparentPath:
-            other = TransparentPath(other, fs=self.fs_kind)
+            other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
         if other.fs_kind != self.fs_kind:
             raise ValueError(
                 "mv() can only move two TransparentPath on the "
@@ -2348,31 +2370,5 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return self.exists()
 
     def exists(self):
-        self.update_cache()
+        self._update_cache()
         return self.fs.exists(self.__fspath__())
-
-    def update_cache(self):
-        """Calls FileSystem's invalidate_cache() to discard the cache then calls a non-distruptive method (fs.info(
-        bucket)) to update it.
-
-        If local, on need to update the chache. Not even sure it needs to be invalidated...
-        """
-        self.fs.invalidate_cache()
-        if self.fs == "gcs":
-            self.fs.info(self.bucket)
-
-    def cast_fast(self, path: str) -> TransparentPath:
-        return TransparentPath(path, fs=self.fs_kind, nocheck=True)
-
-    def cast_slow(self, path: str) -> TransparentPath:
-        return TransparentPath(path, fs=self.fs_kind, nocheck=False)
-
-    @staticmethod
-    def set_nas_dir(obj, nas_dir):
-        if nas_dir is not None:
-            if isinstance(nas_dir, TransparentPath):
-                obj.nas_dir = nas_dir.__path
-            elif isinstance(nas_dir, str):
-                obj.nas_dir = Path(nas_dir)
-            else:
-                obj.nas_dir = nas_dir
