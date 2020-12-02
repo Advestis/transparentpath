@@ -978,6 +978,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.fs.invalidate_cache()
         if "gcs" in self.fs_kind:
             self.fs.buckets
+            self.fs.info(self.bucket)
 
     def _cast_fast(self, path: str) -> TransparentPath:
         return TransparentPath(path, fs=self.fs_kind, nocheck=True, bucket=self.bucket, project=self.project)
