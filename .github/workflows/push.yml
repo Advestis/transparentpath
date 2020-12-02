@@ -7,6 +7,7 @@ name: master
 jobs:
   publish:
     runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'VERSION-SKIP-CI')"
     strategy:
       matrix:
         python-version: [ 3.6 ]
@@ -25,14 +26,29 @@ jobs:
           pip install setuptools
           make install
           make sdist
+      - name: commit version
+        run: |
+          git add VERSION.txt
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "VERSION-SKIP-CI"
+      - name: Push version
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.TOKEN_CICD }}
+          branch: "master"
+          force: true
+      - name: make doc
+        run: |
           make doc
-      - name: commit
+      - name: commit doc
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add .
           git commit -m "docs"
-      - name: Push changes
+      - name: Push doc
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
@@ -43,10 +59,12 @@ jobs:
         with:
           user: ${{ secrets.pypi_login }}
           password: ${{ secrets.pypi_passwd }}
+          skip_existing: true
+          verbose: true
       - name: todocker
         uses: docker/build-push-action@v1
         with:
           username: ${{ secrets.docker_login }}
           password: ${{ secrets.docker_passwd }}
-          repository: advestis/transparentpath
+          repository: advestisrepositories/transparentpath
           tag_with_ref: true

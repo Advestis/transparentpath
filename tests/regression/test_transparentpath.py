@@ -54,9 +54,9 @@ class Init(object):
         TransparentPath.set_global_fs("gcs", project=project, bucket=bucket)
         assert not TransparentPath.unset
         assert len(TransparentPath.fss) == 1
-        assert TransparentPath.fs_kind == "gcs"
-        assert list(TransparentPath.fss.keys())[0] == "gcs"
-        assert isinstance(TransparentPath.fss["gcs"], gcsfs.GCSFileSystem)
+        assert TransparentPath.fs_kind == "gcs_sandbox-281209"
+        assert list(TransparentPath.fss.keys())[0] == "gcs_sandbox-281209"
+        assert isinstance(TransparentPath.fss["gcs_sandbox-281209"], gcsfs.GCSFileSystem)
         if reinit:
             self.reinit()
 
@@ -67,13 +67,13 @@ class Init(object):
         assert str(p) == f"gs://{bucket}/chien"
         assert p.__fspath__() == f"gs://{bucket}/chien"
 
-        assert p.fs_kind == "gcs"
-        assert p.fs == TransparentPath.fss["gcs"]
+        assert p.fs_kind == "gcs_sandbox-281209"
+        assert p.fs == TransparentPath.fss["gcs_sandbox-281209"]
         assert not TransparentPath.unset
         assert len(TransparentPath.fss) == 1
-        assert TransparentPath.fs_kind == "gcs"
-        assert list(TransparentPath.fss.keys())[0] == "gcs"
-        assert isinstance(TransparentPath.fss["gcs"], gcsfs.GCSFileSystem)
+        assert TransparentPath.fs_kind == "gcs_sandbox-281209"
+        assert list(TransparentPath.fss.keys())[0] == "gcs_sandbox-281209"
+        assert isinstance(TransparentPath.fss["gcs_sandbox-281209"], gcsfs.GCSFileSystem)
         p2 = p / ".."
         assert str(p2) == f"gs://{p2.bucket}"
         p2 = TransparentPath()
@@ -85,8 +85,15 @@ class Init(object):
         self.init_gcs_success(reinit=False)
         failed = False
         try:
-            TransparentPath(f"gs://{bucket + 'chat'}/chien")
+            TransparentPath(f"gs://{bucket + 'chat'}/chien", bucket=bucket)
         except ValueError:
+            failed = True
+        assert failed
+
+        failed = False
+        try:
+            TransparentPath(f"gs://{bucket + 'chat'}/chien")
+        except NotADirectoryError:
             failed = True
         assert failed
 
@@ -102,13 +109,13 @@ class Init(object):
         assert str(p) == f"gs://{bucket}/chien"
         assert p.__fspath__() == f"gs://{bucket}/chien"
 
-        assert p.fs_kind == "gcs"
-        assert p.fs == TransparentPath.fss["gcs"]
+        assert "gcs" in p.fs_kind
+        assert p.fs == TransparentPath.fss["gcs_sandbox-281209"]
         assert not TransparentPath.unset
         assert len(TransparentPath.fss) == 1
-        assert TransparentPath.fs_kind == "gcs"
-        assert list(TransparentPath.fss.keys())[0] == "gcs"
-        assert isinstance(TransparentPath.fss["gcs"], gcsfs.GCSFileSystem)
+        assert "gcs" in TransparentPath.fs_kind
+        assert "gcs" in list(TransparentPath.fss.keys())[0]
+        assert isinstance(TransparentPath.fss["gcs_sandbox-281209"], gcsfs.GCSFileSystem)
         self.reinit()
 
     def init_local(self, reinit=True):
@@ -163,13 +170,13 @@ class Init(object):
         assert str(p) == f"gs://{bucket}/chien"
         assert p.__fspath__() == f"gs://{bucket}/chien"
 
-        assert p.fs_kind == "gcs"
-        assert p.fs == TransparentPath.fss["gcs"]
+        assert p.fs_kind == "gcs_sandbox-281209"
+        assert p.fs == TransparentPath.fss["gcs_sandbox-281209"]
         assert not TransparentPath.unset
         assert len(TransparentPath.fss) == 1
-        assert TransparentPath.fs_kind == "gcs"
-        assert list(TransparentPath.fss.keys())[0] == "gcs"
-        assert isinstance(TransparentPath.fss["gcs"], gcsfs.GCSFileSystem)
+        assert "gcs" in TransparentPath.fs_kind
+        assert list(TransparentPath.fss.keys())[0] == "gcs_sandbox-281209"
+        assert isinstance(TransparentPath.fss["gcs_sandbox-281209"], gcsfs.GCSFileSystem)
         self.reinit()
 
         self.before_init()
@@ -199,13 +206,13 @@ class Init(object):
         assert str(p) == f"gs://{bucket}/chien"
         assert p.__fspath__() == f"gs://{bucket}/chien"
 
-        assert p.fs_kind == "gcs"
-        assert p.fs == TransparentPath.fss["gcs"]
+        assert "gcs" in p.fs_kind
+        assert p.fs == TransparentPath.fss["gcs_sandbox-281209"]
         assert not TransparentPath.unset
         assert len(TransparentPath.fss) == 1
-        assert TransparentPath.fs_kind == "gcs"
-        assert list(TransparentPath.fss.keys())[0] == "gcs"
-        assert isinstance(TransparentPath.fss["gcs"], gcsfs.GCSFileSystem)
+        assert "gcs" in TransparentPath.fs_kind
+        assert list(TransparentPath.fss.keys())[0] == "gcs_sandbox-281209"
+        assert isinstance(TransparentPath.fss["gcs_sandbox-281209"], gcsfs.GCSFileSystem)
         self.reinit()
 
     def init_local_path_before_class(self):
@@ -232,13 +239,13 @@ class Init(object):
         assert str(p) == f"gs://{bucket}/chien"
         assert p.__fspath__() == f"gs://{bucket}/chien"
 
-        assert p.fs_kind == "gcs"
-        assert p.fs == TransparentPath.fss["gcs"]
+        assert "gcs" in p.fs_kind
+        assert p.fs == TransparentPath.fss["gcs_sandbox-281209"]
         assert not TransparentPath.unset
         assert len(TransparentPath.fss) == 2
         assert TransparentPath.fs_kind == "local"
-        assert "gcs" in list(TransparentPath.fss.keys()) and "local" in list(TransparentPath.fss.keys())
-        assert isinstance(TransparentPath.fss["gcs"], gcsfs.GCSFileSystem)
+        assert "gcs_sandbox-281209" in list(TransparentPath.fss.keys()) and "local" in list(TransparentPath.fss.keys())
+        assert isinstance(TransparentPath.fss["gcs_sandbox-281209"], gcsfs.GCSFileSystem)
         assert isinstance(TransparentPath.fss["local"], LocalFileSystem)
         self.reinit()
 
@@ -270,13 +277,13 @@ class Init(object):
         assert str(p) == f"gs://{bucket}/chien"
         assert p.__fspath__() == f"gs://{bucket}/chien"
 
-        assert p.fs_kind == "gcs"
-        assert p.fs == TransparentPath.fss["gcs"]
+        assert "gcs" in p.fs_kind
+        assert p.fs == TransparentPath.fss["gcs_sandbox-281209"]
         assert not TransparentPath.unset
         assert len(TransparentPath.fss) == 2
         assert TransparentPath.fs_kind == "local"
-        assert "gcs" in list(TransparentPath.fss.keys()) and "local" in list(TransparentPath.fss.keys())
-        assert isinstance(TransparentPath.fss["gcs"], gcsfs.GCSFileSystem)
+        assert "gcs_sandbox-281209" in list(TransparentPath.fss.keys()) and "local" in list(TransparentPath.fss.keys())
+        assert isinstance(TransparentPath.fss["gcs_sandbox-281209"], gcsfs.GCSFileSystem)
         assert isinstance(TransparentPath.fss["local"], LocalFileSystem)
         self.reinit()
 
@@ -292,9 +299,9 @@ class Init(object):
         assert p.fs == TransparentPath.fss["local"]
         assert not TransparentPath.unset
         assert len(TransparentPath.fss) == 2
-        assert TransparentPath.fs_kind == "gcs"
-        assert "gcs" in list(TransparentPath.fss.keys()) and "local" in list(TransparentPath.fss.keys())
-        assert isinstance(TransparentPath.fss["gcs"], gcsfs.GCSFileSystem)
+        assert "gcs" in TransparentPath.fs_kind
+        assert "gcs_sandbox-281209" in list(TransparentPath.fss.keys()) and "local" in list(TransparentPath.fss.keys())
+        assert isinstance(TransparentPath.fss["gcs_sandbox-281209"], gcsfs.GCSFileSystem)
         assert isinstance(TransparentPath.fss["local"], LocalFileSystem)
         self.reinit()
 
@@ -320,7 +327,7 @@ class Checks:
     def is_dir(self):
         self.p.rm(absent="ignore", ignore_kind=True)
         assert not self.p.exists()
-        if self.p.fs_kind == "gcs":
+        if "gcs" in self.p.fs_kind:
             assert self.p.is_dir()
             assert not self.p.is_dir(exist=True)
         else:
@@ -374,7 +381,7 @@ class Checks:
             )
         self.p.rm(absent="ignore", ignore_kind=True)
         self.p.touch()
-        if self.p.fs_kind == "gcs":
+        if "gcs" in self.p.fs_kind:
             self.p.get("zob")
             assert Path("zob").is_file()
             Path("zob").unlink()
@@ -603,7 +610,7 @@ class Methods:
 
     def cd(self):
         self.p.rm(absent="ignore", ignore_kind=True)
-        if self.p.fs_kind == "gcs":
+        if "gcs" in self.p.fs_kind:
             assert TransparentPath("/") == TransparentPath()
             assert str(TransparentPath("/")) == f"gs://{self.p.bucket}"
             assert str(TransparentPath()) == f"gs://{self.p.bucket}"
@@ -714,8 +721,8 @@ class Methods:
         self.p.rm()
 
 
-def do_test(fs, bucket=None, project=None):
-    TransparentPath.set_global_fs(fs, bucket, project)
+def do_test(fs, bucket_=None, project_=None):
+    TransparentPath.set_global_fs(fs, bucket_, project_)
     print(f"\n  Testing Checks {fs}...")
     checks = Checks()
     checks.raise_missing_attr()
@@ -733,7 +740,7 @@ def do_test(fs, bucket=None, project=None):
     # checks.get_put_mv()
     print("    ...get_put_mv tested")
 
-    TransparentPath.set_global_fs(fs, bucket, project)
+    TransparentPath.set_global_fs(fs, bucket_, project_)
     print(f"\n  Testing Write {fs}...")
     write = Write()
     write.write_csv()
@@ -751,7 +758,7 @@ def do_test(fs, bucket=None, project=None):
     write.write_dask()
     print("    ...write_dask tested")
 
-    TransparentPath.set_global_fs(fs, bucket, project)
+    TransparentPath.set_global_fs(fs, bucket_, project_)
     print(f"\n  Testing Read {fs}")
     read = Read()
     read.read_csv()
@@ -767,7 +774,7 @@ def do_test(fs, bucket=None, project=None):
     read.read_dask()
     print("    ...read_dask tested")
 
-    TransparentPath.set_global_fs(fs, bucket, project)
+    TransparentPath.set_global_fs(fs, bucket_, project_)
     print(f"\n  Testing Methods {fs}")
     methods = Methods()
     methods.cd()
@@ -811,6 +818,7 @@ def gcs_init(init):
 
 def try_gcs_init(init):
     print("Testing GCS...")
+    # noinspection PyUnresolvedReferences
     try:
         gcs_init(init)
     except gcsfs.utils.HttpError as e:
@@ -838,6 +846,6 @@ def test_all():
         print("Local test skipped.")
 
     if gcs:
-        do_test("gcs", project=project, bucket=bucket)
+        do_test("gcs", project_=project, bucket_=bucket)
     else:
         print("GCS test skipped.")
