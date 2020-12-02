@@ -317,7 +317,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
     nas_dir = "/media/SERVEUR"
     unset = True
     cwd = os.getcwd()
-    cli = None
 
     _attributes = ["fs", "path", "fs_kind", "project", "bucket"]
 
