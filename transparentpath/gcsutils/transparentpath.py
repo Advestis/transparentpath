@@ -534,6 +534,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     cwd = os.getcwd()
     cli = None
     token = None
+    _do_update_cache = True
 
     _attributes = ["fs", "path", "fs_kind", "project", "bucket"]
 
@@ -1184,7 +1185,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """Checks if several objects correspond to the path.
         Raises MultipleExistenceError if so, does nothing if not.
         """
-        self._update_cache()
+        if TransparentPath._do_update_cache:
+            self._update_cache()
         if str(self.__path) == self.bucket or str(self.__path) == "/":
             return
         if not self.exists():
@@ -1449,7 +1451,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Iterator[TransparentPath]
 
         """
-        self._update_cache()
+
+        if TransparentPath._do_update_cache:
+            self._update_cache()
         thepath = self / path
         # noinspection PyUnresolvedReferences
         if not thepath.exists():
@@ -1491,7 +1495,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         # Will collapse any '..'
 
-        self._update_cache()
+        if TransparentPath._do_update_cache:
+            self._update_cache()
         if "gcs" in self.fs_kind and str(path) == self.bucket:
             return TransparentPath(fs=self.fs_kind, bucket=self.bucket, project=self.project)
 
@@ -1647,7 +1652,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return self.read_text(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
 
     def read_csv(self, update_cache: bool = True, use_dask: bool = False, **kwargs) -> pd.DataFrame:
-        if update_cache:
+        if update_cache and TransparentPath._do_update_cache:
             self._update_cache()
 
         # noinspection PyTypeChecker,PyUnresolvedReferences
@@ -1675,7 +1680,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def read_parquet(
         self, update_cache: bool = True, use_dask: bool = False, **kwargs
     ) -> Union[pd.DataFrame, pd.Series]:
-        if update_cache:
+        if update_cache and TransparentPath._do_update_cache:
             self._update_cache()
 
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
@@ -1702,7 +1707,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             )
 
     def read_text(self, *args, get_obj: bool = False, update_cache: bool = True, **kwargs) -> Union[str, IO]:
-        if update_cache:
+        if update_cache and TransparentPath._do_update_cache:
             self._update_cache()
         byte_mode = True
         if len(args) == 0:
@@ -1789,7 +1794,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if use_pandas:
             class_to_use = pd.HDFStore
 
-        if update_cache:
+        if update_cache and TransparentPath._do_update_cache:
             self._update_cache()
         if self.fs_kind == "local":
             # Do not check kwargs since HDFStore and h5py both accepct kwargs anyway
@@ -1804,7 +1809,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return data
 
     def read_excel(self, update_cache: bool = True, use_dask: bool = False, **kwargs) -> pd.DataFrame:
-        if update_cache:
+        if update_cache and TransparentPath._do_update_cache:
             self._update_cache()
 
         check_kwargs(pd.read_excel, kwargs)
@@ -1958,7 +1963,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def write_stuff(
         self, data: Any, *args, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs
     ) -> None:
-        if update_cache:
+        if update_cache and TransparentPath._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
@@ -1995,7 +2000,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         single_file=True, but that is not supported in GCS. If only one file is produced, then this file will be
         moved to self.
         """
-        if update_cache:
+        if update_cache and TransparentPath._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
@@ -2033,7 +2038,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Warning : if data is a Dask dataframe, the output will be written in a directory. For convenience, the directory
         if self.with_suffix(""). Reading is transparent and one can specify a path with .parquet suffix.
         """
-        if update_cache:
+        if update_cache and TransparentPath._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
@@ -2088,7 +2093,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             mode = kwargs["mode"]
             del kwargs["mode"]
 
-        if update_cache:
+        if update_cache and TransparentPath._do_update_cache:
             self._update_cache()
 
         # If no data is specified, an HDF5 file is returned, opened in write mode, or any other specified mode.
@@ -2170,7 +2175,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         update_cache: bool = True,
         **kwargs,
     ) -> None:
-        if update_cache:
+        if update_cache and TransparentPath._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
@@ -2226,7 +2231,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self._update_cache()
+        if TransparentPath._do_update_cache:
+            self._update_cache()
         if present != "raise" and present != "ignore":
             raise ValueError(f"Unexpected value for argument 'present' : {present}")
 
@@ -2410,7 +2416,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return self.exists()
 
     def exists(self):
-        self._update_cache()
+        if TransparentPath._do_update_cache:
+            self._update_cache()
         return self.fs.exists(self.__fspath__())
 
     @property
