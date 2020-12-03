@@ -797,15 +797,8 @@ def local_init(init):
 
 def try_local_init(init):
     print("Testing local...")
-    try:
-        local_init(init)
-    except Exception as e:
-        print(f"Exception {type(e)} was raised, skipped.")
-        print(e)
-        return False
-    else:
-        print("Success.")
-        return True
+    local_init(init)
+    print("Success.")
 
 
 def gcs_init(init):
@@ -833,17 +826,14 @@ def try_gcs_init(init):
 def test_all():
     print("\nTesting Initialisations...")
     init = Init()
-    loc = try_local_init(init)
+    try_local_init(init)
     gcs = try_gcs_init(init)
-    if loc and gcs:
+    if gcs:
         init.init_local_class_then_gcs_path()
         init.init_gcs_class_then_local_path()
 
-    if loc:
-        do_test("local")
-        TransparentPath("chien").rmdir()
-    else:
-        print("Local test skipped.")
+    do_test("local")
+    TransparentPath("chien").rm(absent="ignore", ignore_kind=True)
 
     if gcs:
         do_test("gcs", project_=project, bucket_=bucket)
