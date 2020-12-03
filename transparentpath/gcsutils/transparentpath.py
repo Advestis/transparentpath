@@ -75,9 +75,7 @@ class MyHDFFile(h5py.File):
         h5py.File.__exit__(self, *args)
         if self.remote_file is not None:
             # noinspection PyUnresolvedReferences
-            TransparentPath(self.local_path.name, fs="local").put(
-                self.remote_file
-            )
+            TransparentPath(self.local_path.name, fs="local").put(self.remote_file)
             # noinspection PyUnresolvedReferences
             self.local_path.close()
 
@@ -97,9 +95,7 @@ class MyHDFStore(pd.HDFStore):
     def __exit__(self, exc_type, exc_value, traceback):
         pd.HDFStore.__exit__(self, exc_type, exc_value, traceback)
         if self.remote_file is not None:
-            TransparentPath(self.local_path.name, fs="local").put(
-                self.remote_file
-            )
+            TransparentPath(self.local_path.name, fs="local").put(self.remote_file)
             self.local_path.close()
 
 
@@ -235,7 +231,9 @@ def collapse_ddots(path: Union[Path, TransparentPath, str]) -> TransparentPath:
     )
 
 
-def get_fs(fs_kind: str, project: str, bucket: str) -> Union[gcsfs.GCSFileSystem, LocalFileSystem]:
+def get_fs(
+    fs_kind: str, project: str, bucket: str, token: Optional[Union[str, dict]] = None
+) -> Union[gcsfs.GCSFileSystem, LocalFileSystem]:
     """Gets the FileSystem object of either gcs or local (Default)
 
 
@@ -250,6 +248,9 @@ def get_fs(fs_kind: str, project: str, bucket: str) -> Union[gcsfs.GCSFileSystem
     bucket: str
         bucket name for GCS
 
+    token: Optional[Union[str, dict]]
+        credentials (default value = None)
+
     Returns
     -------
     Union[gcsfs.GCSFileSystem, LocalFileSystem]
@@ -258,7 +259,10 @@ def get_fs(fs_kind: str, project: str, bucket: str) -> Union[gcsfs.GCSFileSystem
     """
     if "gcs" in fs_kind:
         bucket = bucket.replace("/", "")
-        fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)
+        if token is None:
+            fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)
+        else:
+            fs = gcsfs.GCSFileSystem(project=project, asynchronous=False, token=token)
         # Will raise RefreshError if connection fails
         fs.glob(bucket)
         check_buckets(fs, bucket)
@@ -278,20 +282,12 @@ def get_buckets(fs: gcsfs.GCSFileSystem) -> List[str]:
         next_page_token = page.get("nextPageToken", None)
 
         while next_page_token is not None:
-            page = fs.call(
-                "GET",
-                "b/",
-                project=fs.project,
-                pageToken=next_page_token,
-                json_out=True,
-            )
+            page = fs.call("GET", "b/", project=fs.project, pageToken=next_page_token, json_out=True,)
 
             assert page["kind"] == "storage#buckets"
             items.extend(page.get("items", []))
             next_page_token = page.get("nextPageToken", None)
-        fs.dircache[""] = [
-            {"name": i["name"] + "/", "size": 0, "type": "directory"} for i in items
-        ]
+        fs.dircache[""] = [{"name": i["name"] + "/", "size": 0, "type": "directory"} for i in items]
     return [b["name"] for b in fs.dircache[""]]
 
 
@@ -537,6 +533,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     unset = True
     cwd = os.getcwd()
     cli = None
+    token = None
 
     _attributes = ["fs", "path", "fs_kind", "project", "bucket"]
 
@@ -565,6 +562,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         project: Optional[str] = None,
         make_main: bool = True,
         nas_dir: Optional[Union[TransparentPath, Path, str]] = None,
+        token: Optional[Union[dict, str]] = None,
     ) -> None:
         """To call before creating any instance to set the file system.
 
@@ -592,6 +590,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
             If specified, TransparentPath will delete any occurence of 'nas_dir' at the beginning of created paths if fs
             is gcs (Default value = None).
 
+        token: Optional[Union[dict, str]]
+            credentials (default value = None)
+
         Returns
         -------
         None
@@ -610,6 +611,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if project is not None:
             cls.project = project
 
+        if token is not None:
+            cls.token = token
+
         TransparentPath._set_nas_dir(cls, nas_dir)
 
         if "gcs" in cls.fs_kind:
@@ -619,7 +623,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 raise ValueError("Need to provide a project name!")
             cls.fs_kind = f"gcs_{cls.project}"
 
-        cls.fss[cls.fs_kind] = get_fs(cls.fs_kind, cls.project, cls.bucket)
+        cls.fss[cls.fs_kind] = get_fs(cls.fs_kind, cls.project, cls.bucket, cls.token)
         TransparentPath.unset = False
 
         if main_fs is not None:
@@ -1025,12 +1029,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def _set_fs(self) -> None:
         """ Create a new filesystem objet from self, or get the existing one
-
-
-        Returns
-        -------
-        None
-
         """
 
         if "gcs" in self.fs_kind:
