@@ -647,21 +647,6 @@ class Methods:
         expectation.sort()
         assert ls_res == expectation
 
-        rose = False
-        try:
-            self.p.ls("f")
-        except FileNotFoundError:
-            rose = True
-        assert rose
-
-        rose = False
-        try:
-            ls_res = self.p.ls("f2")
-        except NotADirectoryError:
-            rose = True
-        assert rose
-        assert ls_res == expectation
-
         self.p.rm(absent="ignore", ignore_kind=True)
 
     def glob(self):
