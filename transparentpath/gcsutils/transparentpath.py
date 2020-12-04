@@ -185,7 +185,7 @@ def myopen(*args, **kwargs) -> IO:
 setattr(builtins, "open", myopen)
 
 
-def collapse_ddots(path: Union[Path, TransparentPath, str]) -> TransparentPath:
+def collapse_ddots(path: Union[Path, TransparentPath, str]) -> Union[TransparentPath, Path]:
     """Collapses the double-dots (..) in the path
 
     Parameters
@@ -196,7 +196,7 @@ def collapse_ddots(path: Union[Path, TransparentPath, str]) -> TransparentPath:
 
     Returns
     -------
-    TransparentPath
+    Union[TransparentPath, Path]
         The collapsed path.
 
     """
@@ -1476,8 +1476,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         return to_ret
 
-    def cd(self, path: Optional[str] = None) -> TransparentPath:
-        """cd-like command
+    def cd(self, path: Optional[str] = None) -> None:
+        """cd-like command. Works inplace
         
         Will collapse double-dots ('..'), so not compatible with symlinks. If path is absolute (starts with '/' or 
         bucket name or is empty), will return a path starting from root directory if FileSystem is local, from bucket 
@@ -1495,44 +1495,55 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         Returns
         -------
-        newpath: the absolute TransparentPath we cded to.
+        None: works inplace
 
         """
 
         # Will collapse any '..'
 
+        if not isinstance(path, str) or isinstance(path, TransparentPath):
+            raise TypeError("Can only pass a string")
+
+        path = path.replace("gs://", "")
+
         if TransparentPath._do_update_cache:
             self._update_cache()
-        if "gcs" in self.fs_kind and str(path) == self.bucket:
-            return TransparentPath(fs=self.fs_kind, bucket=self.bucket, project=self.project)
+        if "gcs" in self.fs_kind and str(path) == self.bucket or path == "" or path == "/":
+            self.__path = Path(self.bucket)
+            return
 
         # If asked to cd to home, return path script calling directory
         if path == "" or path is None:
-            return TransparentPath(fs=self.fs_kind, bucket=self.bucket, project=self.project)
-        # If asked for an absolute path
-        if path[0] == "/":
-            return TransparentPath(path, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+            self.__path = Path()
+            return
 
-        newpath = self / path
+        self.__path = self.__path / path
 
         if self.fs_kind == "local":
+            # If asked for an absolute path
+            if path.startswith("/"):
+                self.__path = Path(path)
+                return
             # noinspection PyUnresolvedReferences
-            if len(newpath.parts) == 0:
-                return TransparentPath(newpath, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+            if len(self.__path.parts) == 0:
+                return
             # noinspection PyUnresolvedReferences
-            if newpath.parts[0] == "..":
+            if self.__path.parts[0] == "..":
                 raise ValueError("The first part of a path can not be '..'")
         else:
+            # If asked for an absolute path
+            if path.startswith("/"):
+                self.__path = Path(self.bucket) / path[1:]
+                return
             # noinspection PyUnresolvedReferences
-            if len(newpath.parts) == 1:  # On gcs, first part is bucket
-                return TransparentPath(newpath, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+            if self.__path == 1:  # On gcs, first part is bucket
+                return
             # noinspection PyUnresolvedReferences
-            if newpath.parts[1] == "..":
+            if self.__path.parts[1] == "..":
                 raise ValueError("Trying to access a path before bucket")
 
-        newpath = collapse_ddots(newpath)
-
-        return TransparentPath(newpath, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+        # noinspection PyUnresolvedReferences
+        self.__path = collapse_ddots(self.__path)
 
     def open(self, *arg, **kwargs) -> IO:
         """ Uses the file system open method
