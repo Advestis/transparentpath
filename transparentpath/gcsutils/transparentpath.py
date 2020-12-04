@@ -535,6 +535,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     cli = None
     token = None
     _do_update_cache = True
+    _do_check = True
 
     _attributes = ["fs", "path", "fs_kind", "project", "bucket"]
 
@@ -802,7 +803,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if len(self.__path.parts) > 1 and self.bucket in self.__path.parts[1:]:
                 raise ValueError("You should never use your bucket name as a directory or file name.")
 
-        if nocheck is False:
+        if nocheck is False and TransparentPath._do_check:
             self._check_multiplicity()
 
     @property
@@ -1091,7 +1092,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self._check_multiplicity()
+        if TransparentPath._do_check:
+            self._check_multiplicity()
         # Append the absolute path to self.path according to whether the object
         # needs it and whether we are in gcs or local
         new_args = self._transform_path(obj_name, *args)
@@ -1239,8 +1241,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
         bool
 
         """
-
-        self._check_multiplicity()
+        if TransparentPath._do_check:
+            self._check_multiplicity()
         if self.fs_kind == "local":
             return self.__path.is_dir()
         else:
@@ -1261,7 +1263,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self._check_multiplicity()
+        if TransparentPath._do_check:
+            self._check_multiplicity()
         if not self.exists():
             return False
 
@@ -1304,7 +1307,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         None
 
         """
-        self._check_multiplicity()
+
+        if TransparentPath._do_check:
+            self._check_multiplicity()
 
         if absent != "raise" and absent != "ignore":
             raise ValueError(f"Unexpected value for argument 'absent' : {absent}")
@@ -1396,7 +1401,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self._check_multiplicity()
+        if TransparentPath._do_check:
+            self._check_multiplicity()
 
         if not self.is_dir(exist=True):
             raise NotADirectoryError("The path must be a directory if you want to glob in it")
@@ -1547,7 +1553,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self._check_multiplicity()
+        if TransparentPath._do_check:
+            self._check_multiplicity()
         check_kwargs(self.fs.open, kwargs)
         return self.fs.open(self.__path, *arg, **kwargs)
 
@@ -1611,7 +1618,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Any
 
         """
-        self._check_multiplicity()
+
+        if TransparentPath._do_check:
+            self._check_multiplicity()
         if use_dask:
             if TransparentPath.cli is None:
                 TransparentPath.cli = client.Client(processes=False)
@@ -1911,7 +1920,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Union[None, pd.HDFStore, h5py.File]
 
         """
-        self._check_multiplicity()
+
+        if TransparentPath._do_check:
+            self._check_multiplicity()
         if "dask" in str(type(data)):
             check_dask()
 
