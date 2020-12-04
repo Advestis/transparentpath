@@ -1437,15 +1437,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.__path.with_suffix(suffix), fs=self.fs_kind, bucket=self.bucket, project=self.project
         )
 
-    def ls(self, path: str = "", fast: bool = False) -> Iterator[TransparentPath]:
-        """ls-like method. Returns an Iterator of absolute TransparentPaths.
+    def ls(self, fast: bool = False) -> Iterator[TransparentPath]:
+        """ Equivalent to glob("*")
 
 
         Parameters
         -----------
-        path: str
-            relative path to ls. (Default value = "")
-
         fast: bool
             If True, does not check multiplicity when converting output
             paths to TransparentPath, significantly speeding up the process
@@ -1458,23 +1455,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if TransparentPath._do_update_cache:
-            self._update_cache()
-        thepath = self / path
-        # noinspection PyUnresolvedReferences
-        if not thepath.exists():
-            raise FileNotFoundError(f"Could not find location {self}")
-
-        # noinspection PyUnresolvedReferences
-        if thepath.is_file():
-            raise NotADirectoryError("Can not ls on a file!")
-
-        if fast:
-            to_ret = map(self._cast_fast, self.fs.ls(str(thepath)),)
-        else:
-            to_ret = map(self._cast_slow, self.fs.ls(str(thepath)),)
-
-        return to_ret
+        return self.glob("*", fast=fast)
 
     def cd(self, path: Optional[str] = None) -> None:
         """cd-like command. Works inplace
