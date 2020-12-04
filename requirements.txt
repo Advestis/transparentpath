@@ -13,3 +13,4 @@ openpyxl
 xlrd
 dask[dataframe,distributed]
 bokeh
+google-auth
