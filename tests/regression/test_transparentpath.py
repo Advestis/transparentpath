@@ -392,7 +392,7 @@ class Checks:
             rp.rm()
 
         self.p.mv("zob")
-        rp = self.p.cd() / "zob"
+        rp = TransparentPath("zob")
         assert rp.is_file()
         rp.rm()
 
@@ -611,16 +611,26 @@ class Methods:
     def cd(self):
         self.p.rm(absent="ignore", ignore_kind=True)
         if "gcs" in self.p.fs_kind:
+            p = TransparentPath(self.p)
             assert TransparentPath("/") == TransparentPath()
             assert str(TransparentPath("/")) == f"gs://{self.p.bucket}"
             assert str(TransparentPath()) == f"gs://{self.p.bucket}"
-            assert str(self.p.cd("/")) == f"gs://{self.p.bucket}"
-            assert str(self.p.cd(self.p.bucket)) == f"gs://{self.p.bucket}"
-            assert self.p.cd("/chien") == TransparentPath("chien")
+            p.cd("/")
+            assert str(p) == f"gs://{self.p.bucket}"
+            p.cd(p.bucket)
+            assert str(p) == f"gs://{self.p.bucket}"
+            p.cd("/chien")
+            assert p == TransparentPath("chien")
 
-        assert self.p.cd("../../../") == TransparentPath()
-        assert self.p.cd("..") == TransparentPath("chien/chat/")
-        assert self.p.cd(".") == self.p
+        p = TransparentPath(self.p)
+        p.cd("../../../")
+        assert p == TransparentPath()
+        p = TransparentPath(self.p)
+        p.cd("..")
+        assert p == TransparentPath("chien/chat/")
+        p = TransparentPath(self.p)
+        p.cd(".")
+        assert p == self.p
 
     def ls(self):
         self.p.rm(absent="ignore", ignore_kind=True)
