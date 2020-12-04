@@ -15,21 +15,18 @@ class MethodTranslator(object):
             self.kwargs = {}
 
     def translate_str(self, *args: Tuple, **kwargs: Dict) -> str:
-        """ Tranlate the method as a string
+        """ Tranlates the method as a string
 
         Parameters
         ----------
         *args: Tuple
-
         **kwargs: Dict
-
 
         Returns
         -------
         str
             The string of the translated method
             new_method(arg1, arg2..., kwargs1=val1, translated_kwargs2=val2...)
-
         """
 
         tr = f"{self.second_name}("
@@ -50,21 +47,17 @@ class MethodTranslator(object):
         return tr
 
     def translate(self, *args: Tuple, **kwargs: Dict) -> [str, Tuple, Dict]:
-        """ translate the method
+        """ Translates the method
 
         Parameters
         ----------
         *args: Tuple
-
         **kwargs: Dict
-
 
         Returns
         -------
         [str, Tuple, Dict]
-            The translated method name along with the given args and the
-            translated kwargs
-
+            The translated method name along with the given args and the translated kwargs
         """
         new_kwargs = {}
         for kwarg in kwargs:
@@ -95,49 +88,40 @@ class MultiMethodTranslator(object):
             self.translators[case] = MethodTranslator(self.first_name, second_name, kwarg_names)
 
     def translate_str(self, case: str, *args: Tuple, **kwargs: Dict) -> str:
-        """ Tranlate the method as a string according to a case
+        """ Tranlates the method as a string according to a case
 
         Parameters
         ----------
         case: str
             The name of the translation case to use
-
         *args: Tuple
-
         **kwargs: Dict
-
 
         Returns
         -------
         str:
             The string of the translated method
             new_method(arg1, arg2..., kwargs1=val1, translated_kwargs2=val2...)
-
-
         """
         if case not in self.cases:
             raise ValueError(f"Case {case} not fonud in object")
         return self.translators[case].translate_str(*args, **kwargs)
 
     def translate(self, case: str, *args: Tuple, **kwargs: Dict) -> [str, Tuple, Dict]:
-        """ translate the method according to a case
+        """ Translates the method according to a case
 
         Parameters
         ----------
         case: str
             The name of the translation case to use
-
         *args: Tuple
-
         **kwargs: Dict
-
 
         Returns
         -------
         [str, Tuple, Dict]
             The translated method name along with the given args and the
             translated kwargs
-
         """
         if case not in self.cases:
             raise ValueError(f"Case {case} not fonud in object")

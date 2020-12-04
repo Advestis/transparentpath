@@ -1,5 +1,5 @@
-fsspec
-gcsfs==0.6.2
+fsspec==0.8.4
+gcsfs==0.7.1
 pandas
 pathlib
 setuptools
@@ -13,3 +13,4 @@ openpyxl
 xlrd
 dask[dataframe,distributed]
 bokeh
+google-auth
