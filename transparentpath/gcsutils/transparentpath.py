@@ -2440,10 +2440,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return
 
         for stuff in list(self.glob("**/*", fast=True)):
+            if not stuff.is_file():
+                continue
             # noinspection PyUnresolvedReferences
             relative = stuff.split(self.name)[-1][1:]
             newpath = other / relative
             newpath.parent.mkdir(recursive=True)
+            print(stuff, newpath)
             self.fs.cp(stuff.__fspath__(), newpath)
 
     def exist(self):
