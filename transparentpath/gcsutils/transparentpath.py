@@ -2407,7 +2407,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             loc = TransparentPath(loc, fs="local", bucket=self.bucket, project=self.project)
         self.fs.get(self.__fspath__(), loc.__fspath__())
 
-    def mv(self, other: Union[str, Path, TransparentPath], **kwargs):
+    def mv(self, other: Union[str, Path, TransparentPath]):
         """Used to move a file or a directory on the same file system."""
 
         if not type(other) == TransparentPath:
@@ -2417,9 +2417,24 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 "mv() can only move two TransparentPath on the same file system. To get a remote file to "
                 "local, use get(). To push a local file to remote, use put()."
             )
-        self.fs.mv(self.__fspath__(), other)
 
-    def cp(self, other: Union[str, Path, TransparentPath], **kwargs):
+        # Do not use filesystem's move, for it is coded by apes and is not able to use recursive properly
+        # self.fs.mv(self.__fspath__(), other, **kwargs)
+
+        if self.is_file():
+            self.fs.mv(self.__fspath__(), other)
+
+        for stuff in list(self.glob("**/*", fast=True)):
+            # noinspection PyUnresolvedReferences
+            if not stuff.is_file():
+                continue
+            # noinspection PyUnresolvedReferences
+            relative = stuff.split(self.name)[-1][1:]
+            newpath = other / relative
+            newpath.parent.mkdir(recursive=True)
+            self.fs.mv(stuff.__fspath__(), newpath)
+
+    def cp(self, other: Union[str, Path, TransparentPath]):
         """Used to copy a file or a directory on the same filesystem."""
 
         if not type(other) == TransparentPath:
@@ -2438,13 +2453,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return
 
         for stuff in list(self.glob("**/*", fast=True)):
+            # noinspection PyUnresolvedReferences
             if not stuff.is_file():
                 continue
             # noinspection PyUnresolvedReferences
             relative = stuff.split(self.name)[-1][1:]
             newpath = other / relative
             newpath.parent.mkdir(recursive=True)
-            print(stuff, newpath)
             self.fs.cp(stuff.__fspath__(), newpath)
 
     def exist(self):
