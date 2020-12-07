@@ -2408,8 +2408,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.fs.get(self.__fspath__(), loc.__fspath__())
 
     def mv(self, other: Union[str, Path, TransparentPath], **kwargs):
-        """Used to move a file on the same file system.
-        If you want to move a directory, pass recursive=True as a kwarg"""
+        """Used to move a file or a directory on the same file system."""
 
         if not type(other) == TransparentPath:
             other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
@@ -2421,8 +2420,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.fs.mv(self.__fspath__(), other)
 
     def cp(self, other: Union[str, Path, TransparentPath], **kwargs):
-        """Used to copy a file or a directory on the same filesystem.
-        If you want to copy a directory, pass recursive=True as a kwarg"""
+        """Used to copy a file or a directory on the same filesystem."""
 
         if not type(other) == TransparentPath:
             other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
