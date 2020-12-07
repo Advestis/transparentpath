@@ -7,7 +7,7 @@ import zipfile
 import h5py
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Tuple, Any, IO, Iterator, Optional, List, Callable, Iterable
+from typing import Union, Tuple, Any, IO, Iterator, Optional, List, Callable, Iterable, Generator
 
 import pandas as pd
 from .methodtranslator import MultiMethodTranslator
@@ -2463,6 +2463,21 @@ class TransparentPath(os.PathLike):  # noqa : F811
             newpath.parent.mkdir(recursive=True)
             self.fs.cp(stuff.__fspath__(), newpath)
 
+    def walk(self) -> Generator[Tuple[TransparentPath, List[TransparentPath], List[TransparentPath]]]:
+        """Like os.walk, except all outputs are TransparentPaths (so, absulute paths)
+
+        Returns
+        -------
+        Generator[Tuple[TransparentPath, List[TransparentPath], List[TransparentPath]]]
+            root, dirs and files, like os.walk
+        """
+        outputs = self.fs.walk(self.__fspath__())
+        for output in outputs:
+            root = TransparentPath(output[0], fs=self.fs_kind, bucket=self.bucket, project=self.project)
+            dirs = [root / p for p in output[1]]
+            files = [root / p for p in output[2]]
+            yield root, dirs, files
+
     def exist(self):
         """To prevent typo of 'exist()' without an -s"""
         return self.exists()
@@ -2486,4 +2501,3 @@ class TransparentPath(os.PathLike):  # noqa : F811
         else:
             to_ret = [self.cast_iterable(item) for item in iter_]
             return to_ret
-
