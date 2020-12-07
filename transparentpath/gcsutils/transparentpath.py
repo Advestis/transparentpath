@@ -2430,7 +2430,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if not stuff.is_file():
                 continue
             # noinspection PyUnresolvedReferences
-            relative = stuff.split(f"/{self.name}/")[-1][1:]
+            relative = stuff.split(f"/{self.name}/")[-1]
             newpath = other / relative
             newpath.parent.mkdir(recursive=True)
             self.fs.mv(stuff.__fspath__(), newpath)
@@ -2458,7 +2458,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if not stuff.is_file():
                 continue
             # noinspection PyUnresolvedReferences
-            relative = stuff.split(f"/{self.name}/")[-1][1:]
+            relative = stuff.split(f"/{self.name}/")[-1]
             newpath = other / relative
             newpath.parent.mkdir(recursive=True)
             self.fs.cp(stuff.__fspath__(), newpath)
