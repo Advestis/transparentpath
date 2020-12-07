@@ -2423,6 +2423,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         if self.is_file():
             self.fs.mv(self.__fspath__(), other)
+            return
 
         for stuff in list(self.glob("**/*", fast=True)):
             # noinspection PyUnresolvedReferences
