@@ -7,7 +7,7 @@ import zipfile
 import h5py
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Tuple, Any, IO, Iterator, Optional, List, Callable
+from typing import Union, Tuple, Any, IO, Iterator, Optional, List, Callable, Iterable
 
 import pandas as pd
 from .methodtranslator import MultiMethodTranslator
@@ -976,6 +976,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
                         self, obj_name, TransparentPath(obj, fs=self.fs_kind, bucket=self.bucket, project=self.project)
                     )
                     return TransparentPath(obj, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+                elif isinstance(obj, Iterable):
+                    obj = self.cast_iterable(obj)
+                    setattr(self, obj_name, obj)
+                    return obj
                 else:
                     setattr(self, obj_name, obj)
                     return obj
@@ -1409,6 +1413,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         if wildcard.startswith("/") or wildcard.startswith("\\"):
             wildcard = wildcard[1:]
+
+        if wildcard.startswith("**/*"):
+            wildcard = wildcard.replace("**/*", "**")
 
         path_to_glob = (self.__path / wildcard).__fspath__()
 
@@ -2401,18 +2408,60 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.fs.get(self.__fspath__(), loc.__fspath__())
 
     def mv(self, other: Union[str, Path, TransparentPath]):
-        """Used to move two files on the same file system."""
+        """Used to move a file or a directory on the same file system."""
 
         if not type(other) == TransparentPath:
             other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
         if other.fs_kind != self.fs_kind:
             raise ValueError(
-                "mv() can only move two TransparentPath on the "
-                "same file system. To get a remote file to "
-                "local, use get(). To push a local file to "
-                "remote, use put()."
+                "mv() can only move two TransparentPath on the same file system. To get a remote file to "
+                "local, use get(). To push a local file to remote, use put()."
             )
-        self.fs.mv(self.__fspath__(), other)
+
+        # Do not use filesystem's move, for it is coded by apes and is not able to use recursive properly
+        # self.fs.mv(self.__fspath__(), other, **kwargs)
+
+        if self.is_file():
+            self.fs.mv(self.__fspath__(), other)
+            return
+
+        for stuff in list(self.glob("**/*", fast=True)):
+            # noinspection PyUnresolvedReferences
+            if not stuff.is_file():
+                continue
+            # noinspection PyUnresolvedReferences
+            relative = stuff.split(self.name)[-1][1:]
+            newpath = other / relative
+            newpath.parent.mkdir(recursive=True)
+            self.fs.mv(stuff.__fspath__(), newpath)
+
+    def cp(self, other: Union[str, Path, TransparentPath]):
+        """Used to copy a file or a directory on the same filesystem."""
+
+        if not type(other) == TransparentPath:
+            other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+        if other.fs_kind != self.fs_kind:
+            raise ValueError(
+                "mv() can only copy two TransparentPath on the same file system. To get a remote file to "
+                "local, use get(). To push a local file to remote, use put()."
+            )
+
+        # Do not use filesystem's copy, for it is coded by apes and is not able to use recursive properly
+        # self.fs.cp(self.__fspath__(), other, **kwargs)
+
+        if self.is_file():
+            self.fs.cp(self.__fspath__(), other)
+            return
+
+        for stuff in list(self.glob("**/*", fast=True)):
+            # noinspection PyUnresolvedReferences
+            if not stuff.is_file():
+                continue
+            # noinspection PyUnresolvedReferences
+            relative = stuff.split(self.name)[-1][1:]
+            newpath = other / relative
+            newpath.parent.mkdir(recursive=True)
+            self.fs.cp(stuff.__fspath__(), newpath)
 
     def exist(self):
         """To prevent typo of 'exist()' without an -s"""
@@ -2426,3 +2475,15 @@ class TransparentPath(os.PathLike):  # noqa : F811
     @property
     def buckets(self):
         return get_buckets(self.fs)
+
+    def cast_iterable(self, iter_: Iterable):
+        if isinstance(iter_, Path) or isinstance(iter_, TransparentPath):
+            return TransparentPath(iter_, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+        elif isinstance(iter_, str):
+            return iter_
+        elif not isinstance(iter_, Iterable):
+            return iter_
+        else:
+            to_ret = [self.cast_iterable(item) for item in iter_]
+            return to_ret
+
