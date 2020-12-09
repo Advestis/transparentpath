@@ -22,7 +22,10 @@ def test_set_global_fs_then_root_path(fs_kind):
     p2 = TransparentPath()
     assert str(p2) == str_prefix
     p2 = TransparentPath("/")
-    assert str(p2) == str_prefix
+    if fs_kind == "local":
+        assert str(p2) == "/"
+    else:
+        assert str(p2) == str_prefix
     reinit()
 
 
@@ -44,48 +47,48 @@ def test_set_global_fs_then_path_with_gs_failed():
 
 
 @pytest.mark.parametrize(
-    "fs_kind, global_init, expected_fs_kind, expected_fs_type, *args, **kwargs",
+    "fs_kind, global_init, expected_fs_kind, expected_fs_type, args, kwargs",
     [
-        ("local", True, "local", LocalFileSystem, "chien", {"fs": "local"}),
-        ("local", True, "local", LocalFileSystem, "chien", {}),
-        ("local", False, "local", LocalFileSystem, "chien", {"fs": "local"}),
-        ("local", False, "local", LocalFileSystem, "chien", {}),
+        ("local", True, "local", LocalFileSystem, ("chien",), {"fs": "local"}),
+        ("local", True, "local", LocalFileSystem, ("chien",), {}),
+        ("local", False, "local", LocalFileSystem, ("chien",), {"fs": "local"}),
+        ("local", False, "local", LocalFileSystem, ("chien",), {}),
         (
             "gcs",
             True,
             "gcs_sandbox-281209",
             gcsfs.GCSFileSystem,
-            "chien",
+            ("chien",),
             {"fs": "gcs", "project": project, "bucket": bucket},
         ),
-        ("gcs", True, "gcs_sandbox-281209", gcsfs.GCSFileSystem, f"gs://{bucket}/chien", {"project": project}),
+        ("gcs", True, "gcs_sandbox-281209", gcsfs.GCSFileSystem, (f"gs://{bucket}/chien",), {"project": project}),
         (
             "gcs",
             False,
             "gcs_sandbox-281209",
             gcsfs.GCSFileSystem,
-            "chien",
+            ("chien",),
             {"fs": "gcs", "project": project, "bucket": bucket},
         ),
-        ("gcs", False, "gcs_sandbox-281209", gcsfs.GCSFileSystem, f"gs://{bucket}/chien", {"project": project}),
+        ("gcs", False, "gcs_sandbox-281209", gcsfs.GCSFileSystem, (f"gs://{bucket}/chien",), {"project": project}),
     ],
 )
-def test_path_success(fs_kind, global_init, expected_fs_kind, expected_fs_type, *args, **kwargs):
+def test_path_success(fs_kind, global_init, expected_fs_kind, expected_fs_type, args, kwargs):
     if skip_gcs[fs_kind]:
         print("skipped")
         return
 
     if global_init:
-        init("gcs")
+        init(fs_kind)
 
     str_prefix, pathlib_prefix = get_prefixes(fs_kind)
 
     p = TransparentPath(*args, **kwargs)
-    assert str(p.path) == f"{pathlib_prefix}/chien"
-    assert str(p) == f"{str_prefix}/chien"
-    assert p.__fspath__() == f"{str_prefix}/chien"
+    assert str(p.path) == f"{pathlib_prefix}/{args[0]}"
+    assert str(p) == f"{str_prefix}/{args[0]}"
+    assert p.__fspath__() == f"{str_prefix}/{args[0]}"
 
-    assert "gcs" in p.fs_kind
+    assert fs_kind in p.fs_kind
     assert p.fs == TransparentPath.fss[expected_fs_kind]
     assert not TransparentPath.unset
     assert len(TransparentPath.fss) == 1
@@ -96,15 +99,15 @@ def test_path_success(fs_kind, global_init, expected_fs_kind, expected_fs_type, 
 
 
 @pytest.mark.parametrize(
-    "*args, **kwargs",
+    "args, kwargs",
     [
-        (f"gs://{bucket}/chien", {}),
-        ("chien", {"fs": "gcs"}),
-        ("chien", {"fs": "gcs", "bucket": bucket}),
-        ("chien", {"fs": "gcs", "project": project}),
+        ((f"gs://{bucket}/chien",), {}),
+        (("chien",), {"fs": "gcs"}),
+        (("chien",), {"fs": "gcs", "bucket": bucket}),
+        (("chien",), {"fs": "gcs", "project": project}),
     ],
 )
-def test_gcs_path_without_set_global_fs_fail(*args, **kwargs):
+def test_gcs_path_without_set_global_fs_fail(args, kwargs):
     if skip_gcs["gcs"]:
         print("skipped")
         return
@@ -115,13 +118,13 @@ def test_gcs_path_without_set_global_fs_fail(*args, **kwargs):
 
 
 @pytest.mark.parametrize(
-    "*args, **kwargs",
+    "args, kwargs",
     [
-        (f"gs://{bucket}/chien", {"bucket": bucket + "chien", "project": project}),
-        (f"gs://{bucket}/chien", {"bucket": bucket + "chien", "fs": "local"}),
+        ((f"gs://{bucket}/chien",), {"bucket": bucket + "chien", "project": project}),
+        ((f"gs://{bucket}/chien",), {"bucket": bucket + "chien", "fs": "local"}),
     ],
 )
-def test_failed_gs_path(*args, **kwargs):
+def test_failed_gs_path(args, kwargs):
     with pytest.raises(ValueError):
         TransparentPath(*args, **kwargs)
     reinit()
