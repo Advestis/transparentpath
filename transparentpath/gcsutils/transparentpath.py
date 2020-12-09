@@ -305,7 +305,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
         8: If a file exists with the same path than a directory, then the class is not able to know which one is the
         file and which one is the directory, and will raise a MultipleExistenceError at object creation. Will also
         check for multiplicity at almost every method in case an exterior source created a duplicate of the
-        file/directory.
+        file/directory. (This case can't happen locally. However, it can happen on remote if the cache is not updated
+        frequently)
 
     If a method in a package you did not create uses the os.open(), you will have to create a class to override this
     method and anything using its ouput. Indeed os.open returns a file descriptor, not an IO, and I did not find a
@@ -1159,7 +1160,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
             # ...deletes the directory
             else:
                 self.fs.rm(self.__fspath__(), **kwargs)
-            assert not self.is_dir(exist=True)
         # Asked to remove a file...
         else:
             # ...but self points to a directory!
@@ -1179,7 +1179,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
                         return
                 else:
                     self.fs.rm(self.__fspath__(), **kwargs)
-            assert not self.is_file()
 
     def rmdir(self, absent: str = "raise", ignore_kind: bool = False) -> None:
         """Removes the directory corresponding to self if exists
@@ -1406,7 +1405,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
             raise IsADirectoryError("Can not touch a directory")
 
         self.fs.touch(self.__fspath__(), **kwargs)
-        assert self.is_file()
 
     def mkdir(self, present: str = "ignore", **kwargs) -> None:
         """Creates the directory corresponding to self if does not exist

@@ -1,25 +1,14 @@
 import gcsfs
 import pytest
-import os
 from fsspec.implementations.local import LocalFileSystem
 from transparentpath import TransparentPath
-from .functions import init, reinit, skip_gcs
-
-
-def before_init():
-    assert TransparentPath.fss == {}
-    assert TransparentPath.unset
-    assert TransparentPath.fs_kind == ""
-    assert TransparentPath.project is None
-    assert TransparentPath.bucket is None
-    assert TransparentPath.nas_dir == "/media/SERVEUR"
-
+from .functions import init, reinit, skip_gcs, before_init
 
 @pytest.mark.parametrize(
     "fs_kind, expected_fs_kind, expected_fs_type",
     [("local", "local", LocalFileSystem), ("gcs", "gcs_sandbox-281209", gcsfs.GCSFileSystem)],
 )
-def test_init(fs_kind, expected_fs_kind, expected_fs_type):
+def test_init(clean, fs_kind, expected_fs_kind, expected_fs_type):
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -33,7 +22,7 @@ def test_init(fs_kind, expected_fs_kind, expected_fs_type):
     reinit()
 
 
-def test_init_gcs_fail():
+def test_init_gcs_fail(clean):
     if skip_gcs["gcs"]:
         print("skipped")
         return
