@@ -2,7 +2,7 @@ import builtins
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Tuple, Any, Iterator, Optional
+from typing import Union, Tuple, Any, Iterator, Optional, Iterable, List
 
 import pandas as pd
 from .methodtranslator import MultiMethodTranslator
@@ -101,7 +101,9 @@ def collapse_ddots(path: Union[Path, TransparentPath, str]) -> TransparentPath:
     )
 
 
-def get_fs(fs_kind: str, project: str, bucket: str) -> Union[gcsfs.GCSFileSystem, LocalFileSystem]:
+def get_fs(
+    fs_kind: str, project: str, bucket: str, token: Optional[Union[str, dict]] = None
+) -> Union[gcsfs.GCSFileSystem, LocalFileSystem]:
     """Gets the FileSystem object of either gcs or local (Default)
 
 
@@ -116,6 +118,9 @@ def get_fs(fs_kind: str, project: str, bucket: str) -> Union[gcsfs.GCSFileSystem
     bucket: str
         bucket name for GCS
 
+    token: Optional[Union[str, dict]]
+        credentials (default value = None)
+
     Returns
     -------
     Union[gcsfs.GCSFileSystem, LocalFileSystem]
@@ -124,19 +129,48 @@ def get_fs(fs_kind: str, project: str, bucket: str) -> Union[gcsfs.GCSFileSystem
     """
     if "gcs" in fs_kind:
         bucket = bucket.replace("/", "")
-        fs = gcsfs.GCSFileSystem(project=project)
+        if token is None:
+            fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)
+        else:
+            fs = gcsfs.GCSFileSystem(project=project, asynchronous=False, token=token)
         # Will raise RefreshError if connection fails
         fs.glob(bucket)
-        if f"{bucket}/" not in fs.buckets:
-            raise NotADirectoryError(
-                f"Bucket {bucket} does not exist in "
-                f"project {project}, or you can not "
-                f"see it. Available buckets are:\n"
-                f"{fs.buckets}"
-            )
+        check_buckets(fs, bucket)
         return fs
     else:
         return LocalFileSystem()
+
+
+def get_buckets(fs: gcsfs.GCSFileSystem) -> List[str]:
+    """Return list of all buckets under the current project."""
+    if "" not in fs.dircache:
+        items = []
+        page = fs.call("GET", "b/", project=fs.project, json_out=True)
+
+        assert page["kind"] == "storage#buckets"
+        items.extend(page.get("items", []))
+        next_page_token = page.get("nextPageToken", None)
+
+        while next_page_token is not None:
+            page = fs.call("GET", "b/", project=fs.project, pageToken=next_page_token, json_out=True,)
+
+            assert page["kind"] == "storage#buckets"
+            items.extend(page.get("items", []))
+            next_page_token = page.get("nextPageToken", None)
+        fs.dircache[""] = [{"name": i["name"] + "/", "size": 0, "type": "directory"} for i in items]
+    return [b["name"] for b in fs.dircache[""]]
+
+
+def check_buckets(fs: Union[gcsfs.GCSFileSystem, LocalFileSystem], bucket: str):
+    if isinstance(fs, gcsfs.GCSFileSystem):
+        buckets = get_buckets(fs)
+        if f"{bucket}/" not in buckets:
+            raise NotADirectoryError(
+                f"Bucket {bucket} does not exist in "
+                f"project {fs.project}, or you can not "
+                f"see it. Available buckets are:\n"
+                f"{buckets}"
+            )
 
 
 class MultipleExistenceError(Exception):
@@ -317,6 +351,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
     nas_dir = "/media/SERVEUR"
     unset = True
     cwd = os.getcwd()
+    token = None
+    _do_update_cache = True
+    _do_check = True
 
     _attributes = ["fs", "path", "fs_kind", "project", "bucket"]
 
@@ -345,6 +382,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         project: Optional[str] = None,
         make_main: bool = True,
         nas_dir: Optional[Union[TransparentPath, Path, str]] = None,
+        token: Optional[Union[dict, str]] = None,
     ) -> None:
         """To call before creating any instance to set the file system.
 
@@ -372,6 +410,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
             If specified, TransparentPath will delete any occurence of 'nas_dir' at the beginning of created paths if fs
             is gcs (Default value = None).
 
+        token: Optional[Union[dict, str]]
+            credentials (default value = None)
+
         Returns
         -------
         None
@@ -390,6 +431,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if project is not None:
             cls.project = project
 
+        if token is not None:
+            cls.token = token
+
         TransparentPath._set_nas_dir(cls, nas_dir)
 
         if "gcs" in cls.fs_kind:
@@ -399,7 +443,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 raise ValueError("Need to provide a project name!")
             cls.fs_kind = f"gcs_{cls.project}"
 
-        cls.fss[cls.fs_kind] = get_fs(cls.fs_kind, cls.project, cls.bucket)
+        cls.fss[cls.fs_kind] = get_fs(cls.fs_kind, cls.project, cls.bucket, cls.token)
         TransparentPath.unset = False
 
         if main_fs is not None:
@@ -577,7 +621,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if len(self.__path.parts) > 1 and self.bucket in self.__path.parts[1:]:
                 raise ValueError("You should never use your bucket name as a directory or file name.")
 
-        if nocheck is False:
+        if nocheck is False and TransparentPath._do_check:
             self._check_multiplicity()
 
     @property
@@ -750,6 +794,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
                         self, obj_name, TransparentPath(obj, fs=self.fs_kind, bucket=self.bucket, project=self.project)
                     )
                     return TransparentPath(obj, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+                elif isinstance(obj, Iterable):
+                    obj = self.cast_iterable(obj)
+                    setattr(self, obj_name, obj)
+                    return obj
                 else:
                     setattr(self, obj_name, obj)
                     return obj
@@ -791,8 +839,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
         self.fs.invalidate_cache()
         if "gcs" in self.fs_kind:
-            self.fs.buckets
-            self.fs.info(self.bucket)
+            try:
+                self.fs.info(self.bucket)
+            except FileNotFoundError:
+                # noinspection PyStatementEffect
+                self.buckets
 
     def _cast_fast(self, path: str) -> TransparentPath:
         return TransparentPath(path, fs=self.fs_kind, nocheck=True, bucket=self.bucket, project=self.project)
@@ -802,12 +853,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def _set_fs(self) -> None:
         """ Create a new filesystem objet from self, or get the existing one
-
-
-        Returns
-        -------
-        None
-
         """
 
         if "gcs" in self.fs_kind:
@@ -826,13 +871,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if use_common:
             self.fs = TransparentPath.fss[self.fs_kind]
             self.nas_dir = TransparentPath.nas_dir
-            if "gcs" in self.fs_kind and f"{self.bucket}/" not in self.fs.buckets:
-                raise NotADirectoryError(
-                    f"Bucket {self.bucket} does not exist in "
-                    f"project {self.project}, or you can not "
-                    f"see it. Available buckets are:\n"
-                    f"{self.fs.buckets}"
-                )
         # Else, init a new file system instance and share it with
         # TransparentPath
         else:
@@ -846,6 +884,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 TransparentPath.bucket = self.bucket
             if TransparentPath.project is None:
                 TransparentPath.project = self.project
+        check_buckets(self.fs, self.bucket)
 
     def _obj_missing(self, obj_name: str, kind: str, *args, **kwargs) -> Any:
         """Method to catch any call to a method/attribute missing from the class.
@@ -875,7 +914,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self._check_multiplicity()
+        if TransparentPath._do_check:
+            self._check_multiplicity()
         # Append the absolute path to self.path according to whether the object
         # needs it and whether we are in gcs or local
         new_args = self._transform_path(obj_name, *args)
@@ -969,7 +1009,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """Checks if several objects correspond to the path.
         Raises MultipleExistenceError if so, does nothing if not.
         """
-        self._update_cache()
+        if TransparentPath._do_update_cache:
+            self._update_cache()
         if str(self.__path) == self.bucket or str(self.__path) == "/":
             return
         if not self.exists():
@@ -1022,8 +1063,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
         bool
 
         """
-
-        self._check_multiplicity()
+        if TransparentPath._do_check:
+            self._check_multiplicity()
         if self.fs_kind == "local":
             return self.__path.is_dir()
         else:
@@ -1044,7 +1085,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self._check_multiplicity()
+        if TransparentPath._do_check:
+            self._check_multiplicity()
         if not self.exists():
             return False
 
@@ -1087,13 +1129,16 @@ class TransparentPath(os.PathLike):  # noqa : F811
         None
 
         """
-        self._check_multiplicity()
+
+        if TransparentPath._do_check:
+            self._check_multiplicity()
 
         if absent != "raise" and absent != "ignore":
             raise ValueError(f"Unexpected value for argument 'absent' : {absent}")
 
         # Asked to remove a directory...
         recursive = kwargs.get("recursive", False)
+
         if recursive:
             if not self.is_dir(exist=True):
                 # ...but self points to something that is not a directory!
@@ -1121,7 +1166,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if self.is_dir(exist=True):
                 # Delete anyway
                 if ignore_kind:
-                    self.rm(absent=absent, recursive=True, **kwargs)
+                    self.rm(absent=absent, ignore_kind=True, recursive=True, **kwargs)
                 # or raise
                 else:
                     raise IsADirectoryError("The path points to a directory")
@@ -1178,13 +1223,17 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self._check_multiplicity()
+        if TransparentPath._do_check:
+            self._check_multiplicity()
 
         if not self.is_dir(exist=True):
             raise NotADirectoryError("The path must be a directory if you want to glob in it")
 
         if wildcard.startswith("/") or wildcard.startswith("\\"):
             wildcard = wildcard[1:]
+
+        if wildcard.startswith("**/*"):
+            wildcard = wildcard.replace("**/*", "**")
 
         path_to_glob = (self.__path / wildcard).__fspath__()
 
@@ -1213,15 +1262,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.__path.with_suffix(suffix), fs=self.fs_kind, bucket=self.bucket, project=self.project
         )
 
-    def ls(self, path: str = "", fast: bool = False) -> Iterator[TransparentPath]:
-        """ls-like method. Returns an Iterator of absolute TransparentPaths.
+    def ls(self, fast: bool = False) -> Iterator[TransparentPath]:
+        """ Equivalent to glob("*")
 
 
         Parameters
         -----------
-        path: str
-            relative path to ls. (Default value = "")
-
         fast: bool
             If True, does not check multiplicity when converting output
             paths to TransparentPath, significantly speeding up the process
@@ -1233,25 +1279,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Iterator[TransparentPath]
 
         """
-        self._update_cache()
-        thepath = self / path
-        # noinspection PyUnresolvedReferences
-        if not thepath.exists():
-            raise FileNotFoundError(f"Could not find location {self}")
 
-        # noinspection PyUnresolvedReferences
-        if thepath.is_file():
-            raise NotADirectoryError("Can not ls on a file!")
+        return self.glob("*", fast=fast)
 
-        if fast:
-            to_ret = map(self._cast_fast, self.fs.ls(str(thepath)),)
-        else:
-            to_ret = map(self._cast_slow, self.fs.ls(str(thepath)),)
-
-        return to_ret
-
-    def cd(self, path: Optional[str] = None) -> TransparentPath:
-        """cd-like command
+    def cd(self, path: Optional[str] = None) -> None:
+        """cd-like command. Works inplace
         
         Will collapse double-dots ('..'), so not compatible with symlinks. If path is absolute (starts with '/' or 
         bucket name or is empty), will return a path starting from root directory if FileSystem is local, from bucket 
@@ -1269,43 +1301,56 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         Returns
         -------
-        newpath: the absolute TransparentPath we cded to.
+        None: works inplace
 
         """
 
         # Will collapse any '..'
 
-        self._update_cache()
-        if "gcs" in self.fs_kind and str(path) == self.bucket:
-            return TransparentPath(fs=self.fs_kind, bucket=self.bucket, project=self.project)
+        if not isinstance(path, str) or isinstance(path, TransparentPath):
+            raise TypeError("Can only pass a string")
+
+        path = path.replace("gs://", "")
+
+        if TransparentPath._do_update_cache:
+            self._update_cache()
+        if "gcs" in self.fs_kind and str(path) == self.bucket or path == "" or path == "/":
+            self.__path = Path(self.bucket)
+            return
 
         # If asked to cd to home, return path script calling directory
         if path == "" or path is None:
-            return TransparentPath(fs=self.fs_kind, bucket=self.bucket, project=self.project)
-        # If asked for an absolute path
-        if path[0] == "/":
-            return TransparentPath(path, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+            self.__path = Path()
+            return
 
-        newpath = self / path
+        # noinspection PyUnresolvedReferences
+        self.__path = self.__path / path
 
         if self.fs_kind == "local":
+            # If asked for an absolute path
+            if path.startswith("/"):
+                self.__path = Path(path)
+                return
             # noinspection PyUnresolvedReferences
-            if len(newpath.parts) == 0:
-                return TransparentPath(newpath, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+            if len(self.__path.parts) == 0:
+                return
             # noinspection PyUnresolvedReferences
-            if newpath.parts[0] == "..":
+            if self.__path.parts[0] == "..":
                 raise ValueError("The first part of a path can not be '..'")
         else:
+            # If asked for an absolute path
+            if path.startswith("/"):
+                self.__path = Path(self.bucket) / path[1:]
+                return
             # noinspection PyUnresolvedReferences
-            if len(newpath.parts) == 1:  # On gcs, first part is bucket
-                return TransparentPath(newpath, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+            if self.__path == 1:  # On gcs, first part is bucket
+                return
             # noinspection PyUnresolvedReferences
-            if newpath.parts[1] == "..":
+            if self.__path.parts[1] == "..":
                 raise ValueError("Trying to access a path before bucket")
 
-        newpath = collapse_ddots(newpath)
-
-        return TransparentPath(newpath, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+        # noinspection PyUnresolvedReferences
+        self.__path = collapse_ddots(self.__path)
 
     def touch(self, present: str = "ignore", create_parents: bool = True, **kwargs) -> None:
         """Creates the file corresponding to self if does not exist.
@@ -1334,7 +1379,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        self._update_cache()
+        if TransparentPath._do_update_cache:
+            self._update_cache()
         if present != "raise" and present != "ignore":
             raise ValueError(f"Unexpected value for argument 'present' : {present}")
 
@@ -1445,8 +1491,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """used to push a local file to the cloud.
 
         self must be a local TransparentPath. If dst is a TransparentPath, it must be on GCS. If it is a pathlib.Path
-        or a str, it will be casted into a GCS TransparentPath, so a gcs file system must have been set up once
-        before. """
+        or a str, it will be casted into a GCS TransparentPath, so a gcs file system must have been set up before. """
 
         if "gcs" not in "".join(TransparentPath.fss):
             raise ValueError("You need to set up a gcs file system before using the put() command.")
@@ -1466,7 +1511,17 @@ class TransparentPath(os.PathLike):  # noqa : F811
             )
         if type(dst) != TransparentPath:
             dst = TransparentPath(dst, fs="gcs")
-        self.fs.put(self.__fspath__(), dst)
+        if self.is_dir():
+            for item in self.glob("/*"):
+                # noinspection PyUnresolvedReferences
+                item.put(dst / item.name)
+        else:
+            with open(self, "rb") as f1:
+                with open(dst, "wb") as f2:
+                    data = True
+                    while data:
+                        data = f1.read(self.blocksize)
+                        f2.write(data)
 
     def get(self, loc: Union[str, Path, TransparentPath]):
         """used to get a remote file to local.
@@ -1491,23 +1546,96 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.fs.get(self.__fspath__(), loc.__fspath__())
 
     def mv(self, other: Union[str, Path, TransparentPath]):
-        """Used to move two files on the same file system."""
+        """Used to move a file or a directory on the same file system."""
 
         if not type(other) == TransparentPath:
             other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
         if other.fs_kind != self.fs_kind:
             raise ValueError(
-                "mv() can only move two TransparentPath on the "
-                "same file system. To get a remote file to "
-                "local, use get(). To push a local file to "
-                "remote, use put()."
+                "mv() can only move two TransparentPath on the same file system. To get a remote file to "
+                "local, use get(). To push a local file to remote, use put()."
             )
-        self.fs.mv(self.__fspath__(), other)
+
+        # Do not use filesystem's move, for it is coded by apes and is not able to use recursive properly
+        # self.fs.mv(self.__fspath__(), other, **kwargs)
+
+        if self.is_file():
+            self.fs.mv(self.__fspath__(), other)
+            return
+
+        for stuff in list(self.glob("**/*", fast=True)):
+            # noinspection PyUnresolvedReferences
+            if not stuff.is_file():
+                continue
+            # noinspection PyUnresolvedReferences
+            relative = stuff.split(f"/{self.name}/")[-1]
+            newpath = other / relative
+            newpath.parent.mkdir(recursive=True)
+            self.fs.mv(stuff.__fspath__(), newpath)
+
+    def cp(self, other: Union[str, Path, TransparentPath]):
+        """Used to copy a file or a directory on the same filesystem."""
+
+        if not type(other) == TransparentPath:
+            other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+        if other.fs_kind != self.fs_kind:
+            raise ValueError(
+                "mv() can only copy two TransparentPath on the same file system. To get a remote file to "
+                "local, use get(). To push a local file to remote, use put()."
+            )
+
+        # Do not use filesystem's copy, for it is coded by apes and is not able to use recursive properly
+        # self.fs.cp(self.__fspath__(), other, **kwargs)
+
+        if self.is_file():
+            self.fs.cp(self.__fspath__(), other)
+            return
+
+        for stuff in list(self.glob("**/*", fast=True)):
+            # noinspection PyUnresolvedReferences
+            if not stuff.is_file():
+                continue
+            # noinspection PyUnresolvedReferences
+            relative = stuff.split(f"/{self.name}/")[-1]
+            newpath = other / relative
+            newpath.parent.mkdir(recursive=True)
+            self.fs.cp(stuff.__fspath__(), newpath)
+
+    def walk(self) -> Iterator[Tuple[TransparentPath, List[TransparentPath], List[TransparentPath]]]:
+        """Like os.walk, except all outputs are TransparentPaths (so, absulute paths)
+
+        Returns
+        -------
+        Iterator[Tuple[TransparentPath, List[TransparentPath], List[TransparentPath]]]
+            root, dirs and files, like os.walk
+        """
+        outputs = self.fs.walk(self.__fspath__())
+        for output in outputs:
+            root = TransparentPath(output[0], fs=self.fs_kind, bucket=self.bucket, project=self.project)
+            dirs = [root / p for p in output[1]]
+            files = [root / p for p in output[2]]
+            yield root, dirs, files
 
     def exist(self):
         """To prevent typo of 'exist()' without an -s"""
         return self.exists()
 
     def exists(self):
-        self._update_cache()
+        if TransparentPath._do_update_cache:
+            self._update_cache()
         return self.fs.exists(self.__fspath__())
+
+    @property
+    def buckets(self):
+        return get_buckets(self.fs)
+
+    def cast_iterable(self, iter_: Iterable):
+        if isinstance(iter_, Path) or isinstance(iter_, TransparentPath):
+            return TransparentPath(iter_, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+        elif isinstance(iter_, str):
+            return iter_
+        elif not isinstance(iter_, Iterable):
+            return iter_
+        else:
+            to_ret = [self.cast_iterable(item) for item in iter_]
+            return to_ret
