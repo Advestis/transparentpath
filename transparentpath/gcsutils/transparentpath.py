@@ -9,6 +9,8 @@ from .methodtranslator import MultiMethodTranslator
 import gcsfs
 from fsspec.implementations.local import LocalFileSystem
 
+remote_prefix = "gs://"
+
 
 # So I can use it in myisinstance
 class TransparentPath:
@@ -355,7 +357,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
     token = None
     _do_update_cache = True
     _do_check = True
-
+    LOCAL_SEP = os.path.sep
+    
     _attributes = ["fs", "path", "fs_kind", "project", "bucket"]
 
     method_without_self_path = [
@@ -520,10 +523,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.nas_dir = path.nas_dir
             # noinspection PyUnresolvedReferences
             self.__path = path.path
+            # noinspection PyUnresolvedReferences
+            self.sep = path.sep
             return
 
         # In case we initiate a path containing 'gs://'
-        if "gs://" in str(path):
+        if remote_prefix in str(path):
 
             if project is None:
                 if TransparentPath.project is None:
@@ -535,7 +540,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     "You specified a path starting with 'gs://' but ask for it to be local. This is not possible."
                 )
             fs = f"gcs_{project}"
-            splitted = str(path).split("gs://")
+            splitted = str(path).split(remote_prefix)
             if len(splitted) == 0:
                 if bucket is None and TransparentPath.bucket is None:
                     raise ValueError(
@@ -543,7 +548,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                         "is specified with bucket= or if TransparentPath already has been set to use a"
                         "specified bucket"
                     )
-                path = str(path).replace("gs://", "")
+                path = str(path).replace(remote_prefix, "")
 
             else:
                 bucket_from_path = splitted[1].split("/")[0]
@@ -557,7 +562,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     bucket = bucket_from_path
                 if TransparentPath.bucket is None:
                     TransparentPath.bucket = bucket_from_path
-                path = str(path).replace("gs://", "").replace(bucket_from_path, "")
+                path = str(path).replace(remote_prefix, "").replace(bucket_from_path, "")
                 if path.startswith("/"):
                     path = path[1:]
 
@@ -667,7 +672,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return str(self) >= str(other)
 
     def __add__(self, other: str) -> TransparentPath:
-        """You can do :
+        """Alias of truediv
+
+        You can do :
         >>> from transparentpath import TransparentPath
         >>> p = TransparentPath("/chat")
         >>> p + "chien"
@@ -695,19 +702,20 @@ class TransparentPath(os.PathLike):  # noqa : F811
         TransparentPath behaves like pathlib.Path in regard to the division :
         it appends the denominator to the numerator.
 
-
         Parameters
         ----------
         other: str
             The relative path to append to self
 
-
         Returns
         -------
         TransparentPath
             The appended path
-
         """
+        
+        if other.startswith(self.sep):
+            other = other[1:]
+        
         if type(other) == str:
             return TransparentPath(self.__path / other, fs=self.fs_kind, project=self.project, bucket=self.bucket)
         else:
@@ -715,6 +723,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def __itruediv__(self, other: str) -> TransparentPath:
         """itruediv will be an actual itruediv only if other is a str"""
+
+        if other.startswith(self.sep):
+            other = other[1:]
+
         if type(other) == str:
             self.__path /= other
             return self
@@ -738,9 +750,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if self.fs_kind == "local":
             return str(self.__path)
         else:
-            return "gs://" + str(self.__path)
+            return remote_prefix + str(self.__path)
 
     def __hash__(self) -> int:
+        """Uniaue hash number.
+
+         Two TransarentPath will have a same hash number if their fspath are the same and fs_kind (which will inlude
+         the project name if remote) are the same."""
         hash_number = int.from_bytes((self.fs_kind + self.__fspath__()).encode(), "little") + int.from_bytes(
             self.fs_kind.encode(), "little"
         )
@@ -885,7 +901,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 TransparentPath.bucket = self.bucket
             if TransparentPath.project is None:
                 TransparentPath.project = self.project
+                
         check_buckets(self.fs, self.bucket)
+        
+        if self.fs_kind == "local":
+            self.sep = TransparentPath.LOCAL_SEP
+        else:
+            self.sep = "/"
 
     def _obj_missing(self, obj_name: str, kind: str, *args, **kwargs) -> Any:
         """Method to catch any call to a method/attribute missing from the class.
@@ -972,7 +994,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Some, like ls or glob, are given a relative path to append to self.path, so we need to change the first 
         element of args from args[0] to self.path / args[0]
 
-
         Parameters
         ----------
         method_name: str
@@ -982,13 +1003,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
         args: Tuple
             The args to pass to the method
 
-
         Returns
         -------
         Tuple
             Either the unchanged args, or args with the first element
             prepended by self, or args with a new first element (self)
-
         """
         new_args = [self]
         if method_name in TransparentPath.method_without_self_path:
@@ -1032,6 +1051,18 @@ class TransparentPath(os.PathLike):  # noqa : F811
     # ////////////// #
 
     def get_absolute(self) -> TransparentPath:
+        """Returns self, since all TransparentPaths are absolute
+
+        Returns
+        -------
+        TransparentPath
+            self
+
+        """
+        return self
+
+    @property
+    def absolute(self) -> TransparentPath:
         """Returns self, since all TransparentPaths are absolute
 
         Returns
@@ -1309,7 +1340,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if not isinstance(path, str) or isinstance(path, TransparentPath):
             raise TypeError("Can only pass a string")
 
-        path = path.replace("gs://", "")
+        path = path.replace(remote_prefix, "")
 
         if TransparentPath._do_update_cache:
             self._update_cache()
