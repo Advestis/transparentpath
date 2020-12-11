@@ -1149,7 +1149,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         ignore_kind: bool
             If True, will remove anything pointed by self. If False,
             will raise an error if self points to a file and 'recursive' was
-            specified in kwargs, or if self point to a dir and 'recursive'
+            specified in kwargs, or if self points to a dir and 'recursive'
             was not specified (Default value = False)
 
         kwargs
@@ -1197,7 +1197,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if self.is_dir(exist=True):
                 # Delete anyway
                 if ignore_kind:
-                    self.rm(absent=absent, ignore_kind=True, recursive=True, **kwargs)
+                    kwargs["recursive"] = True
+                    self.rm(absent=absent, ignore_kind=True, **kwargs)
                 # or raise
                 else:
                     raise IsADirectoryError("The path points to a directory")

@@ -193,3 +193,77 @@ def test_isdir(clean, fs_kind, path1, path2, exists, expected):
     p1.touch()
     p2 = TransparentPath(path2)
     assert p2.is_dir(exist=exists) == expected
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.parametrize(
+    "fs_kind, path1, path2, expected",
+    [
+        ("local", "chien/chat", "chien/chat", True),
+        ("gcs", "chien/chat", "chien/chat", True),
+        ("local", "chien/chat", "chien", False),
+        ("gcs", "chien/chat", "chien", False),
+
+        ("local", "chien", "chien", True),
+        ("gcs", "chien", "chien", True),
+
+        ("local", "chien", "chat", False),
+        ("gcs", "chien", "chat", False),
+    ],
+)
+def test_isfile(clean, fs_kind, path1, path2, expected):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+    p1 = TransparentPath(path1)
+    p1.touch()
+    p2 = TransparentPath(path2)
+    assert p2.is_file() == expected
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.parametrize(
+    "fs_kind, path1, path2, kwargs, expected",
+    [
+        ("local", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": False}, None),
+        ("gcs", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": False}, None),
+
+        ("local", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),
+        ("gcs", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),
+
+        ("local", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, IsADirectoryError),
+        ("gcs", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, IsADirectoryError),
+
+        ("local", "ch/chat", "ch", {"absent": "raise", "ignore_kind": True, "recursive": False}, None),
+        ("gcs", "ch/chat", "ch", {"absent": "raise", "ignore_kind": True, "recursive": False}, None),
+
+        ("local", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, None),
+        ("gcs", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, None),
+
+        ("local", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, FileNotFoundError),
+        ("gcs", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, FileNotFoundError),
+
+        ("local", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),
+        ("gcs", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),
+
+        ("local", "", "ch", {"absent": "ignore", "ignore_kind": False, "recursive": True}, None),
+        ("gcs", "", "ch", {"absent": "ignore", "ignore_kind": False, "recursive": True}, None),
+    ],
+)
+def test_rm(clean, fs_kind, path1, path2, kwargs, expected):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+    p1 = TransparentPath(path1)
+    p2 = TransparentPath(path2)
+    if path1 != "":
+        p1.touch()
+    if expected is not None:
+        with pytest.raises(expected):
+            p2.rm(**kwargs)
+    else:
+        p2.rm(**kwargs)
+        assert not p2.exists()
+
