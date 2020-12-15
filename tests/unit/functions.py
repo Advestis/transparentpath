@@ -26,7 +26,6 @@ def init(fs_kind):
 
 
 def reinit():
-    print("coucou")
     TransparentPath.fss = {}
     TransparentPath.unset = True
     TransparentPath.fs_kind = ""

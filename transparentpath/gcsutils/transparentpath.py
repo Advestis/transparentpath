@@ -1233,9 +1233,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.rm(absent=absent, ignore_kind=ignore_kind, recursive=True)
 
     def glob(self, wildcard: str = "*", fast: bool = False) -> Iterator[TransparentPath]:
-        """Returns a list of TransparentPath matching the wildcard pattern
+        """Returns a list of TransparentPath matching the wildcard pattern.
 
         By default, the wildcard is '*'. It means 'thepath/*', so will glob in the directory.
+
+        WARNING : on GCS, directories are not detected by glob.
 
         Parameters
         -----------
@@ -1289,16 +1291,20 @@ class TransparentPath(os.PathLike):  # noqa : F811
         TransparentPath
 
         """
+        if not suffix.startswith("."):
+            suffix = f".{suffix}"
         return TransparentPath(
             self.__path.with_suffix(suffix), fs=self.fs_kind, bucket=self.bucket, project=self.project
         )
 
-    def ls(self, fast: bool = False) -> Iterator[TransparentPath]:
-        """ Equivalent to glob("*")
+    def ls(self, path_to_ls: str = "", fast: bool = False) -> Iterator[TransparentPath]:
+        """ Unlike glob, if on GCS, will also see directories.
 
 
         Parameters
         -----------
+        path_to_ls: str
+            Path to ls, relative to self (default value = "")
         fast: bool
             If True, does not check multiplicity when converting output
             paths to TransparentPath, significantly speeding up the process
@@ -1311,7 +1317,17 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        return self.glob("*", fast=fast)
+        if TransparentPath._do_check:
+            self._check_multiplicity()
+
+        if not self.is_dir(exist=True):
+            raise NotADirectoryError("The path must be a directory if you want to ls in it")
+
+        if fast:
+            to_ret = map(self._cast_fast, self.fs.ls(str(self / path_to_ls)))
+        else:
+            to_ret = map(self._cast_slow, self.fs.ls(str(self / path_to_ls)))
+        return to_ret
 
     def cd(self, path: Optional[str] = None) -> None:
         """cd-like command. Works inplace
@@ -1383,7 +1399,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         # noinspection PyUnresolvedReferences
         self.__path = collapse_ddots(self.__path)
 
-    def touch(self, present: str = "ignore", create_parents: bool = True, **kwargs) -> None:
+    def touch(self, present: str = "ignore", **kwargs) -> None:
         """Creates the file corresponding to self if does not exist.
 
         Raises FileExistsError if there already is an object that is not a file at self. Default behavior is to
@@ -1395,10 +1411,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         ----------
         present: str
             What to do if there is already something at self. Can be "raise" or "ignore" (Default value = "ignore")
-
-        create_parents: bool
-            If False, raises an error if parent directories are absent. Else, create them. Always True on GCS. (
-            Default value = True)
 
         kwargs
             The kwargs to pass to file system's touch method
@@ -1415,26 +1427,23 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if present != "raise" and present != "ignore":
             raise ValueError(f"Unexpected value for argument 'present' : {present}")
 
-        if present == "raise" and self.exists() and not self.is_file():
-            raise FileExistsError(f"There is already an object at {self} which is not a file.")
+        if self.exists():
+            if self.is_file() and present == "raise":
+                raise FileExistsError
+            elif not self.is_file():
+                raise FileExistsError(f"There is already an object at {self} which is not a file.")
+            else:
+                return
 
-        if not self.exists():
+        else:
             for parent in self.parents:
                 p = TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket, project=self.project)
                 if p.is_file():
                     raise FileExistsError(
                         f"A parent directory can not be created because there is already a file at {p}"
                     )
-                # Is True on GCS even if there is no directory, because we
-                # do not specify exist=True
-                if not p.is_dir():
-                    if not create_parents:
-                        raise NotADirectoryError(f"Parent directory {p} not found")
-                    else:
-                        p.mkdir()
-        # No need to specify exist=True here, since we know file exists.
-        elif self.is_dir():
-            raise IsADirectoryError("Can not touch a directory")
+                elif not p.exists():
+                    p.mkdir()
 
         self.fs.touch(self.__fspath__(), **kwargs)
 

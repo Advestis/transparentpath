@@ -33,7 +33,7 @@ def test_collapse_dots(clean):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind, excep", [("local", IsADirectoryError), ("gcs", MultipleExistenceError)])
+@pytest.mark.parametrize("fs_kind, excep", [("local", FileExistsError), ("gcs", MultipleExistenceError)])
 def test_multipleexistenceerror(clean, fs_kind, excep):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -267,3 +267,103 @@ def test_rm(clean, fs_kind, path1, path2, kwargs, expected):
         p2.rm(**kwargs)
         assert not p2.exists()
 
+
+# noinspection PyUnusedLocal
+@pytest.mark.parametrize(
+    "fs_kind, pattern, expected", [
+        ("local", "chien/*", ["chat", "cheval"]),
+        ("local", "chien/**", ["chat", "cheval", "cheval/chouette"]),
+        ("gcs", "chien/*", ["chat"]),
+        ("gcs", "chien/**", ["chat", "cheval/chouette"]),
+    ]
+)
+def test_glob(clean, fs_kind, pattern, expected):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+
+    dic = {"chien": "dir", "chien/chat": "file", "chien/cheval": "dir", "chien/cheval/chouette": "file"}
+    root = TransparentPath()
+    for word in dic:
+        p = root / word
+        if dic[word] == "file":
+            p.touch()
+        else:
+            p.mkdir()
+    content = [str(p).split("chien/")[1] for p in TransparentPath().glob(pattern)]
+    assert content == expected
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.parametrize(
+    "fs_kind, suffix, expected", [
+        ("local", ".txt", ".txt"),
+        ("local", "txt", ".txt"),
+        ("gcs", ".txt", ".txt"),
+        ("gcs", "txt", ".txt"),
+    ]
+)
+def test_with_suffix(clean, fs_kind, suffix, expected):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+
+    p = TransparentPath("chien").with_suffix(suffix)
+    assert p.suffix == expected
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
+def test_ls(clean, fs_kind):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+
+    root = TransparentPath()
+    (root / "chien").mkdir()
+    (root / "chien" / "chat").touch()
+    (root / "chien" / "cheval").mkdir()
+    (root / "chien" / "cheval" / "chouette").touch()
+    assert[str(p).split("chien/")[1] for p in (root / "chien").ls()] == ["chat", "cheval"]
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
+def test_cd(clean, fs_kind):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+
+    root = TransparentPath()
+    (root / "chien").mkdir()
+    (root / "chien" / "chat").touch()
+    (root / "chien" / "cheval").mkdir()
+    (root / "chien" / "cheval" / "chouette").touch()
+    root.cd("chien")
+    assert root == TransparentPath("chien")
+    root.cd("..")
+    assert root == TransparentPath()
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.parametrize(
+    "fs_kind, path", [
+        ("local", "chien/chat"),
+        ("local", "chien"),
+        ("gcs", "chien/chat"),
+        ("gcs", "chien"),
+    ]
+)
+def test_touch(clean, fs_kind, path):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+
+    p = TransparentPath(path)
+    p.touch()
+    assert p.is_file()
