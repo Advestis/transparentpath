@@ -1577,3 +1577,5 @@ setattr(TransparentPath, "put", put)
 setattr(TransparentPath, "get", get)
 setattr(TransparentPath, "mv", mv)
 setattr(TransparentPath, "cp", cp)
+
+from ..io import zipfile

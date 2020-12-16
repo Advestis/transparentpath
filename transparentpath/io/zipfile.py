@@ -1,5 +1,5 @@
-errormessage = "zipfile does not seem to be installed. You will not be able to use pandas objects through "\
-               "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'."
+errormessage = "Support for zipfiles does not seem to be installed for TransparentPath.\n" \
+               "You can change that by running 'pip install transparentpath[zip]'."
 
 
 class Myzipfile:
@@ -12,18 +12,18 @@ try:
     import zipfile
     import tempfile
     from pathlib import Path
-    from..gcsutils.transparentpath import TransparentPath
+    from ..gcsutils.transparentpath import TransparentPath
 
     zipfileclass = zipfile.ZipFile
 
 
-    class Myzipfile(zipfileclass):
+    class TpZipFile(zipfileclass):
         """
         Overload of ZipFile class to handle files on GCS
         """
 
         def __init__(self, path, *args, **kwargs):
-            if type(path) == TransparentPath and path.fs_kind == "gcs":
+            if type(path) == TransparentPath and path.fs_kind != "local":
                 f = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
                 f.close()  # deletes tmp file, but we can still use its name
                 path.get(f.name)
@@ -34,7 +34,7 @@ try:
                 super().__init__(path, *args, **kwargs)
 
 
-    zipfile.ZipFile = Myzipfile
+    zipfile.ZipFile = TpZipFile
 except ImportError:
     import warnings
     warnings.warn(errormessage)

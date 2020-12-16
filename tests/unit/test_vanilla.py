@@ -39,6 +39,7 @@ def test_multipleexistenceerror(clean, fs_kind, excep):
         print("skipped")
         return
     init(fs_kind)
+
     # noinspection PyTypeChecker
     with pytest.raises(excep):
         TransparentPath._do_update_cache = False
