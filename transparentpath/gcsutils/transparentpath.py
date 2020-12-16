@@ -2,14 +2,27 @@ import builtins
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Tuple, Any, Iterator, Optional, Iterable, List
+from typing import Union, Tuple, Any, Iterator, Optional, Iterable, List, Callable
 
-import pandas as pd
 from .methodtranslator import MultiMethodTranslator
 import gcsfs
 from fsspec.implementations.local import LocalFileSystem
 
 remote_prefix = "gs://"
+notimplementedmessage = "This method is not implemented, meaning you do not have the required packages."\
+                        "see https://advestis.github.io/transparentpath/ for more informations"
+
+
+def errormessage(which) -> str:
+    return f"Support for {which} does not seem to be installed for TransparentPath.\n" \
+            "You can change that by running 'pip install transparentpath[{which}]'."
+
+
+def errorfunction(which) -> Callable:
+    # noinspection PyUnusedLocal
+    def _errorfunction(*args, **kwargs):
+        raise ImportError(errormessage(which))
+    return _errorfunction
 
 
 # So I can use it in myisinstance
@@ -1497,7 +1510,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             # Does not mean anything to create a directory on GCS
             pass
 
-    def stat(self):
+    def stat(self) -> dict:
         """Calls file system's stat method and translates the key to os.stat_result() keys"""
         key_translation = {
             "size": "st_size",
@@ -1525,7 +1538,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if key not in stat:
                 stat[key] = None
 
-        return pd.Series(stat)
+        return stat
 
     def append(self, other: str) -> TransparentPath:
         return TransparentPath(str(self) + other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
@@ -1570,12 +1583,253 @@ class TransparentPath(os.PathLike):  # noqa : F811
             to_ret = [self.cast_iterable(item) for item in iter_]
             return to_ret
 
+    def read(
+            self,
+            *args,
+            get_obj: bool = False,
+            use_pandas: bool = False,
+            update_cache: bool = True,
+            use_dask: bool = False,
+            **kwargs,
+    ) -> Any:
+        """Method used to read the content of the file located at self
 
-from ..io.io import put, get, mv, cp, overload_open
+        Will raise FileNotFound error if there is no file. Calls a specific method to read self based on the suffix
+        of self.path:
+            1: .csv : will use pandas's read_csv
+            2: .parquet : will use pandas's read_parquet with pyarrow engine
+            3: .hdf5 or .h5 : will use h5py.File or pd.HDFStore (if use_pandas = True). Since it does not support
+            remote file systems, the file will be downloaded localy in a tmp file read, then removed.
+            4: .json : will use open() method to get file content then json.loads to get a dict
+            5: .xlsx : will use pd.read_excel
+            6: any other suffix : will return a IO buffer to read from, or the string contained in the file if
+            get_obj is False.
+
+        For any of the reading method, the appropriate packages need to have been installed by calling
+        `pip install transparentpath[something]`
+        The possibilities for 'something' are 'pandas-csv', 'pandas-parquet', 'pandas-excel', 'hdf5', 'json', 'dask'.
+        You can install all possible packages by putting 'all' in place of 'something'.
+
+        The default installation of transperantpath is 'vanilla', which will only support read and write of text
+         or binary files, and the use of with open(...).
+
+        Parameters
+        ----------
+        get_obj: bool
+            Only relevant for files that are not csv, parquet nor HDF5. If True returns the IO Buffer,
+            else the string contained in the IO Buffer (Default value = False)
+        use_pandas: bool
+            Must pass it as True if hdf5 file was written using HDFStore and not h5py.File (Default value = False)
+        update_cache: bool
+            FileSystem objects do not necessarily follow changes on the system in real time if they were not
+            perfermed by them directly. If update_cache is True, the FileSystem will update its cache before trying
+            to read anything. If False, it won't, potentially saving some time but this might result in a
+            FileNotFoundError. (Default value = True)
+        use_dask: bool
+            To return a Dask DataFrame instead of a pandas DataFrame. Only makes sense if file suffix is xlsx, csv,
+            parquet. (Default value = False)
+        args:
+            any args to pass to the underlying reading method
+        kwargs:
+            any kwargs to pass to the underlying reading method
+
+        Returns
+        -------
+        Any
+        """
+
+        if TransparentPath._do_check:
+            self._check_multiplicity()
+
+        if use_dask:
+            self.check_dask()
+        else:
+            if not self.is_file():
+                raise FileNotFoundError(f"Could not find file {self}")
+
+        if self.suffix == ".csv":
+            return self.read_csv(update_cache=update_cache, use_dask=use_dask, **kwargs)
+        elif self.suffix == ".parquet":
+            index_col = None
+            if "index_col" in kwargs:
+                index_col = kwargs["index_col"]
+                del kwargs["index_col"]
+            content = self.read_parquet(update_cache=update_cache, use_dask=use_dask, **kwargs)
+            if index_col:
+                content.set_index(content.columns[index_col])
+            return content
+        elif self.suffix == ".hdf5" or self.suffix == ".h5":
+            return self.read_hdf5(update_cache=update_cache, use_pandas=use_pandas, use_dask=use_dask, **kwargs)
+        elif self.suffix == ".json":
+            return self.read_json(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
+        elif self.suffix in [".xlsx", ".xls", ".xlsm"]:
+            return self.read_excel(update_cache=update_cache, use_dask=use_dask, **kwargs)
+        else:
+            return self.read_text(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
+
+    # noinspection PyUnresolvedReferences
+    def write(
+        self,
+        data: Any,
+        *args,
+        set_name: str = "data",
+        use_pandas: bool = False,
+        overwrite: bool = True,
+        present: str = "ignore",
+        update_cache: bool = True,
+        make_parents: bool = False,
+        **kwargs,
+    ) -> Union[None, "pd.HDFStore", "h5py.File"]:
+        """Method used to write the content of the file located at self
+        Calls a specific method to write data based on the suffix of self.path:
+            1: .csv : will use pandas's to_csv
+            2: .parquet : will use pandas's to_parquet with pyarrow engine
+            3: .hdf5 or .h5 : will use h5py.File. Since it does not support remote file systems, the file will be
+            created localy in a tmp filen written to, then uploaded and removed localy.
+            4: .json : will use jsonencoder.JSONEncoder class. Works with DataFrames and np.ndarrays too.
+            5: .xlsx : will use pandas's to_excel
+            5: any other suffix : uses self.open to write to an IO Buffer
+        Parameters
+        ----------
+        data: Any
+            The data to write
+        set_name: str
+            Name of the dataset to write. Only relevant if using HDF5 (Default value = 'data')
+        use_pandas: bool
+            Must pass it as True if hdf file must be written using HDFStore and not h5py.File
+        overwrite: bool
+            If True, any existing file will be overwritten. Only relevant for csv, hdf5 and parquet files,
+            since others use the 'open' method, which args already specify what to do (Default value = True).
+        present: str
+            Indicates what to do if overwrite is False and file is present. Here too, only relevant for csv,
+            hsf5 and parquet files.
+        update_cache: bool
+            FileSystem objects do not necessarily follow changes on the system if they were not perfermed by them
+            directly. If update_cache is True, the FileSystem will update its cache before trying to read anything.
+            If False, it won't, potentially saving some time but this might result in a FileExistError. (Default
+            value = True)
+        make_parents: bool
+            If True and if the parent arborescence does not exist, it is created. (Default value = False)
+        args:
+            any args to pass to the underlying writting method
+        kwargs:
+            any kwargs to pass to the underlying reading method
+        Returns
+        -------
+        Union[None, pd.HDFStore, h5py.File]
+        """
+
+        if TransparentPath._do_check:
+            self._check_multiplicity()
+
+        if "dask" in str(type(data)):
+            self.check_dask(which="write")
+
+        if make_parents and not self.parent.is_dir():
+            self.parent.mkdir()
+
+        if self.suffix != ".hdf5" and self.suffix != ".h5" and data is None:
+            data = args[0]
+            args = args[1:]
+
+        if self.suffix == ".csv":
+            ret = self.to_csv(data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,)
+            if ret is not None:
+                # To skip the assert at the end of the function. Indeed if something is returned it means we used
+                # Dask, which will have written files with a different name than self, so the assert would fail.
+                return
+        elif self.suffix == ".parquet":
+            self.to_parquet(
+                data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
+            )
+            if isinstance(data, dd.DataFrame):
+                # noinspection PyUnresolvedReferences
+                assert self.with_suffix("").is_dir(exist=True)
+                return
+        elif self.suffix == ".hdf5" or self.suffix == ".h5":
+            ret = self.to_hdf5(
+                data=data, set_name=set_name, use_pandas=use_pandas, update_cache=update_cache, **kwargs,
+            )
+            if ret is not None:
+                return ret
+        elif self.suffix == ".json":
+            self.to_json(
+                data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
+            )
+        elif self.suffix == ".txt":
+            self.write_stuff(
+                *args, data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
+            )
+        elif self.suffix == ".xlsx":
+            self.to_excel(
+                data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
+            )
+        else:
+            self.write_bytes(
+                *args, data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
+            )
+        assert self.is_file()
+
+    def read_csv(self, *args, **kwargs):
+        raise ImportError(errormessage("pandas-csv"))
+
+    def read_hdf5(self, *args, **kwargs):
+        raise ImportError(errormessage("hdf5"))
+
+    def read_excel(self, *args, **kwargs):
+        raise ImportError(errormessage("pandas-excel"))
+
+    def read_parquet(self, *args, **kwargs):
+        raise ImportError(errormessage("pandas-parquet"))
+
+    def read_json(self, *args, **kwargs):
+        raise ImportError(errormessage("json"))
+
+    def to_csv(self, *args, **kwargs):
+        raise ImportError(errormessage("pandas-csv"))
+
+    def to_hdf5(self, *args, **kwargs):
+        raise ImportError(errormessage("pandas-hdf5"))
+
+    def to_excel(self, *args, **kwargs):
+        raise ImportError(errormessage("pandas-excel"))
+
+    def to_parquet(self, *args, **kwargs):
+        raise ImportError(errormessage("pandas-parquet"))
+
+    def to_json(self, *args, **kwargs):
+        raise ImportError(errormessage("json"))
+
+    def check_dask(self, *args, **kwargs):
+        raise ImportError(errormessage("dask"))
+
+# Do imports from detached files here because some of them import TransparentPath and need it fully declared.
+
+from ..io.io import put, get, mv, cp, overload_open, read_text, write_stuff, write_bytes
 overload_open()
 setattr(TransparentPath, "put", put)
 setattr(TransparentPath, "get", get)
 setattr(TransparentPath, "mv", mv)
 setattr(TransparentPath, "cp", cp)
+setattr(TransparentPath, "read_text", read_text)
+setattr(TransparentPath, "write_stuff", write_stuff)
+setattr(TransparentPath, "write_bytes", write_bytes)
 
-from ..io import zipfile
+try:
+    from ..io import zipfile
+except ImportError:
+    pass
+
+try:
+    from ..jsonencoder.jsonencoder import read_json, to_json
+    setattr(TransparentPath, "read_json", read_json)
+    setattr(TransparentPath, "to_json", to_json)
+except ImportError:
+    pass
+
+# try:
+#     from ..io.pandas import read_csv, to_csv
+#     setattr(TransparentPath, "read_csv", read_csv)
+#     setattr(TransparentPath, "to_csv", to_csv)
+# except ImportError:
+#     pass

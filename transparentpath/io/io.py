@@ -1,5 +1,5 @@
 import builtins
-from typing import IO, Union
+from typing import IO, Union, Any
 from pathlib import Path
 from ..gcsutils.transparentpath import TransparentPath
 
@@ -158,3 +158,55 @@ def cp(self, other: Union[str, Path, TransparentPath]):
         newpath = other / relative
         newpath.parent.mkdir(recursive=True)
         self.fs.cp(stuff.__fspath__(), newpath)
+
+
+def read_text(self, *args, get_obj: bool = False, update_cache: bool = True, **kwargs) -> Union[str, IO]:
+    # noinspection PyProtectedMember
+    if update_cache and self.__class__._do_update_cache:
+        self._update_cache()
+
+    byte_mode = True
+    if len(args) == 0:
+        byte_mode = False
+        args = ("rb",)
+    if "b" not in args[0]:
+        byte_mode = False
+        args[0] += "b"
+    if get_obj:
+        return self.open(*args, **kwargs)
+
+    with self.open(*args, **kwargs) as f:
+        to_ret = f.read()
+        if not byte_mode:
+            to_ret = to_ret.decode()
+    return to_ret
+
+
+def write_stuff(
+    self, data: Any, *args, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs
+) -> None:
+    # noinspection PyProtectedMember
+    if update_cache and self.__class__._do_update_cache:
+        self._update_cache()
+    if not overwrite and self.is_file() and present != "ignore":
+        raise FileExistsError()
+
+    args = list(args)
+    if len(args) == 0:
+        args = ("w",)
+
+    with self.open(*args, **kwargs) as f:
+        f.write(data)
+
+
+def write_bytes(
+    self, data: Any, *args, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs,
+) -> None:
+
+    args = list(args)
+    if len(args) == 0:
+        args = ("wb",)
+    if "b" not in args[0]:
+        args[0] += "b"
+
+    self.write_stuff(data, *tuple(args), overwrite=overwrite, present=present, update_cache=update_cache, **kwargs)

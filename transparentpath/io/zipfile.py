@@ -2,7 +2,7 @@ errormessage = "Support for zipfiles does not seem to be installed for Transpare
                "You can change that by running 'pip install transparentpath[zip]'."
 
 
-class Myzipfile:
+class TpZipFile:
     def __init__(self):
         raise ImportError(errormessage)
 
@@ -36,5 +36,4 @@ try:
 
     zipfile.ZipFile = TpZipFile
 except ImportError:
-    import warnings
-    warnings.warn(errormessage)
+    raise ImportError(errormessage)

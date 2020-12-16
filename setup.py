@@ -88,11 +88,15 @@ if __name__ == "__main__":
         install_requires=requirements,
         package_data={"": ["*", ".*"]},
         extras_requires={
-            "hdf5": "h5py,tables",
-            "zipfile": "zipfile",
-            "pandas": "pandas,xlrd,openpyxl,pyarrow",
-            "dask": "dask[dataframe,distributed],xlrd,openpyxl,pyarrow",
-            "all": "h5py,tables,zipfile,pandas,xlrd,openpyxl,pyarrow,dask[dataframe,distributed]"
+            "vanilla": "",
+            "hdf5": "h5py,tables,tempfile",
+            "zipfile": "zipfile,tempfile",
+            "pandas-csv": "pandas",
+            "pandas-parquet": "pandas,pyarrow,tempfile",
+            "pandas-excel": "pandas,xlrd,openpyxl,tempfile",
+            "dask": "dask[dataframe,distributed],xlrd,openpyxl,pyarrow,tempfile",
+            "json": "numpy,json",
+            "all": "h5py,tables,zipfile,pandas,xlrd,openpyxl,pyarrow,dask[dataframe,distributed],tempfile,numpy,json",
         },
         classifiers=[
             "Programming Language :: Python :: 3",
