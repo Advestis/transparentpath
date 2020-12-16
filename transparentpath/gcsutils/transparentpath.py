@@ -1424,6 +1424,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         if TransparentPath._do_update_cache:
             self._update_cache()
+
         if present != "raise" and present != "ignore":
             raise ValueError(f"Unexpected value for argument 'present' : {present}")
 
@@ -1435,15 +1436,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
             else:
                 return
 
-        else:
-            for parent in self.parents:
-                p = TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket, project=self.project)
-                if p.is_file():
-                    raise FileExistsError(
-                        f"A parent directory can not be created because there is already a file at {p}"
-                    )
-                elif not p.exists():
-                    p.mkdir()
+        for parent in self.parents:
+            p = TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+            if p.is_file():
+                raise FileExistsError(
+                    f"A parent directory can not be created because there is already a file at {p}"
+                )
+            elif not p.exists():
+                p.mkdir()
 
         self.fs.touch(self.__fspath__(), **kwargs)
 
@@ -1472,8 +1472,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if present != "raise" and present != "ignore":
             raise ValueError(f"Unexpected value for argument 'present' : {present}")
 
-        if present == "raise" and self.exists():
-            raise FileExistsError(f"There is already an object at {self}")
+        if self.exists():
+            if self.is_dir() and present == "raise":
+                raise FileExistsError(f"There is already a directory at {self}")
+            if not self.is_dir():
+                raise FileExistsError(f"There is already an object at {self} and it is not a  directory")
+            return
 
         for parent in self.parents:
             if TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket, project=self.project).is_file():
@@ -1526,122 +1530,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def append(self, other: str) -> TransparentPath:
         return TransparentPath(str(self) + other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
 
-    def put(self, dst: Union[str, Path, TransparentPath]):
-        """used to push a local file to the cloud.
-
-        self must be a local TransparentPath. If dst is a TransparentPath, it must be on GCS. If it is a pathlib.Path
-        or a str, it will be casted into a GCS TransparentPath, so a gcs file system must have been set up before. """
-
-        if "gcs" not in "".join(TransparentPath.fss):
-            raise ValueError("You need to set up a gcs file system before using the put() command.")
-        if not self.fs_kind == "local":
-            raise ValueError(
-                "The calling instance of put() must be local. "
-                "To move on gcs a file already on gcs, use mv("
-                "). To move a file from gcs, to local, use get("
-                "). "
-            )
-        # noinspection PyUnresolvedReferences
-        if type(dst) == TransparentPath and "gcs" not in dst.fs_kind:
-            raise ValueError(
-                "The second argument can not be a local "
-                "TransparentPath. To move a file "
-                "localy, use the mv() method."
-            )
-        if type(dst) != TransparentPath:
-            dst = TransparentPath(dst, fs="gcs")
-        if self.is_dir():
-            for item in self.glob("/*"):
-                # noinspection PyUnresolvedReferences
-                item.put(dst / item.name)
-        else:
-            with open(self, "rb") as f1:
-                with open(dst, "wb") as f2:
-                    data = True
-                    while data:
-                        data = f1.read(self.blocksize)
-                        f2.write(data)
-
-    def get(self, loc: Union[str, Path, TransparentPath]):
-        """used to get a remote file to local.
-
-        self must be a gcs TransparentPath. If loc is a TransparentPath, it must be local. If it is a pathlib.Path or
-        a str, it will be casted into a local TransparentPath. """
-
-        if "gcs" not in self.fs_kind:
-            raise ValueError(
-                "The calling instance of get() must be on GCS. To move a file localy, use the mv() method."
-            )
-        # noinspection PyUnresolvedReferences
-        if type(loc) == TransparentPath and loc.fs_kind != "local":
-            raise ValueError(
-                "The second argument can not be a GCS "
-                "TransparentPath. To move on gcs a file already"
-                "on gcs, use mv(). To move a file from gcs, to"
-                " local, use get()"
-            )
-        if type(loc) != TransparentPath:
-            loc = TransparentPath(loc, fs="local", bucket=self.bucket, project=self.project)
-        self.fs.get(self.__fspath__(), loc.__fspath__())
-
-    def mv(self, other: Union[str, Path, TransparentPath]):
-        """Used to move a file or a directory on the same file system."""
-
-        if not type(other) == TransparentPath:
-            other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
-        if other.fs_kind != self.fs_kind:
-            raise ValueError(
-                "mv() can only move two TransparentPath on the same file system. To get a remote file to "
-                "local, use get(). To push a local file to remote, use put()."
-            )
-
-        # Do not use filesystem's move, for it is coded by apes and is not able to use recursive properly
-        # self.fs.mv(self.__fspath__(), other, **kwargs)
-
-        if self.is_file():
-            self.fs.mv(self.__fspath__(), other)
-            return
-
-        for stuff in list(self.glob("**/*", fast=True)):
-            # noinspection PyUnresolvedReferences
-            if not stuff.is_file():
-                continue
-            # noinspection PyUnresolvedReferences
-            relative = stuff.split(f"/{self.name}/")[-1]
-            newpath = other / relative
-            newpath.parent.mkdir(recursive=True)
-            self.fs.mv(stuff.__fspath__(), newpath)
-
-    def cp(self, other: Union[str, Path, TransparentPath]):
-        """Used to copy a file or a directory on the same filesystem."""
-
-        if not type(other) == TransparentPath:
-            other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
-        if other.fs_kind != self.fs_kind:
-            raise ValueError(
-                "mv() can only copy two TransparentPath on the same file system. To get a remote file to "
-                "local, use get(). To push a local file to remote, use put()."
-            )
-
-        # Do not use filesystem's copy, for it is coded by apes and is not able to use recursive properly
-        # self.fs.cp(self.__fspath__(), other, **kwargs)
-
-        if self.is_file():
-            self.fs.cp(self.__fspath__(), other)
-            return
-
-        for stuff in list(self.glob("**/*", fast=True)):
-            # noinspection PyUnresolvedReferences
-            if not stuff.is_file():
-                continue
-            # noinspection PyUnresolvedReferences
-            relative = stuff.split(f"/{self.name}/")[-1]
-            newpath = other / relative
-            newpath.parent.mkdir(recursive=True)
-            self.fs.cp(stuff.__fspath__(), newpath)
-
     def walk(self) -> Iterator[Tuple[TransparentPath, List[TransparentPath], List[TransparentPath]]]:
-        """Like os.walk, except all outputs are TransparentPaths (so, absulute paths)
+        """Like os.walk, except all outputs are TransparentPaths (so, absolute paths)
 
         Returns
         -------
@@ -1669,6 +1559,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return get_buckets(self.fs)
 
     def cast_iterable(self, iter_: Iterable):
+        """Used by self.walk"""
         if isinstance(iter_, Path) or isinstance(iter_, TransparentPath):
             return TransparentPath(iter_, fs=self.fs_kind, bucket=self.bucket, project=self.project)
         elif isinstance(iter_, str):
@@ -1678,3 +1569,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
         else:
             to_ret = [self.cast_iterable(item) for item in iter_]
             return to_ret
+
+
+from ..io.io import put, get, mv, cp, overload_open
+overload_open()
+setattr(TransparentPath, "put", put)
+setattr(TransparentPath, "get", get)
+setattr(TransparentPath, "mv", mv)
+setattr(TransparentPath, "cp", cp)

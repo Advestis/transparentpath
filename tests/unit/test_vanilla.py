@@ -172,12 +172,10 @@ def test_itruediv(clean, fs_kind):
         ("gcs", "chien/chat", "chien", True, True),
         ("local", "chien/chat", "chien", False, True),
         ("gcs", "chien/chat", "chien", False, True),
-
         ("local", "chien", "chien", True, False),
         ("gcs", "chien", "chien", True, False),
         ("local", "chien", "chien", False, False),
         ("gcs", "chien", "chien", False, False),
-
         ("local", "chien", "chat", True, False),
         ("gcs", "chien", "chat", True, False),
         ("local", "chien", "chat", False, False),
@@ -203,10 +201,8 @@ def test_isdir(clean, fs_kind, path1, path2, exists, expected):
         ("gcs", "chien/chat", "chien/chat", True),
         ("local", "chien/chat", "chien", False),
         ("gcs", "chien/chat", "chien", False),
-
         ("local", "chien", "chien", True),
         ("gcs", "chien", "chien", True),
-
         ("local", "chien", "chat", False),
         ("gcs", "chien", "chat", False),
     ],
@@ -228,25 +224,18 @@ def test_isfile(clean, fs_kind, path1, path2, expected):
     [
         ("local", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": False}, None),
         ("gcs", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": False}, None),
-
         ("local", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),
         ("gcs", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),
-
         ("local", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, IsADirectoryError),
         ("gcs", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, IsADirectoryError),
-
         ("local", "ch/chat", "ch", {"absent": "raise", "ignore_kind": True, "recursive": False}, None),
         ("gcs", "ch/chat", "ch", {"absent": "raise", "ignore_kind": True, "recursive": False}, None),
-
         ("local", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, None),
         ("gcs", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, None),
-
         ("local", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, FileNotFoundError),
         ("gcs", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, FileNotFoundError),
-
         ("local", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),
         ("gcs", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),
-
         ("local", "", "ch", {"absent": "ignore", "ignore_kind": False, "recursive": True}, None),
         ("gcs", "", "ch", {"absent": "ignore", "ignore_kind": False, "recursive": True}, None),
     ],
@@ -270,12 +259,13 @@ def test_rm(clean, fs_kind, path1, path2, kwargs, expected):
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "fs_kind, pattern, expected", [
+    "fs_kind, pattern, expected",
+    [
         ("local", "chien/*", ["chat", "cheval"]),
         ("local", "chien/**", ["chat", "cheval", "cheval/chouette"]),
         ("gcs", "chien/*", ["chat"]),
         ("gcs", "chien/**", ["chat", "cheval/chouette"]),
-    ]
+    ],
 )
 def test_glob(clean, fs_kind, pattern, expected):
     if skip_gcs[fs_kind]:
@@ -297,12 +287,8 @@ def test_glob(clean, fs_kind, pattern, expected):
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "fs_kind, suffix, expected", [
-        ("local", ".txt", ".txt"),
-        ("local", "txt", ".txt"),
-        ("gcs", ".txt", ".txt"),
-        ("gcs", "txt", ".txt"),
-    ]
+    "fs_kind, suffix, expected",
+    [("local", ".txt", ".txt"), ("local", "txt", ".txt"), ("gcs", ".txt", ".txt"), ("gcs", "txt", ".txt")],
 )
 def test_with_suffix(clean, fs_kind, suffix, expected):
     if skip_gcs[fs_kind]:
@@ -327,7 +313,11 @@ def test_ls(clean, fs_kind):
     (root / "chien" / "chat").touch()
     (root / "chien" / "cheval").mkdir()
     (root / "chien" / "cheval" / "chouette").touch()
-    assert[str(p).split("chien/")[1] for p in (root / "chien").ls()] == ["chat", "cheval"]
+    res = [str(p).split("chien/")[1] for p in (root / "chien").ls()]
+    res.sort()
+    expected = ["chat", "cheval"]
+    expected.sort()
+    assert res == expected
 
 
 # noinspection PyUnusedLocal
@@ -351,12 +341,7 @@ def test_cd(clean, fs_kind):
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "fs_kind, path", [
-        ("local", "chien/chat"),
-        ("local", "chien"),
-        ("gcs", "chien/chat"),
-        ("gcs", "chien"),
-    ]
+    "fs_kind, path", [("local", "chien/chat"), ("local", "chien"), ("gcs", "chien/chat"), ("gcs", "chien")]
 )
 def test_touch(clean, fs_kind, path):
     if skip_gcs[fs_kind]:
@@ -367,3 +352,81 @@ def test_touch(clean, fs_kind, path):
     p = TransparentPath(path)
     p.touch()
     assert p.is_file()
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.parametrize(
+    "fs_kind, path", [("local", "chien"), ("local", "chien/chat"), ("gcs", "chien"), ("gcs", "chien/chat")]
+)
+def test_mkdir(clean, fs_kind, path):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+
+    p = TransparentPath(path)
+    p.mkdir()
+    assert p.is_dir()
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.parametrize("fs_kind, to_append", [("local", "chat"), ("gcs", "chat")])
+def test_append(clean, fs_kind, to_append):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+
+    assert str(TransparentPath("chien").append(to_append)) == str(TransparentPath(f"chien{to_append}"))
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
+def test_walk(clean, fs_kind):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+
+    dic = {"chien": "dir", "chien/chat": "file", "chien/cheval": "dir", "chien/cheval/chouette": "file"}
+    expected = [
+        (
+            TransparentPath("chien"),
+            [TransparentPath("chien") / "cheval"],
+            [TransparentPath("chien") / "chat"],
+        ),
+        (TransparentPath("chien") / "cheval", [], [TransparentPath("chien") / "cheval" / "chouette"]),
+    ]
+    root = TransparentPath()
+    for word in dic:
+        p = root / word
+        if dic[word] == "file":
+            p.touch()
+        else:
+            p.mkdir()
+
+    assert list((root / "chien").walk()) == expected
+
+
+# noinspection PyUnusedLocal
+@pytest.mark.parametrize("fs_kind, ", ["local", "gcs"])
+def test_exists(clean, fs_kind):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+
+    p = TransparentPath("chien")
+    p.touch()
+    assert p.exist()
+    assert p.exists()
+
+
+# noinspection PyUnusedLocal
+def test_buckets(clean):
+    if skip_gcs["gcs"]:
+        print("skipped")
+        return
+    init("gcs")
+
+    assert "code_tests_sand/" in TransparentPath().buckets
