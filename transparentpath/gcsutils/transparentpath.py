@@ -15,7 +15,7 @@ notimplementedmessage = "This method is not implemented, meaning you do not have
 
 def errormessage(which) -> str:
     return f"Support for {which} does not seem to be installed for TransparentPath.\n" \
-            "You can change that by running 'pip install transparentpath[{which}]'."
+           f"You can change that by running 'pip install transparentpath[{which}]'."
 
 
 def errorfunction(which) -> Callable:

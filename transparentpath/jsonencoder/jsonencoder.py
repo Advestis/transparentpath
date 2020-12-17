@@ -2,11 +2,6 @@ errormessage = "Support for json does not seem to be installed for TransparentPa
                "You can change that by running 'pip install transparentpath[json]'."
 
 
-class JSONEncoder:
-    def __init__(self):
-        raise ImportError(errormessage)
-
-
 try:
     import json
     # noinspection PyPackageRequirements
