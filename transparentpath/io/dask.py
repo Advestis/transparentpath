@@ -13,8 +13,7 @@ try:
     # noinspection PyPackageRequirements
     import pandas as pd
 
-    from ..gcsutils.transparentpath import TransparentPath
-    from .io import get_index_and_date_from_kwargs, check_kwargs
+    from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs
     from .hdf5 import hdf5_ok
     from .hdf5 import errormessage as errormessage_hdf5
     from .pandas import excel_ok

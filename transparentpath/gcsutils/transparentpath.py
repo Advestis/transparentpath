@@ -7,21 +7,27 @@ from typing import Union, Tuple, Any, Iterator, Optional, Iterable, List, Callab
 from .methodtranslator import MultiMethodTranslator
 import gcsfs
 from fsspec.implementations.local import LocalFileSystem
+from inspect import signature
 
 remote_prefix = "gs://"
-notimplementedmessage = "This method is not implemented, meaning you do not have the required packages."\
-                        "see https://advestis.github.io/transparentpath/ for more informations"
+notimplementedmessage = (
+    "This method is not implemented, meaning you do not have the required packages."
+    "see https://advestis.github.io/transparentpath/ for more informations"
+)
 
 
 def errormessage(which) -> str:
-    return f"Support for {which} does not seem to be installed for TransparentPath.\n" \
-           f"You can change that by running 'pip install transparentpath[{which}]'."
+    return (
+        f"Support for {which} does not seem to be installed for TransparentPath.\n"
+        f"You can change that by running 'pip install transparentpath[{which}]'."
+    )
 
 
 def errorfunction(which) -> Callable:
     # noinspection PyUnusedLocal
     def _errorfunction(*args, **kwargs):
         raise ImportError(errormessage(which))
+
     return _errorfunction
 
 
@@ -186,6 +192,43 @@ def check_buckets(fs: Union[gcsfs.GCSFileSystem, LocalFileSystem], bucket: str):
                 f"see it. Available buckets are:\n"
                 f"{buckets}"
             )
+
+
+def check_kwargs(method: Callable, kwargs: dict):
+    """Takes as argument a method and some kwargs. Will look in the method signature and return in two separate dict
+    the kwargs that are in the signature and those that are not.
+
+    If the method does not return any signature or if it explicitely accepts **kwargs, does not do anything
+    """
+    unexpected_kwargs = []
+    s = ""
+    try:
+        sig = signature(method)
+        if "kwargs" in sig.parameters or "kwds" in sig.parameters:
+            return
+        for arg in kwargs:
+            if arg not in sig.parameters:
+                unexpected_kwargs.append(kwargs[arg])
+
+        if len(unexpected_kwargs) > 0:
+            s = f"You provided unexpected kwargs for method {method.__name__}:"
+            s = "\n  - ".join([s] + unexpected_kwargs)
+    except ValueError:
+        return
+
+    if s != "":
+        raise ValueError(s)
+
+
+def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
+    index_col = kwargs.get("index_col", None)
+    parse_dates = kwargs.get("parse_dates", None)
+    if index_col is not None:
+        del kwargs["index_col"]
+    if parse_dates is not None:
+        del kwargs["parse_dates"]
+    # noinspection PyTypeChecker
+    return index_col, parse_dates, kwargs
 
 
 class MultipleExistenceError(Exception):
@@ -371,7 +414,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     _do_update_cache = True
     _do_check = True
     LOCAL_SEP = os.path.sep
-    
+
     _attributes = ["fs", "path", "fs_kind", "project", "bucket"]
 
     method_without_self_path = [
@@ -725,10 +768,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         TransparentPath
             The appended path
         """
-        
+
         if other.startswith(self.sep):
             other = other[1:]
-        
+
         if type(other) == str:
             return TransparentPath(self.__path / other, fs=self.fs_kind, project=self.project, bucket=self.bucket)
         else:
@@ -914,9 +957,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 TransparentPath.bucket = self.bucket
             if TransparentPath.project is None:
                 TransparentPath.project = self.project
-                
+
         check_buckets(self.fs, self.bucket)
-        
+
         if self.fs_kind == "local":
             self.sep = TransparentPath.LOCAL_SEP
         else:
@@ -1452,9 +1495,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         for parent in self.parents:
             p = TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket, project=self.project)
             if p.is_file():
-                raise FileExistsError(
-                    f"A parent directory can not be created because there is already a file at {p}"
-                )
+                raise FileExistsError(f"A parent directory can not be created because there is already a file at {p}")
             elif not p.exists():
                 p.mkdir()
 
@@ -1584,13 +1625,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return to_ret
 
     def read(
-            self,
-            *args,
-            get_obj: bool = False,
-            use_pandas: bool = False,
-            update_cache: bool = True,
-            use_dask: bool = False,
-            **kwargs,
+        self,
+        *args,
+        get_obj: bool = False,
+        use_pandas: bool = False,
+        update_cache: bool = True,
+        use_dask: bool = False,
+        **kwargs,
     ) -> Any:
         """Method used to read the content of the file located at self
 
@@ -1654,8 +1695,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if "index_col" in kwargs:
                 index_col = kwargs["index_col"]
                 del kwargs["index_col"]
+            # noinspection PyNoneFunctionAssignment
             content = self.read_parquet(update_cache=update_cache, use_dask=use_dask, **kwargs)
             if index_col:
+                # noinspection PyUnresolvedReferences
                 content.set_index(content.columns[index_col])
             return content
         elif self.suffix == ".hdf5" or self.suffix == ".h5":
@@ -1722,7 +1765,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if TransparentPath._do_check:
             self._check_multiplicity()
 
+        use_dask = False
         if "dask" in str(type(data)):
+            use_dask = True
             self.check_dask(which="write")
 
         if make_parents and not self.parent.is_dir():
@@ -1733,14 +1778,16 @@ class TransparentPath(os.PathLike):  # noqa : F811
             args = args[1:]
 
         if self.suffix == ".csv":
-            ret = self.to_csv(data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,)
+            ret = self.to_csv(
+                data=data, overwrite=overwrite, present=present, update_cache=update_cache, use_dask=use_dask, **kwargs,
+            )
             if ret is not None:
                 # To skip the assert at the end of the function. Indeed if something is returned it means we used
                 # Dask, which will have written files with a different name than self, so the assert would fail.
                 return
         elif self.suffix == ".parquet":
             self.to_parquet(
-                data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
+                data=data, overwrite=overwrite, present=present, update_cache=update_cache, use_dask=use_dask, **kwargs,
             )
             if isinstance(data, dd.DataFrame):
                 # noinspection PyUnresolvedReferences
@@ -1748,7 +1795,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 return
         elif self.suffix == ".hdf5" or self.suffix == ".h5":
             ret = self.to_hdf5(
-                data=data, set_name=set_name, use_pandas=use_pandas, update_cache=update_cache, **kwargs,
+                data=data,
+                set_name=set_name,
+                use_pandas=use_pandas,
+                update_cache=update_cache,
+                use_dask=use_dask,
+                **kwargs,
             )
             if ret is not None:
                 return ret
@@ -1762,7 +1814,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             )
         elif self.suffix == ".xlsx":
             self.to_excel(
-                data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
+                data=data, overwrite=overwrite, present=present, update_cache=update_cache, use_dask=use_dask, **kwargs,
             )
         else:
             self.write_bytes(
@@ -1770,42 +1822,142 @@ class TransparentPath(os.PathLike):  # noqa : F811
             )
         assert self.is_file()
 
+    # READ CSV
+
     def read_csv(self, *args, **kwargs):
-        raise ImportError(errormessage("pandas-csv"))
+        if kwargs.get("use_dask", False):
+            del kwargs["use_dask"]
+            return self.read_csv_dask(*args, **kwargs)
+        else:
+            return self.read_csv_classic(*args, **kwargs)
+
+    def read_csv_dask(self, *args, **kwargs):
+        raise ImportError(errormessage("dask"))
+
+    def read_csv_classic(self, *args, **kwargs):
+        raise ImportError(errormessage("pandas"))
+
+    # READ HDF5
 
     def read_hdf5(self, *args, **kwargs):
+        if kwargs.get("use_dask", False):
+            del kwargs["use_dask"]
+            return self.read_hdf5_dask(*args, **kwargs)
+        else:
+            return self.read_hdf5_classic(*args, **kwargs)
+
+    def read_hdf5_dask(self, *args, **kwargs):
+        raise ImportError(errormessage("dask,hdf5"))
+
+    def read_hdf5_classic(self, *args, **kwargs):
         raise ImportError(errormessage("hdf5"))
 
+    # READ EXCEL
+
     def read_excel(self, *args, **kwargs):
-        raise ImportError(errormessage("pandas-excel"))
+        if kwargs.get("use_dask", False):
+            del kwargs["use_dask"]
+            return self.read_excel_dask(*args, **kwargs)
+        else:
+            return self.read_excel_classic(*args, **kwargs)
+
+    def read_excel_dask(self, *args, **kwargs):
+        raise ImportError(errormessage("dask,excel"))
+
+    def read_excel_classic(self, *args, **kwargs):
+        raise ImportError(errormessage("excel"))
+
+    # READ PARQUET
 
     def read_parquet(self, *args, **kwargs):
-        raise ImportError(errormessage("pandas-parquet"))
+        if kwargs.get("use_dask", False):
+            del kwargs["use_dask"]
+            return self.read_parquet_dask(*args, **kwargs)
+        else:
+            return self.read_parquet_classic(*args, **kwargs)
+
+    def read_parquet_dask(self, *args, **kwargs):
+        raise ImportError(errormessage("dask,parquet"))
+
+    def read_parquet_classic(self, *args, **kwargs):
+        raise ImportError(errormessage("parquet"))
+
+    # READ JSON
 
     def read_json(self, *args, **kwargs):
         raise ImportError(errormessage("json"))
 
-    def to_csv(self, *args, **kwargs):
-        raise ImportError(errormessage("pandas-csv"))
+    # WRITE CSV
 
-    def to_hdf5(self, *args, **kwargs):
-        raise ImportError(errormessage("pandas-hdf5"))
+    def to_csv(self, data, *args, **kwargs):
+        if kwargs.get("use_dask", False):
+            del kwargs["use_dask"]
+            return self.to_csv_dask(data, *args, **kwargs)
+        else:
+            self.to_csv_classic(data, *args, **kwargs)
 
-    def to_excel(self, *args, **kwargs):
-        raise ImportError(errormessage("pandas-excel"))
+    def to_csv_classic(self, *args, **kwargs):
+        raise ImportError(errormessage("pandas"))
 
-    def to_parquet(self, *args, **kwargs):
-        raise ImportError(errormessage("pandas-parquet"))
+    def to_csv_dask(self, *args, **kwargs):
+        raise ImportError(errormessage("dask"))
 
-    def to_json(self, *args, **kwargs):
+    # WRITE HDF5
+
+    def to_hdf5(self, data, *args, **kwargs):
+        if kwargs.get("use_dask", False):
+            del kwargs["use_dask"]
+            return self.to_hdf5_dask(data, *args, **kwargs)
+        else:
+            self.to_hdf5_classic(data, *args, **kwargs)
+
+    def to_hdf5_classic(self, *args, **kwargs):
+        raise ImportError(errormessage("hdf5"))
+
+    def to_hdf5_dask(self, *args, **kwargs):
+        raise ImportError(errormessage("dask,hdf5"))
+
+    # WRITE EXCEL
+
+    def to_excel(self, data, *args, **kwargs):
+        if kwargs.get("use_dask", False):
+            del kwargs["use_dask"]
+            self.to_excel_dask(data, *args, **kwargs)
+        else:
+            self.to_excel_classic(data, *args, **kwargs)
+
+    def to_excel_classic(self, *args, **kwargs):
+        raise ImportError(errormessage("excel"))
+
+    def to_excel_dask(self, *args, **kwargs):
+        raise ImportError(errormessage("dask,excel"))
+
+    # WRITE EXCEL
+
+    def to_parquet(self, data, *args, **kwargs):
+        if kwargs.get("use_dask", False):
+            del kwargs["use_dask"]
+            self.to_parquet_dask(data, *args, **kwargs)
+        else:
+            self.to_parquet_classic(data, *args, **kwargs)
+
+    def to_parquet_classic(self, *args, **kwargs):
+        raise ImportError(errormessage("parquet"))
+
+    def to_parquet_dask(self, *args, **kwargs):
+        raise ImportError(errormessage("dask,parquet"))
+
+    def to_json(self, data, *args, **kwargs):
         raise ImportError(errormessage("json"))
 
     def check_dask(self, *args, **kwargs):
         raise ImportError(errormessage("dask"))
 
+
 # Do imports from detached files here because some of them import TransparentPath and need it fully declared.
 
 from ..io.io import put, get, mv, cp, overload_open, read_text, write_stuff, write_bytes
+
 overload_open()
 setattr(TransparentPath, "put", put)
 setattr(TransparentPath, "get", get)
@@ -1821,15 +1973,27 @@ except ImportError:
     pass
 
 try:
-    from ..jsonencoder.jsonencoder import read_json, to_json
-    setattr(TransparentPath, "read_json", read_json)
-    setattr(TransparentPath, "to_json", to_json)
+    # noinspection PyUnresolvedReferences
+    from transparentpath.io.json import read, write
+
+    setattr(TransparentPath, "read_json", read)
+    setattr(TransparentPath, "to_json", write)
 except ImportError:
     pass
 
-# try:
-#     from ..io.pandas import read_csv, to_csv
-#     setattr(TransparentPath, "read_csv", read_csv)
-#     setattr(TransparentPath, "to_csv", to_csv)
-# except ImportError:
-#     pass
+try:
+    # noinspection PyUnresolvedReferences
+    from ..io.pandas import read, write
+
+    setattr(TransparentPath, "read_csv_classic", read)
+    setattr(TransparentPath, "to_csv_classic", write)
+except ImportError:
+    pass
+
+try:
+    from ..io.hdf5 import read, write
+
+    setattr(TransparentPath, "read_hdf5_classic", read)
+    setattr(TransparentPath, "to_hdf5_classic", write)
+except ImportError:
+    pass
