@@ -1,14 +1,16 @@
-errormessage = "Support for json does not seem to be installed for TransparentPath.\n" \
-               "You can change that by running 'pip install transparentpath[json]'."
+errormessage = (
+    "Support for json does not seem to be installed for TransparentPath.\n"
+    "You can change that by running 'pip install transparentpath[json]'."
+)
 
 
 try:
     import json
+
     # noinspection PyPackageRequirements
     import numpy as np
     from typing import Any
     from datetime import date, datetime
-
 
     class JSONEncoder(json.JSONEncoder):
         """
@@ -33,7 +35,6 @@ try:
             else:
                 return json.JSONEncoder.default(self, obj)
 
-
     def read(self, *args, get_obj, update_cache, **kwargs):
         stringified = self.read_text(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
         dictified = json.loads(stringified)
@@ -54,5 +55,5 @@ try:
 
 except ImportError as e:
     import warnings
-    warnings.warn(errormessage)
+    warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
     raise e

@@ -204,7 +204,7 @@ def check_kwargs(method: Callable, kwargs: dict):
             return
         for arg in kwargs:
             if arg not in sig.parameters:
-                unexpected_kwargs.append(kwargs[arg])
+                unexpected_kwargs.append(f"{arg}={kwargs[arg]}")
 
         if len(unexpected_kwargs) > 0:
             s = f"You provided unexpected kwargs for method {method.__name__}:"
@@ -1761,11 +1761,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if TransparentPath._do_check:
             self._check_multiplicity()
 
-        use_dask = False
-        if "dask" in str(type(data)):
-            use_dask = True
-            self.check_dask(which="write")
-
         if make_parents and not self.parent.is_dir():
             self.parent.mkdir()
 
@@ -1774,16 +1769,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
             args = args[1:]
 
         if self.suffix == ".csv":
-            ret = self.to_csv(
-                data=data, overwrite=overwrite, present=present, update_cache=update_cache, use_dask=use_dask, **kwargs,
-            )
+            ret = self.to_csv(data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,)
             if ret is not None:
                 # To skip the assert at the end of the function. Indeed if something is returned it means we used
                 # Dask, which will have written files with a different name than self, so the assert would fail.
                 return
         elif self.suffix == ".parquet":
             self.to_parquet(
-                data=data, overwrite=overwrite, present=present, update_cache=update_cache, use_dask=use_dask, **kwargs,
+                data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
             )
             if "dask" in str(type(data)):
                 # noinspection PyUnresolvedReferences
@@ -1791,12 +1784,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 return
         elif self.suffix == ".hdf5" or self.suffix == ".h5":
             ret = self.to_hdf5(
-                data=data,
-                set_name=set_name,
-                use_pandas=use_pandas,
-                update_cache=update_cache,
-                use_dask=use_dask,
-                **kwargs,
+                data=data, set_name=set_name, use_pandas=use_pandas, update_cache=update_cache, **kwargs,
             )
             if ret is not None:
                 return ret
@@ -1821,8 +1809,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
     # READ CSV
 
     def read_csv(self, *args, **kwargs):
-        if kwargs.get("use_dask", False):
+        use_dask = False
+        if "use_dask" in kwargs:
+            use_dask = kwargs["use_dask"]
             del kwargs["use_dask"]
+        if use_dask:
             return self.read_csv_dask(*args, **kwargs)
         else:
             return self.read_csv_classic(*args, **kwargs)
@@ -1836,8 +1827,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
     # READ HDF5
 
     def read_hdf5(self, *args, **kwargs):
-        if kwargs.get("use_dask", False):
+        use_dask = False
+        if "use_dask" in kwargs:
+            use_dask = kwargs["use_dask"]
             del kwargs["use_dask"]
+        if use_dask:
             return self.read_hdf5_dask(*args, **kwargs)
         else:
             return self.read_hdf5_classic(*args, **kwargs)
@@ -1851,8 +1845,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
     # READ EXCEL
 
     def read_excel(self, *args, **kwargs):
-        if kwargs.get("use_dask", False):
+        use_dask = False
+        if "use_dask" in kwargs:
+            use_dask = kwargs["use_dask"]
             del kwargs["use_dask"]
+        if use_dask:
             return self.read_excel_dask(*args, **kwargs)
         else:
             return self.read_excel_classic(*args, **kwargs)
@@ -1866,8 +1863,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
     # READ PARQUET
 
     def read_parquet(self, *args, **kwargs):
-        if kwargs.get("use_dask", False):
+        use_dask = False
+        if "use_dask" in kwargs:
+            use_dask = kwargs["use_dask"]
             del kwargs["use_dask"]
+        if use_dask:
             return self.read_parquet_dask(*args, **kwargs)
         else:
             return self.read_parquet_classic(*args, **kwargs)

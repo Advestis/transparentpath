@@ -1,15 +1,20 @@
-errormessage = "Dask does not seem to be installed. You will not be able to use Dask DataFrames through "\
-               "TransparentPath.\nYou can change that by running 'pip install transparentpath[dask]'."
+errormessage = (
+    "Dask does not seem to be installed. You will not be able to use Dask DataFrames through "
+    "TransparentPath.\nYou can change that by running 'pip install transparentpath[dask]'."
+)
 
 try:
     # noinspection PyUnresolvedReferences,PyPackageRequirements
     import dask.dataframe as dd
+
     # noinspection PyUnresolvedReferences,PyPackageRequirements
     from dask.delayed import delayed
+
     # noinspection PyUnresolvedReferences,PyPackageRequirements
     from dask.distributed import client
     from typing import Union, List, Any
     import tempfile
+
     # noinspection PyPackageRequirements
     import pandas as pd
 
@@ -23,7 +28,6 @@ try:
 
     client_ = client
 
-
     def check_dask(self, which: str = "read"):
         if which != "read":
             return
@@ -34,16 +38,14 @@ try:
         else:
             # noinspection PyUnresolvedReferences
             if (
-                    not self.is_file()
-                    and not self.is_dir(exist=True)
-                    and not self.with_suffix("").is_dir(exist=True)
-                    and "*" not in str(self)
+                not self.is_file()
+                and not self.is_dir(exist=True)
+                and not self.with_suffix("").is_dir(exist=True)
+                and "*" not in str(self)
             ):
                 raise FileNotFoundError(f"Could not find file nor directory {self}")
 
-    def apply_index_and_date_dd(
-            index_col: int, parse_dates: bool, df: dd.DataFrame
-    ) -> dd.DataFrame:
+    def apply_index_and_date_dd(index_col: int, parse_dates: bool, df: dd.DataFrame) -> dd.DataFrame:
         if index_col is not None:
             df = df.set_index(df.columns[index_col])
             df.index = df.index.rename(None)
@@ -51,7 +53,6 @@ try:
             # noinspection PyTypeChecker
             df.index = dd.to_datetime(df.index)
         return df
-
 
     def read_csv(self, update_cache: bool = True, **kwargs) -> dd.DataFrame:
         # noinspection PyProtectedMember
@@ -89,12 +90,7 @@ try:
             index_col, parse_dates, dd.read_parquet(to_use.__fspath__(), engine="pyarrow", **kwargs)
         )
 
-    def read_hdf5(
-        self,
-        update_cache: bool = True,
-        set_names: str = "",
-        **kwargs,
-    ) -> dd.DataFrame:
+    def read_hdf5(self, update_cache: bool = True, set_names: str = "", **kwargs,) -> dd.DataFrame:
 
         if not hdf5_ok:
             raise ImportError(errormessage_hdf5)
@@ -109,8 +105,7 @@ try:
         check_dask(self)
         if len(set_names) == 0:
             raise ValueError(
-                "If using Dask, you must specify the dataset name to extract using set_names='aname'"
-                "or a wildcard."
+                "If using Dask, you must specify the dataset name to extract using set_names='aname' or a wildcard."
             )
 
         # noinspection PyProtectedMember
@@ -159,12 +154,7 @@ try:
             )
 
     def write_csv(
-        self,
-        data: dd.DataFrame,
-        overwrite: bool = True,
-        present: str = "ignore",
-        update_cache: bool = True,
-        **kwargs,
+        self, data: dd.DataFrame, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs,
     ) -> Union[None, List[TransparentPath]]:
 
         # noinspection PyProtectedMember
@@ -196,7 +186,7 @@ try:
         update_cache: bool = True,
         columns_to_string: bool = True,
         **kwargs,
-      ) -> None:
+    ) -> None:
 
         if not hdf5_ok:
             raise ImportError(errormessage_hdf5)
@@ -214,25 +204,19 @@ try:
             self.__class__.cli = client.Client(processes=False)
         check_kwargs(dd.to_parquet, kwargs)
         dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
+
     # noinspection PyUnresolvedReferences
-    
-    
+
     def write_hdf5(
-        self,
-        data: Any = None,
-        set_name: str = None,
-        update_cache: bool = True,
-        use_pandas: bool = False, **kwargs,
+        self, data: Any = None, set_name: str = None, update_cache: bool = True, use_pandas: bool = False, **kwargs,
     ) -> Union[None, "h5py.File"]:
 
         if not hdf5_ok:
             raise ImportError(errormessage_hdf5)
-        
+
         if use_pandas:
-            raise NotImplementedError(
-                "TransparentPath does not support storing Dask objects in pandas's HDFStore yet."
-            )
-        
+            raise NotImplementedError("TransparentPath does not support storing Dask objects in pandas's HDFStore yet.")
+
         if self.__class__.cli is None:
             self.__class__.cli = client.Client(processes=False)
         check_kwargs(dd.to_hdf, kwargs)
@@ -262,9 +246,7 @@ try:
                     dd.to_hdf, list(sets.values()), [f.name] * len(sets), list(sets.keys()), mode=mode, **kwargs
                 )
                 self.__class__.cli.gather(futures)
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(
-                    self.__path
-                )
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.__path)
         return
 
     def write_excel(
@@ -284,7 +266,7 @@ try:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
-        
+
         if self.fs_kind == "local":
             if self.__class__.cli is None:
                 self.__class__.cli = client.Client(processes=False)
@@ -304,5 +286,5 @@ try:
 
 except ImportError as e:
     import warnings
-    warnings.warn(errormessage)
+    warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
     raise e

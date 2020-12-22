@@ -1,5 +1,7 @@
-errormessage = "Support for zipfiles does not seem to be installed for TransparentPath.\n" \
-               "You can change that by running 'pip install transparentpath[zip]'."
+errormessage = (
+    "Support for zipfiles does not seem to be installed for TransparentPath.\n"
+    "You can change that by running 'pip install transparentpath[zip]'."
+)
 
 
 class TpZipFile:
@@ -15,7 +17,6 @@ try:
     from ..gcsutils.transparentpath import TransparentPath
 
     zipfileclass = zipfile.ZipFile
-
 
     class TpZipFile(zipfileclass):
         """
@@ -33,7 +34,8 @@ try:
             else:
                 super().__init__(path, *args, **kwargs)
 
-
     zipfile.ZipFile = TpZipFile
-except ImportError:
-    raise ImportError(errormessage)
+except ImportError as e:
+    import warnings
+    warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
+    raise e

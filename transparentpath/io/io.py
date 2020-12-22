@@ -55,9 +55,7 @@ def put(self, dst: Union[str, Path, TransparentPath]):
     # noinspection PyUnresolvedReferences
     if type(dst) == TransparentPath and "gcs" not in dst.fs_kind:
         raise ValueError(
-            "The second argument can not be a local "
-            "TransparentPath. To move a file "
-            "localy, use the mv() method."
+            "The second argument can not be a local " "TransparentPath. To move a file " "localy, use the mv() method."
         )
     if type(dst) != TransparentPath:
         dst = TransparentPath(dst, fs="gcs")
@@ -81,9 +79,7 @@ def get(self, loc: Union[str, Path, TransparentPath]):
     a str, it will be casted into a local TransparentPath. """
 
     if "gcs" not in self.fs_kind:
-        raise ValueError(
-            "The calling instance of get() must be on GCS. To move a file localy, use the mv() method."
-        )
+        raise ValueError("The calling instance of get() must be on GCS. To move a file localy, use the mv() method.")
     # noinspection PyUnresolvedReferences
     if type(loc) == TransparentPath and loc.fs_kind != "local":
         raise ValueError(

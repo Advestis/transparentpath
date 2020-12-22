@@ -19,10 +19,11 @@ try:
     from ..gcsutils.transparentpath import TransparentPath
     from .pandas import MyHDFStore
     import sys
+    import importlib.util
 
     hdf5_ok = True
 
-    if "tables" not in sys.modules:
+    if importlib.util.find_spec("tables") is None:
         raise ImportError("Need the 'tables' package")
 
     class MyHDFFile(h5py.File):
@@ -209,5 +210,5 @@ try:
 
 except ImportError as e:
     import warnings
-    warnings.warn(errormessage)
+    warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
     raise e

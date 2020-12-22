@@ -1,5 +1,7 @@
-errormessage = "pandas does not seem to be installed. You will not be able to use pandas objects through "\
-               "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'."
+errormessage = (
+    "pandas does not seem to be installed. You will not be able to use pandas objects through "
+    "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'."
+)
 
 
 class MyHDFStore:
@@ -13,7 +15,6 @@ try:
     import tempfile
     from typing import Union, List
     from ..gcsutils.transparentpath import TransparentPath, check_kwargs
-
 
     class MyHDFStore(pd.HDFStore):
         """Same as MyHDFFile but for pd.HDFStore objects"""
@@ -32,7 +33,7 @@ try:
             if self.remote_file is not None:
                 TransparentPath(self.local_path.name, fs="local").put(self.remote_file)
                 self.local_path.close()
-    
+
     def read(self, update_cache: bool = True, **kwargs) -> pd.DataFrame:
         # noinspection PyProtectedMember
         if update_cache and self.__class__._do_update_cache:
@@ -67,7 +68,8 @@ try:
         check_kwargs(data.to_csv, kwargs)
         data.to_csv(self.__fspath__(), **kwargs)
 
+
 except ImportError as e:
     import warnings
-    warnings.warn(errormessage)
+    warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
     raise e

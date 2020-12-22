@@ -1,5 +1,7 @@
-errormessage = "parquet for TransparentPath does not seem to be installed. You will not be able to use parquet files " \
-               "through TransparentPath.\nYou can change that by running 'pip install transparentpath[parquet]'."
+errormessage = (
+    "parquet for TransparentPath does not seem to be installed. You will not be able to use parquet files "
+    "through TransparentPath.\nYou can change that by running 'pip install transparentpath[parquet]'."
+)
 
 parquet_ok = False
 
@@ -9,13 +11,13 @@ try:
     import tempfile
     import sys
     from typing import Union, List, Tuple
+    import importlib.util
     from ..gcsutils.transparentpath import TransparentPath, check_kwargs
 
-    if "pyarrow" not in sys.modules:
+    if importlib.util.find_spec("pyarrow") is None:
         raise ImportError("Need the 'pyarrow' package")
 
     parquet_ok = True
-
 
     def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
         index_col = kwargs.get("index_col", None)
@@ -27,10 +29,7 @@ try:
         # noinspection PyTypeChecker
         return index_col, parse_dates, kwargs
 
-
-    def apply_index_and_date(
-            index_col: int, parse_dates: bool, df: pd.DataFrame
-    ) -> pd.DataFrame:
+    def apply_index_and_date(index_col: int, parse_dates: bool, df: pd.DataFrame) -> pd.DataFrame:
         if index_col is not None:
             df = df.set_index(df.columns[index_col])
             df.index = df.index.rename(None)
@@ -39,10 +38,7 @@ try:
             df.index = pd.to_datetime(df.index)
         return df
 
-
-    def read(
-        self, update_cache: bool = True, **kwargs
-    ) -> Union[pd.DataFrame, pd.Series]:
+    def read(self, update_cache: bool = True, **kwargs) -> Union[pd.DataFrame, pd.Series]:
         # noinspection PyProtectedMember
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
@@ -95,5 +91,5 @@ try:
 
 except ImportError as e:
     import warnings
-    warnings.warn(errormessage)
+    warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
     raise e

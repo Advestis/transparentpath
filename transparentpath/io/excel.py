@@ -1,5 +1,7 @@
-errormessage = "Excel for TransparentPath does not seem to be installed. You will not be able to use excel files " \
-               "through TransparentPath.\nYou can change that by running 'pip install transparentpath[excel]'."
+errormessage = (
+    "Excel for TransparentPath does not seem to be installed. You will not be able to use excel files "
+    "through TransparentPath.\nYou can change that by running 'pip install transparentpath[excel]'."
+)
 
 excel_ok = False
 
@@ -9,16 +11,16 @@ try:
     import tempfile
     from pathlib import Path
     import sys
+    import importlib.util
     from typing import Union, List, Tuple
     from ..gcsutils.transparentpath import TransparentPath, check_kwargs
 
-    if "xlrd" not in sys.modules:
+    if importlib.util.find_spec("xlrd") is None:
         raise ImportError("Need the 'xlrd' package")
-    if "openpyxl" not in sys.modules:
+    if importlib.util.find_spec("openpyxl") is None:
         raise ImportError("Need the 'openpyxl' package")
 
     excel_ok = True
-
 
     def read(self, update_cache: bool = True, **kwargs) -> pd.DataFrame:
         # noinspection PyProtectedMember
@@ -43,7 +45,6 @@ try:
                 "Could not read data. Most likely, the file is encrypted."
                 " Ask your cloud manager to remove encryption on it."
             )
-
 
     def write(
         self,
@@ -72,5 +73,5 @@ try:
 
 except ImportError as e:
     import warnings
-    warnings.warn(errormessage)
+    warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
     raise e
