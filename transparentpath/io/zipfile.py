@@ -36,6 +36,6 @@ try:
 
     zipfile.ZipFile = TpZipFile
 except ImportError as e:
-    import warnings
-    warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
+    # import warnings
+    # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
     raise e
