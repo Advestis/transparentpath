@@ -1903,7 +1903,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if "dask" in str(type(data)):
             return self.to_hdf5_dask(data, *args, **kwargs)
         else:
-            self.to_hdf5_classic(data, *args, **kwargs)
+            return self.to_hdf5_classic(data, *args, **kwargs)
 
     def to_hdf5_classic(self, *args, **kwargs):
         raise ImportError(errormessage("hdf5"))

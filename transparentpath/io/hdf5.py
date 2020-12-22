@@ -10,6 +10,14 @@ class MyHDFFile:
         raise ImportError(errormessage)
 
 
+class MyHDFStore:
+    def __init__(self):
+        raise ImportError(
+            "pandas does not seem to be installed. You will not be able to use pandas objects through "
+            "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'."
+        )
+
+
 try:
     # noinspection PyUnresolvedReferences
     import h5py
@@ -119,7 +127,7 @@ try:
             self._update_cache()
         if self.fs_kind == "local":
             # Do not check kwargs since HDFStore and h5py both accepct kwargs anyway
-            data = class_to_use(self.__path, mode=mode, **kwargs)
+            data = class_to_use(self.path, mode=mode, **kwargs)
         else:
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5")
             f.close()  # deletes the tmp file, but we can still use its name
@@ -176,11 +184,12 @@ try:
             class_to_use = MyHDFFile
             if use_pandas:
                 class_to_use = MyHDFStore
+
             if self.fs_kind == "local":
-                return class_to_use(self.__path, mode=mode, **kwargs)
+                return class_to_use(self.path, mode=mode, **kwargs)
             else:
                 f = tempfile.NamedTemporaryFile(delete=True, suffix=".hdf5")
-                return class_to_use(f, remote=self.__path, mode=mode, **kwargs)
+                return class_to_use(f, remote=self.path, mode=mode, **kwargs)
         else:
 
             if isinstance(data, dict):
@@ -195,7 +204,7 @@ try:
                 class_to_use = MyHDFStore
 
             if self.fs_kind == "local":
-                thefile = class_to_use(self.__path, mode=mode, **kwargs)
+                thefile = class_to_use(self.path, mode=mode, **kwargs)
                 for aset in sets:
                     thefile[aset] = sets[aset]
                 thefile.close()
@@ -205,8 +214,14 @@ try:
                     for aset in sets:
                         thefile[aset] = sets[aset]
                     thefile.close()
-                    TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.__path)
+                    TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
 
+    try:
+        # noinspection PyUnresolvedReferences
+        from .pandas import MyHDFStore as Hs
+        MyHDFStore = Hs
+    except ImportError:
+        pass
 
 except ImportError as e:
     # import warnings

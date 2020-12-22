@@ -4,11 +4,6 @@ errormessage = (
 )
 
 
-class MyHDFStore:
-    def __init__(self):
-        raise ImportError(errormessage)
-
-
 try:
     # noinspection PyUnresolvedReferences
     import pandas as pd
