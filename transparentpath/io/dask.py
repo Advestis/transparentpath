@@ -16,8 +16,10 @@ try:
     from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs
     from .hdf5 import hdf5_ok
     from .hdf5 import errormessage as errormessage_hdf5
-    from .pandas import excel_ok
-    from .pandas import errormessage as errormessage_excel
+    from .excel import excel_ok
+    from .excel import errormessage as errormessage_excel
+    from .parquet import parquet_ok
+    from .parquet import errormessage as errormessage_parquet
 
     client_ = client
 
@@ -51,51 +53,12 @@ try:
         return df
 
 
-    # def read(
-    #     self,
-    #     use_pandas: bool = False,
-    #     update_cache: bool = True,
-    #     **kwargs,
-    # ):
-    #     if TransparentPath.cli is None:
-    #         TransparentPath.cli = client.Client(processes=False)
-    #     if self.path.suffix != ".csv" and self.path.suffix != ".parquet" and not self.path.is_file():
-    #         raise FileNotFoundError(f"Could not find file {self}")
-    #     else:
-    #         if (
-    #                 not self.path.is_file()
-    #                 and not self.path.is_dir(exist=True)
-    #                 and not self.path.with_suffix("").is_dir(exist=True)
-    #                 and "*" not in str(self.path)
-    #         ):
-    #             raise FileNotFoundError(f"Could not find file nor directory {self}")
-    #
-    #     if self.path.suffix == ".csv":
-    #         return read_csv(self, update_cache=update_cache, **kwargs)
-    #     elif self.path.suffix == ".parquet":
-    #         index_col = None
-    #         if "index_col" in kwargs:
-    #             index_col = kwargs["index_col"]
-    #             del kwargs["index_col"]
-    #         content = read_parquet(self, update_cache=update_cache, **kwargs)
-    #         if index_col:
-    #             content.set_index(content.columns[index_col])
-    #         return content
-    #     elif self.path.suffix == ".hdf5" or self.path.suffix == ".h5":
-    #         return read_hdf5(self, update_cache=update_cache, use_pandas=use_pandas, **kwargs)
-    #     elif self.path.suffix == ".json":
-    #         raise ValueError("Can't use Dask on JSON files!")
-    #     elif self.path.suffix == ".xlsx":
-    #         return read_excel(self, update_cache=update_cache, **kwargs)
-    #     else:
-    #         raise ValueError(f"Can't use Dask on file {self.path}!")
-
-
     def read_csv(self, update_cache: bool = True, **kwargs) -> dd.DataFrame:
         # noinspection PyProtectedMember
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
 
+        check_dask(self)
         # noinspection PyTypeChecker,PyUnresolvedReferences
         if self.path.is_file():
             to_use = self
@@ -106,12 +69,17 @@ try:
         return apply_index_and_date_dd(index_col, parse_dates, dd.read_csv(to_use.__fspath__(), **kwargs))
 
     def read_parquet(self, update_cache: bool = True, **kwargs) -> Union[dd.DataFrame, dd.Series]:
+
+        if not parquet_ok:
+            raise ImportError(errormessage_parquet)
+
         # noinspection PyProtectedMember
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
 
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
 
+        check_dask(self)
         if self.path.is_file():
             to_use = self
         else:
@@ -122,10 +90,10 @@ try:
         )
 
     def read_hdf5(
-            self,
-            update_cache: bool = True,
-            set_names: str = "",
-            **kwargs,
+        self,
+        update_cache: bool = True,
+        set_names: str = "",
+        **kwargs,
     ) -> dd.DataFrame:
 
         if not hdf5_ok:
@@ -138,6 +106,7 @@ try:
         if "r" not in mode:
             raise ValueError("If using read_hdf5, mode must contain 'r'")
 
+        check_dask(self)
         if len(set_names) == 0:
             raise ValueError(
                 "If using Dask, you must specify the dataset name to extract using set_names='aname'"
@@ -167,6 +136,7 @@ try:
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
 
+        check_dask(self)
         check_kwargs(pd.read_excel, kwargs)
         # noinspection PyTypeChecker,PyUnresolvedReferences
         try:

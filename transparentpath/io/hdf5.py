@@ -20,6 +20,8 @@ try:
     from .pandas import MyHDFStore
     import sys
 
+    hdf5_ok = True
+
     if "tables" not in sys.modules:
         raise ImportError("Need the 'tables' package")
 

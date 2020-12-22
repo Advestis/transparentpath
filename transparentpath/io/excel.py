@@ -1,6 +1,7 @@
 errormessage = "Excel for TransparentPath does not seem to be installed. You will not be able to use excel files " \
                "through TransparentPath.\nYou can change that by running 'pip install transparentpath[excel]'."
 
+excel_ok = False
 
 try:
     # noinspection PyUnresolvedReferences
@@ -15,6 +16,8 @@ try:
         raise ImportError("Need the 'xlrd' package")
     if "openpyxl" not in sys.modules:
         raise ImportError("Need the 'openpyxl' package")
+
+    excel_ok = True
 
 
     def read(self, update_cache: bool = True, **kwargs) -> pd.DataFrame:

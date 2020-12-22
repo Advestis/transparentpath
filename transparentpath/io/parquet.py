@@ -1,6 +1,7 @@
 errormessage = "parquet for TransparentPath does not seem to be installed. You will not be able to use parquet files " \
                "through TransparentPath.\nYou can change that by running 'pip install transparentpath[parquet]'."
 
+parquet_ok = False
 
 try:
     # noinspection PyUnresolvedReferences
@@ -12,6 +13,9 @@ try:
 
     if "pyarrow" not in sys.modules:
         raise ImportError("Need the 'pyarrow' package")
+
+    parquet_ok = True
+
 
     def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
         index_col = kwargs.get("index_col", None)

@@ -2016,13 +2016,13 @@ try:
         write_parquet,
     )
 
-    setattr(TransparentPath, "read_parquet_classic", read_csv)
-    setattr(TransparentPath, "to_parquet_classic", write_csv)
-    setattr(TransparentPath, "read_parquet_classic", read_hdf5)
-    setattr(TransparentPath, "to_parquet_classic", write_hdf5)
-    setattr(TransparentPath, "read_parquet_classic", read_excel)
-    setattr(TransparentPath, "to_parquet_classic", write_excel)
-    setattr(TransparentPath, "read_parquet_classic", read_parquet)
-    setattr(TransparentPath, "to_parquet_classic", write_parquet)
+    setattr(TransparentPath, "read_parquet_dask", read_csv)
+    setattr(TransparentPath, "to_parquet_dask", write_csv)
+    setattr(TransparentPath, "read_parquet_dask", read_hdf5)
+    setattr(TransparentPath, "to_parquet_dask", write_hdf5)
+    setattr(TransparentPath, "read_parquet_dask", read_excel)
+    setattr(TransparentPath, "to_parquet_dask", write_excel)
+    setattr(TransparentPath, "read_parquet_dask", read_parquet)
+    setattr(TransparentPath, "to_parquet_dask", write_parquet)
 except ImportError:
     pass
