@@ -159,14 +159,7 @@ try:
             )
 
 
-except ImportError:
-
-    # noinspection PyUnusedLocal
-    def apply_index_and_date_dd(index_col, parse_dates, df):
-        raise ImportError(errormessage)
-
-    # noinspection PyUnusedLocal
-    def check_dask(self):
-        raise ImportError(errormessage)
-
-    raise ImportError(errormessage)
+except ImportError as e:
+    import warnings
+    warnings.warn(errormessage)
+    raise e

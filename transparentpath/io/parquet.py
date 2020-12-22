@@ -93,6 +93,7 @@ try:
         data.to_parquet(self.open("wb"), engine="pyarrow", compression="snappy", **kwargs)
 
 
-except ImportError:
+except ImportError as e:
     import warnings
     warnings.warn(errormessage)
+    raise e

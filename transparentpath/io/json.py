@@ -52,5 +52,7 @@ try:
         )
 
 
-except ImportError:
-    raise ImportError(errormessage)
+except ImportError as e:
+    import warnings
+    warnings.warn(errormessage)
+    raise e

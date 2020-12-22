@@ -70,6 +70,7 @@ try:
                 TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.__path)
 
 
-except ImportError:
+except ImportError as e:
     import warnings
     warnings.warn(errormessage)
+    raise e

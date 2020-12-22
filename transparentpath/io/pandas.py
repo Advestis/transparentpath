@@ -67,6 +67,7 @@ try:
         check_kwargs(data.to_csv, kwargs)
         data.to_csv(self.__fspath__(), **kwargs)
 
-except ImportError:
+except ImportError as e:
     import warnings
     warnings.warn(errormessage)
+    raise e
