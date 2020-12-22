@@ -10,10 +10,6 @@ from fsspec.implementations.local import LocalFileSystem
 from inspect import signature
 
 remote_prefix = "gs://"
-notimplementedmessage = (
-    "This method is not implemented, meaning you do not have the required packages."
-    "see https://advestis.github.io/transparentpath/ for more informations"
-)
 
 
 def errormessage(which) -> str:
@@ -1991,9 +1987,42 @@ except ImportError:
     pass
 
 try:
+    # noinspection PyUnresolvedReferences
     from ..io.hdf5 import read, write
 
     setattr(TransparentPath, "read_hdf5_classic", read)
     setattr(TransparentPath, "to_hdf5_classic", write)
+except ImportError:
+    pass
+
+try:
+    # noinspection PyUnresolvedReferences
+    from ..io.parquet import read, write
+
+    setattr(TransparentPath, "read_parquet_classic", read)
+    setattr(TransparentPath, "to_parquet_classic", write)
+except ImportError:
+    pass
+
+try:
+    from ..io.dask import (
+        read_csv,
+        write_csv,
+        read_hdf5,
+        write_hdf5,
+        read_excel,
+        write_excel,
+        read_parquet,
+        write_parquet,
+    )
+
+    setattr(TransparentPath, "read_parquet_classic", read_csv)
+    setattr(TransparentPath, "to_parquet_classic", write_csv)
+    setattr(TransparentPath, "read_parquet_classic", read_hdf5)
+    setattr(TransparentPath, "to_parquet_classic", write_hdf5)
+    setattr(TransparentPath, "read_parquet_classic", read_excel)
+    setattr(TransparentPath, "to_parquet_classic", write_excel)
+    setattr(TransparentPath, "read_parquet_classic", read_parquet)
+    setattr(TransparentPath, "to_parquet_classic", write_parquet)
 except ImportError:
     pass

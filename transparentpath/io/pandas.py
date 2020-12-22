@@ -2,13 +2,9 @@ errormessage = "pandas does not seem to be installed. You will not be able to us
                "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'."
 
 
-# def apply_index_and_date_pd(*args, **kwargs):
-#     raise ImportError(errormessage)
-#
-#
-# class MyHDFStore:
-#     def __init__(self):
-#         raise ImportError(errormessage)
+class MyHDFStore:
+    def __init__(self):
+        raise ImportError(errormessage)
 
 
 try:
@@ -18,17 +14,6 @@ try:
     from typing import Union, List
     from ..gcsutils.transparentpath import TransparentPath, check_kwargs
 
-
-    def apply_index_and_date_pd(
-            index_col: int, parse_dates: bool, df: pd.DataFrame
-    ) -> pd.DataFrame:
-        if index_col is not None:
-            df = df.set_index(df.columns[index_col])
-            df.index = df.index.rename(None)
-        if parse_dates is not None:
-            # noinspection PyTypeChecker
-            df.index = pd.to_datetime(df.index)
-        return df
 
     class MyHDFStore(pd.HDFStore):
         """Same as MyHDFFile but for pd.HDFStore objects"""
