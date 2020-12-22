@@ -8,7 +8,7 @@ try:
     from dask.delayed import delayed
     # noinspection PyUnresolvedReferences,PyPackageRequirements
     from dask.distributed import client
-    from typing import Union
+    from typing import Union, List, Any
     import tempfile
     # noinspection PyPackageRequirements
     import pandas as pd
@@ -123,7 +123,7 @@ try:
         f = tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5")
         f.close()  # deletes the tmp file, but we can still use its name to download the remote file locally
         self.path.get(f.name)
-        data = TransparentPath.cli.submit(dd.read_hdf, f.name, set_names, **kwargs)
+        data = self.__class__.cli.submit(dd.read_hdf, f.name, set_names, **kwargs)
         # Do not delete the tmp file, since dask tasks are delayed
         return data.result()
 
@@ -157,6 +157,149 @@ try:
                 "Could not read data. Most likely, the file is encrypted. Ask your cloud manager to remove encryption "
                 "on it."
             )
+
+    def write_csv(
+        self,
+        data: dd.DataFrame,
+        overwrite: bool = True,
+        present: str = "ignore",
+        update_cache: bool = True,
+        **kwargs,
+    ) -> Union[None, List[TransparentPath]]:
+
+        # noinspection PyProtectedMember
+        if update_cache and self.__class__._do_update_cache:
+            self._update_cache()
+        if not overwrite and self.is_file() and present != "ignore":
+            raise FileExistsError()
+
+        if self.__class__.cli is None:
+            self.__class__.cli = client.Client(processes=False)
+        check_kwargs(dd.to_csv, kwargs)
+        path_to_save = self
+        if not path_to_save.stem.endswith("*"):
+            path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
+        futures = self.__class__.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
+        outfiles = [
+            TransparentPath(f, fs=self.fs_kind, bucket=self.bucket, project=self.project) for f in futures.result()
+        ]
+        if len(outfiles) == 1:
+            outfiles[0].mv(self)
+        else:
+            return outfiles
+
+    def write_parquet(
+        self,
+        data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
+        overwrite: bool = True,
+        present: str = "ignore",
+        update_cache: bool = True,
+        columns_to_string: bool = True,
+        **kwargs,
+      ) -> None:
+
+        if not hdf5_ok:
+            raise ImportError(errormessage_hdf5)
+
+        # noinspection PyProtectedMember
+        if update_cache and self.__class__._do_update_cache:
+            self._update_cache()
+        if not overwrite and self.is_file() and present != "ignore":
+            raise FileExistsError()
+
+        if columns_to_string and not isinstance(data.columns[0], str):
+            data.columns = data.columns.astype(str)
+
+        if self.__class__.cli is None:
+            self.__class__.cli = client.Client(processes=False)
+        check_kwargs(dd.to_parquet, kwargs)
+        dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
+    # noinspection PyUnresolvedReferences
+    
+    
+    def write_hdf5(
+        self,
+        data: Any = None,
+        set_name: str = None,
+        update_cache: bool = True,
+        use_pandas: bool = False, **kwargs,
+    ) -> Union[None, "h5py.File"]:
+
+        if not hdf5_ok:
+            raise ImportError(errormessage_hdf5)
+        
+        if use_pandas:
+            raise NotImplementedError(
+                "TransparentPath does not support storing Dask objects in pandas's HDFStore yet."
+            )
+        
+        if self.__class__.cli is None:
+            self.__class__.cli = client.Client(processes=False)
+        check_kwargs(dd.to_hdf, kwargs)
+
+        mode = "w"
+        if "mode" in kwargs:
+            mode = kwargs["mode"]
+            del kwargs["mode"]
+
+        # noinspection PyProtectedMember
+        if update_cache and self.__class__._do_update_cache:
+            self._update_cache()
+
+        if isinstance(data, dict):
+            sets = data
+        else:
+            if set_name is None:
+                set_name = "data"
+            sets = {set_name: data}
+
+        if self.fs_kind == "local":
+            for aset in sets:
+                dd.to_hdf(sets[aset], self, aset, mode=mode, **kwargs)
+        else:
+            with tempfile.NamedTemporaryFile() as f:
+                futures = self.__class__.cli.map(
+                    dd.to_hdf, list(sets.values()), [f.name] * len(sets), list(sets.keys()), mode=mode, **kwargs
+                )
+                self.__class__.cli.gather(futures)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(
+                    self.__path
+                )
+        return
+
+    def write_excel(
+        self,
+        data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
+        overwrite: bool = True,
+        present: str = "ignore",
+        update_cache: bool = True,
+        **kwargs,
+    ) -> None:
+
+        if not excel_ok:
+            raise ImportError(errormessage_excel)
+
+        # noinspection PyProtectedMember
+        if update_cache and self.__class__._do_update_cache:
+            self._update_cache()
+        if not overwrite and self.is_file() and present != "ignore":
+            raise FileExistsError()
+        
+        if self.fs_kind == "local":
+            if self.__class__.cli is None:
+                self.__class__.cli = client.Client(processes=False)
+            check_kwargs(pd.DataFrame.to_excel, kwargs)
+            parts = delayed(pd.DataFrame.to_excel)(data, self.__fspath__(), **kwargs)
+            parts.compute()
+            return
+        else:
+            with tempfile.NamedTemporaryFile(delete=True, suffix=".xlsx") as f:
+                if TransparentPath.cli is None:
+                    TransparentPath.cli = client.Client(processes=False)
+                check_kwargs(pd.DataFrame.to_excel, kwargs)
+                parts = delayed(pd.DataFrame.to_excel)(data, f.name, **kwargs)
+                parts.compute()
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.__path)
 
 
 except ImportError as e:

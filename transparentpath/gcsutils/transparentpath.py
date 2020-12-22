@@ -1785,7 +1785,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.to_parquet(
                 data=data, overwrite=overwrite, present=present, update_cache=update_cache, use_dask=use_dask, **kwargs,
             )
-            if isinstance(data, dd.DataFrame):
+            if "dask" in str(type(data)):
                 # noinspection PyUnresolvedReferences
                 assert self.with_suffix("").is_dir(exist=True)
                 return
@@ -1886,8 +1886,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     # WRITE CSV
 
     def to_csv(self, data, *args, **kwargs):
-        if kwargs.get("use_dask", False):
-            del kwargs["use_dask"]
+        if "dask" in str(type(data)):
             return self.to_csv_dask(data, *args, **kwargs)
         else:
             self.to_csv_classic(data, *args, **kwargs)
@@ -1901,8 +1900,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     # WRITE HDF5
 
     def to_hdf5(self, data, *args, **kwargs):
-        if kwargs.get("use_dask", False):
-            del kwargs["use_dask"]
+        if "dask" in str(type(data)):
             return self.to_hdf5_dask(data, *args, **kwargs)
         else:
             self.to_hdf5_classic(data, *args, **kwargs)
@@ -1916,8 +1914,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     # WRITE EXCEL
 
     def to_excel(self, data, *args, **kwargs):
-        if kwargs.get("use_dask", False):
-            del kwargs["use_dask"]
+        if "dask" in str(type(data)):
             self.to_excel_dask(data, *args, **kwargs)
         else:
             self.to_excel_classic(data, *args, **kwargs)
@@ -1931,8 +1928,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     # WRITE EXCEL
 
     def to_parquet(self, data, *args, **kwargs):
-        if kwargs.get("use_dask", False):
-            del kwargs["use_dask"]
+        if "dask" in str(type(data)):
             self.to_parquet_dask(data, *args, **kwargs)
         else:
             self.to_parquet_classic(data, *args, **kwargs)
