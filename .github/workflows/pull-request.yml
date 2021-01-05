@@ -35,7 +35,6 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         run: |
-          gsutil ls
           echo "$GOOGLE_APPLICATION_CREDENTIALS"
           pytest -s tests/unit/test_github_action_access.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
 #          pytest -s tests/unit/test_fs_initialisation.py
