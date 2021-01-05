@@ -4,3 +4,4 @@ pathlib
 setuptools
 datetime
 pytest
+numpy
