@@ -37,9 +37,10 @@ jobs:
         run: |
           gsutil ls
           echo "$GOOGLE_APPLICATION_CREDENTIALS"
-          pytest -s tests/unit/test_fs_initialisation.py
-          pytest -s tests/unit/test_vanilla.py
-          pytest -s tests/unit/test_io.py
+          pytest -s tests/unit/test_github_action_access.py
+#          pytest -s tests/unit/test_fs_initialisation.py
+#          pytest -s tests/unit/test_vanilla.py
+#          pytest -s tests/unit/test_io.py
 
   pytest-pandas:
     runs-on: ubuntu-latest
