@@ -399,6 +399,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
     in any of those will not be taken into account quickly.
     """
 
+    # TODO add reinit method
+
     fss = {}
     fs_kind = ""
     project = None
