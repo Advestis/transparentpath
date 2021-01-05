@@ -149,6 +149,8 @@ def get_fs(
         if token is None:
             fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)
         else:
+            print("token: ", token)
+            print("token type: ", type(token))
             fs = gcsfs.GCSFileSystem(project=project, asynchronous=False, token=token)
         # Will raise RefreshError if connection fails
         fs.glob(bucket)
@@ -527,6 +529,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         fs: Optional[str] = None,
         bucket: Optional[str] = None,
         project: Optional[str] = None,
+        token: Optional[Union[dict, str]] = None,
         **kwargs,
     ):
         """Creator of the TranparentPath object
@@ -542,17 +545,20 @@ class TransparentPath(os.PathLike):  # noqa : F811
         collapse: bool
             If True, will collapse any double dots ('..') in path. (Default value = True)
 
-        fs: str
+        fs: Optional[str]
             The file system to use, 'local' or 'gcs'. If None, uses the default one set by set_global_fs if any,
             or 'local' (Default = None)
 
-        project: str
+        project: Optional[str]
             The project name if using GCS. If None and using GCS, then a GCSFileSystem must have been set earlier
             using set_global_fs() (Default = None)
 
-        bucket: str
+        bucket: Optional[str]
             The bucket name if using GCS If None and using GCS, then a GCSFileSystem must have been set earlier
             using set_global_fs() (Default = None)
+
+        token: Optional[Union[dict, str]]
+            The identification token to use. See GCSFileSystem initialisation.
 
         kwargs:
             Any optional kwargs valid in pathlib.Path
@@ -591,6 +597,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.__path = path.path
             # noinspection PyUnresolvedReferences
             self.sep = path.sep
+            # noinspection PyUnresolvedReferences
+            self.token = token
             return
 
         # In case we initiate a path containing 'gs://'
@@ -636,6 +644,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         self.project = project if project is not None else TransparentPath.project
         self.bucket = bucket if bucket is not None else TransparentPath.bucket
+        self.token = token if token is not None else TransparentPath.token
         self.fs_kind = fs if fs is not None else TransparentPath.fs_kind
         if self.fs_kind == "":
             self.fs_kind = "local"
@@ -957,7 +966,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         # Else, init a new file system instance and share it with
         # TransparentPath
         else:
-            self.fs = get_fs(self.fs_kind.replace(f"_{self.project}", ""), self.project, self.bucket)
+            self.fs = get_fs(self.fs_kind.replace(f"_{self.project}", ""), self.project, self.bucket, self.token)
             TransparentPath.fss[self.fs_kind] = self.fs
             # If TransparentPath's main fs_kind was not set, set it
             if TransparentPath.unset:

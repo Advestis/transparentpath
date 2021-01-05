@@ -31,6 +31,7 @@ def reinit():
     TransparentPath.fs_kind = ""
     TransparentPath.project = None
     TransparentPath.bucket = None
+    TransparentPath.token = None
     TransparentPath.nas_dir = "/media/SERVEUR"
 
 

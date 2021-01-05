@@ -35,11 +35,11 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         run: |
-          echo "$GOOGLE_APPLICATION_CREDENTIALS"
+#          echo "$GOOGLE_APPLICATION_CREDENTIALS"
           pytest -s tests/unit/test_github_action_access.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-#          pytest -s tests/unit/test_fs_initialisation.py
-#          pytest -s tests/unit/test_vanilla.py
-#          pytest -s tests/unit/test_io.py
+          pytest -s tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+          pytest -s tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+          pytest -s tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
 
   pytest-pandas:
     runs-on: ubuntu-latest
