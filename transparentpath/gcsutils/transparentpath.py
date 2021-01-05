@@ -399,7 +399,19 @@ class TransparentPath(os.PathLike):  # noqa : F811
     in any of those will not be taken into account quickly.
     """
 
-    # TODO add reinit method
+    @classmethod
+    def reinit(cls):
+        cls.fss = {}
+        cls.fs_kind = ""
+        cls.project = None
+        cls.bucket = None
+        cls.nas_dir = "/media/SERVEUR"
+        cls.unset = True
+        cls.cwd = os.getcwd()
+        cls.token = None
+        cls._do_update_cache = True
+        cls._do_check = True
+        cls.LOCAL_SEP = os.path.sep
 
     fss = {}
     fs_kind = ""
