@@ -33,3 +33,12 @@ def clean():
     TransparentPath._do_check = True
     # print("\n...executing reinit\n")
     reinit()
+
+
+def pytest_addoption(parser):
+    parser.addoption("--token", action="store", default=None)
+
+
+@pytest.fixture()
+def token(pytestconfig):
+    return pytestconfig.getoption("token")
