@@ -1,6 +1,5 @@
 from .gcsutils.transparentpath import TransparentPath
 from .gcsutils.transparentpath import TransparentPath as Path
-from .io.json import errormessage
 
 
 try:
@@ -8,4 +7,7 @@ try:
 except ImportError:
     class JSONEncoder:
         def __init__(self, *args, **kwargs):
-            raise ImportError(errormessage)
+            raise ImportError(
+                "Support for json does not seem to be installed for TransparentPath.\n"
+                "You can change that by running 'pip install transparentpath[json]'."
+            )
