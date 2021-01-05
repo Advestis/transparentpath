@@ -32,9 +32,9 @@ jobs:
           pip install pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Test vanilla
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         run: |
-          echo "project: ${{ secrets.GCP_PROJECT }}"
-          echo "cred: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}"
           gsutil ls
           pytest -s tests/unit/test_fs_initialisation.py
           pytest -s tests/unit/test_vanilla.py
