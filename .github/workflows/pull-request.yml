@@ -37,8 +37,8 @@ jobs:
         run: |
           gsutil ls
           echo ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }} > cred.json
-          export GOOGLE_APPLICATION_CREDENTIALS=cred.json
-          pytest -s tests/unit/test_fs_initialisation.py
+          echo "chien"
+          GOOGLE_APPLICATION_CREDENTIALS=cred.json pytest -s tests/unit/test_fs_initialisation.py
           pytest -s tests/unit/test_vanilla.py
           pytest -s tests/unit/test_io.py
 
