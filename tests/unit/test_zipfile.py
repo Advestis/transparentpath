@@ -5,6 +5,7 @@ from .functions import init, skip_gcs
 from transparentpath import TransparentPath
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_zipfile(clean, fs_kind):
     if skip_gcs[fs_kind]:

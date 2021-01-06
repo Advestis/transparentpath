@@ -6,6 +6,26 @@ on:
 name: master
 jobs:
 
+  test-setups:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        opt: [vanilla, pandas, excel, json, parquet, hdf5, dask, zipfile, all]
+        python-version: [ 3.7, 3.8 ]
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies ${{ matrix.opt }}
+        run: |
+          python -m pip install --upgrade pip
+          if [ "${{ matrix.opt }}" = "vanilla" ] ; then
+              pip install .
+          else
+              pip install .[${{ matrix.opt }}]
+          fi
+          pytest -s -v tests/dependencies/test_${{ matrix.opt }}.py
+
   pytest-37:
     runs-on: ubuntu-latest
     steps:
@@ -22,7 +42,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - uses: nick-invision/retry@v2
+      - name: test-vanilla
+        uses: nick-invision/retry@v2
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
@@ -36,8 +57,9 @@ jobs:
             pytest -s -v tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
       - name: Install dependencies pandas
         run: |
-          pip install pandas
-      - uses: nick-invision/retry@v2
+          pip install -r pandas-requirements.txt
+      - name: test-pandas
+        uses: nick-invision/retry@v2
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
@@ -64,7 +86,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - uses: nick-invision/retry@v2
+      - name: test-vanilla
+        uses: nick-invision/retry@v2
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
@@ -78,8 +101,9 @@ jobs:
             pytest -s -v tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
       - name: Install dependencies pandas
         run: |
-          pip install pandas
-      - uses: nick-invision/retry@v2
+          pip install -r pandas-requirements.txt
+      - name: test-pandas
+        uses: nick-invision/retry@v2
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:

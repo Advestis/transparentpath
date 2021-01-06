@@ -58,7 +58,7 @@ except UnicodeDecodeError:
         lines = [line.decode("utf-8") for line in ifile.readlines()]
         long_description = "".join(lines)
 
-optional_requirements = {"vanilla": ""}
+optional_requirements = {}
 requirements = []
 all_reqs = []
 
@@ -68,10 +68,8 @@ for afile in Path("").glob("*requirements.txt"):
         all_reqs = list(set(all_reqs) & set(afile.read_text().splitlines()))
     else:
         option = afile.stem.replace("-requirements", "")
-        option_reqs = afile.read_text().splitlines()
-        all_reqs = list(set(all_reqs) | set(option_reqs))
-        optional_requirements[option] = ",".join(option_reqs)
-optional_requirements["all"] = ",".join(all_reqs)
+        optional_requirements[option] = afile.read_text().splitlines()
+        all_reqs = list(set(all_reqs) | set(optional_requirements[option]))
 
 try:
     version = get_version()
@@ -85,6 +83,7 @@ except FileNotFoundError as e:
     except Exception:
         version = None
 
+print(optional_requirements)
 
 if __name__ == "__main__":
     setup(
@@ -101,7 +100,7 @@ if __name__ == "__main__":
         packages=find_packages(),
         install_requires=requirements,
         package_data={"": ["*", ".*"]},
-        extras_requires=optional_requirements,
+        extras_require=optional_requirements,
         classifiers=[
             "Programming Language :: Python :: 3",
             "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",

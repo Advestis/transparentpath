@@ -4,6 +4,22 @@ import importlib.util
 from importlib import reload
 from .functions import init, skip_gcs
 from transparentpath import TransparentPath
+from pathlib import Path
+
+requirements = []
+for s in Path("pandas-requirements.txt").read_text().splitlines():
+    s = s.split("==")[0] if "==" in s else s
+    s = s.split("<=")[0] if "==" in s else s
+    s = s.split(">=")[0] if "==" in s else s
+    s = s.split("<")[0] if "==" in s else s
+    s = s.split(">")[0] if "==" in s else s
+    requirements.append(s)
+
+reqs_ok = True
+for req in requirements:
+    if importlib.util.find_spec(req) is None:
+        reqs_ok = False
+        break
 
 
 # noinspection PyUnusedLocal,PyShadowingNames
@@ -14,13 +30,12 @@ from transparentpath import TransparentPath
     ]
 )
 def test_csv(clean, fs_kind):
-    if importlib.util.find_spec("pandas") is None:
+    if reqs_ok is False:
         pcsv = get_path(fs_kind)
-        with pytest.raises(ImportError):
-            pcsv.write("coucou")
         with pytest.raises(ImportError):
             pcsv.read()
     else:
+        # noinspection PyUnresolvedReferences
         import pandas as pd
         df_csv = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]])
         # noinspection PyTypeChecker
@@ -39,7 +54,11 @@ def get_path(fs_kind):
         return "skipped"
     init(fs_kind)
 
-    pcsv = TransparentPath("chien.csv")
-    pcsv.rm(absent="ignore", ignore_kind=True)
-    assert not pcsv.is_file()
+    if fs_kind == "local":
+        pcsv = TransparentPath("tests/data/chien.csv")
+    else:
+        local_path = TransparentPath("tests/data/chien.csv", fs_kind="local")
+        pcsv = TransparentPath("chien.csv")
+        local_path.put(pcsv)
+
     return pcsv

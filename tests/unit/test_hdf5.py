@@ -10,13 +10,13 @@ from transparentpath import TransparentPath
 @pytest.mark.parametrize(
     "fs_kind, data, use_pandas",
     [
-        ("local", "yes", False),
+        ("local", [0, 1], False),
         ("local", None, False),
-        ("local", "yes", True),
+        ("local", [0, 1], True),
         ("local", None, True),
-        ("gcs", "yes", False),
+        ("gcs", [0, 1], False),
         ("gcs", None, False),
-        ("gcs", "yes", True),
+        ("gcs", [0, 1], True),
         ("gcs", None, True),
     ]
 )
@@ -27,9 +27,16 @@ def test_hdf5(clean, fs_kind, data, use_pandas):
         phdf5 = get_path(fs_kind)
         with pytest.raises(ImportError):
             if data is None:
+                data = [0, 1]
+                if use_pandas:
+                    import pandas as pd
+                    data = pd.Series(data)
                 with phdf5.write(None, use_pandas=use_pandas) as f:
-                    f["data"] = [0, 1]
+                    f["data"] = data
             else:
+                if use_pandas:
+                    import pandas as pd
+                    data = pd.Series(data)
                 # noinspection PyTypeChecker
                 phdf5.write({"df1": data, "df2": 2 * data}, use_pandas=use_pandas)
         with pytest.raises(ImportError):
