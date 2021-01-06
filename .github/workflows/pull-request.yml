@@ -5,18 +5,13 @@ on:
 
 name: master
 jobs:
-  pytest-vanilla:
+
+  pytest-37:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-python@v2
         with:
           python-version: '3.7'
-#      - name: Set up Cloud SDK
-#        uses: google-github-actions/setup-gcloud@master
-#        with:
-#          project_id: ${{ secrets.GCP_PROJECT }}
-#          service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-#          export_default_credentials: true
       - name: Checkout repo
         uses: actions/checkout@v2
         with:
@@ -38,20 +33,16 @@ jobs:
           pytest -s tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
           pytest -s tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
           pytest -s tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+          pip install pandas
+          pytest -s tests/unit/test_pandas.py
 
-  pytest-pandas:
-    needs: pytest-vanilla
+  pytest-38:
     runs-on: ubuntu-latest
+    needs: pytest-37
     steps:
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.7'
-#      - name: Set up Cloud SDK
-#        uses: google-github-actions/setup-gcloud@master
-#        with:
-#          project_id: ${{ secrets.GCP_PROJECT }}
-#          service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-#          export_default_credentials: true
+          python-version: '3.8'
       - name: Checkout repo
         uses: actions/checkout@v2
         with:
@@ -66,7 +57,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install pandas
-      - name: Test pandas
+      - name: Test vanilla
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         run: |
+          pytest -s tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+          pytest -s tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+          pytest -s tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+          pip install pandas
           pytest -s tests/unit/test_pandas.py

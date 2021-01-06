@@ -5,9 +5,9 @@ project = "sandbox-281209"
 bucket = "code_tests_sand"
 skip_gcs = {"local": False, "gcs": False}
 
-if "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
-    print("No google credentials found. Skipping GCS tests.")
-    skip_gcs["gcs"] = True
+# if "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
+#     print("No google credentials found. Skipping GCS tests.")
+#     skip_gcs["gcs"] = True
 # else:
 #     print(f"Using google credentials {os.environ['GOOGLE_APPLICATION_CREDENTIALS']}")
 
