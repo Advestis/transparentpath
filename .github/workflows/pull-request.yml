@@ -17,11 +17,7 @@ jobs:
         with:
           token: ${{ secrets.token_cicd }}
           fetch-depth: 0
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
+      - name: Install dependencies vanilla
         run: |
           python -m pip install --upgrade pip
           pip install pytest
@@ -34,6 +30,14 @@ jobs:
           pytest -s tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
           pytest -s tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
           pip install pandas
+          pytest -s tests/unit/test_pandas.py
+      - name: Install dependencies pandas
+        run: |
+          pip install pandas
+      - name: Test pandas
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        run: |
           pytest -s tests/unit/test_pandas.py
 
   pytest-38:
@@ -48,11 +52,7 @@ jobs:
         with:
           token: ${{ secrets.token_cicd }}
           fetch-depth: 0
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
+      - name: Install dependencies vanilla
         run: |
           python -m pip install --upgrade pip
           pip install pytest
@@ -65,4 +65,12 @@ jobs:
           pytest -s tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
           pytest -s tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
           pip install pandas
+          pytest -s tests/unit/test_pandas.py
+      - name: Install dependencies pandas
+        run: |
+          pip install pandas
+      - name: Test pandas
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        run: |
           pytest -s tests/unit/test_pandas.py
