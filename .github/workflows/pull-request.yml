@@ -7,16 +7,16 @@ name: master
 jobs:
   pytest-vanilla:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [ 3.7, 3.8 ]
     steps:
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@master
+      - uses: actions/setup-python@v2
         with:
-          project_id: ${{ secrets.GCP_PROJECT }}
-          service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-          export_default_credentials: true
+          python-version: '3.7'
+#      - name: Set up Cloud SDK
+#        uses: google-github-actions/setup-gcloud@master
+#        with:
+#          project_id: ${{ secrets.GCP_PROJECT }}
+#          service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+#          export_default_credentials: true
       - name: Checkout repo
         uses: actions/checkout@v2
         with:
@@ -40,17 +40,21 @@ jobs:
           pytest -s tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
 
   pytest-pandas:
+    needs: pytest-vanilla
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: [ 3.7, 3.8 ]
     steps:
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@master
+      - uses: actions/setup-python@v2
         with:
-          project_id: ${{ secrets.GCP_PROJECT }}
-          service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-          export_default_credentials: true
+          python-version: '3.7'
+#      - name: Set up Cloud SDK
+#        uses: google-github-actions/setup-gcloud@master
+#        with:
+#          project_id: ${{ secrets.GCP_PROJECT }}
+#          service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+#          export_default_credentials: true
       - name: Checkout repo
         uses: actions/checkout@v2
         with:
