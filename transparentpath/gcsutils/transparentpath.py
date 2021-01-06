@@ -1286,6 +1286,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     print(self)
                     print("exists:", self.exists())
                     print(self.info())
+                    print(list((self / "..").ls()))
                     self.fs.rm(self.__fspath__(), **kwargs)
 
     def rmdir(self, absent: str = "raise", ignore_kind: bool = False) -> None:
