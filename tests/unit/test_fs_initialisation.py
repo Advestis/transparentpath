@@ -11,6 +11,7 @@ from .functions import init, skip_gcs, reinit
     [("local", "local", LocalFileSystem), ("gcs", "gcs_sandbox-281209", gcsfs.GCSFileSystem)],
 )
 def test_init(clean, fs_kind, expected_fs_kind, expected_fs_type):
+    print("test_init")
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -24,6 +25,7 @@ def test_init(clean, fs_kind, expected_fs_kind, expected_fs_type):
 
 # noinspection PyUnusedLocal
 def test_init_gcs_fail():  # Do not use clean : we do NOT want to execute the rm for fs will have FAILED to setup
+    print("test_init")
     if skip_gcs["gcs"]:
         print("skipped")
         return

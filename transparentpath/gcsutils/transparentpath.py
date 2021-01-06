@@ -149,8 +149,6 @@ def get_fs(
         if token is None:
             fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)
         else:
-            print("token: ", token)
-            print("token type: ", type(token))
             fs = gcsfs.GCSFileSystem(project=project, asynchronous=False, token=token)
         # Will raise RefreshError if connection fails
         fs.glob(bucket)

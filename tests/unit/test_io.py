@@ -4,7 +4,9 @@ from transparentpath import TransparentPath
 from .functions import init, skip_gcs
 
 
+# noinspection PyUnusedLocal
 def test_put(clean):
+    print("test_put")
     if skip_gcs["gcs"]:
         print("skipped")
         return
@@ -18,7 +20,9 @@ def test_put(clean):
     assert remotepath.is_file()
 
 
+# noinspection PyUnusedLocal
 def test_get(clean):
+    print("test_get")
     if skip_gcs["gcs"]:
         print("skipped")
         return
@@ -32,10 +36,12 @@ def test_get(clean):
     assert localpath.is_file()
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.parametrize(
     "fs_kind1, fs_kind2", [("local", "local"), ("gcs", "local"), ("local", "gcs"), ("gcs", "gcs")]
 )
 def test_mv(clean, fs_kind1, fs_kind2):
+    print("test_mv")
     if skip_gcs[fs_kind1] or skip_gcs[fs_kind2]:
         print("skipped")
         return
@@ -52,10 +58,12 @@ def test_mv(clean, fs_kind1, fs_kind2):
     assert path2.is_file()
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.parametrize(
     "fs_kind1, fs_kind2", [("local", "local"), ("gcs", "local"), ("local", "gcs"), ("gcs", "gcs")]
 )
 def test_cp(clean, fs_kind1, fs_kind2):
+    print("test_cp")
     if skip_gcs[fs_kind1] or skip_gcs[fs_kind2]:
         print("skipped")
         return
