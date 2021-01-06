@@ -26,13 +26,7 @@ def init(fs_kind):
 
 
 def reinit():
-    TransparentPath.fss = {}
-    TransparentPath.unset = True
-    TransparentPath.fs_kind = ""
-    TransparentPath.project = None
-    TransparentPath.bucket = None
-    TransparentPath.token = None
-    TransparentPath.nas_dir = "/media/SERVEUR"
+    TransparentPath.reinit()
 
 
 def get_prefixes(fs_kind):

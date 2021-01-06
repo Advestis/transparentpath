@@ -147,9 +147,8 @@ def get_fs(
     if "gcs" in fs_kind:
         bucket = bucket.replace("/", "")
         if token is None:
-            fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)
+            fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)  # check_connection fails for some reason
         else:
-            print("coucou")
             fs = gcsfs.GCSFileSystem(project=project, asynchronous=False, token=token)
         # Will raise RefreshError if connection fails
         fs.glob(bucket)
@@ -520,7 +519,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         None
 
         """
-
         if "gcs" not in fs and fs != "local":
             raise ValueError(f"Unknown value {fs} for parameter 'gcs'")
 
@@ -1673,6 +1671,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     @property
     def buckets(self):
+        if self.fs_kind == "local":
+            return []
         return get_buckets(self.fs)
 
     def cast_iterable(self, iter_: Iterable):

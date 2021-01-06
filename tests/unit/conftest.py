@@ -1,4 +1,5 @@
 import pytest
+import os
 from .functions import before_init, reinit
 from pathlib import Path
 from transparentpath import TransparentPath
@@ -14,7 +15,7 @@ def clean(pytestconfig):
         if not token_file.is_file():
             with open("cred.json", "w") as ofile:
                 ofile.write(token)
-        TransparentPath.token = str(token_file)
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(token_file)
 
     TransparentPath._do_update_cache = True
     TransparentPath._do_check = True
