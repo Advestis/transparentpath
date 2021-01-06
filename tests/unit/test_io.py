@@ -41,7 +41,7 @@ def test_get(clean):
     "fs_kind1, fs_kind2", [("local", "local"), ("gcs", "local"), ("local", "gcs"), ("gcs", "gcs")]
 )
 def test_mv(clean, fs_kind1, fs_kind2):
-    print("test_mv")
+    print("test_mv", fs_kind1, fs_kind2)
     if skip_gcs[fs_kind1] or skip_gcs[fs_kind2]:
         print("skipped")
         return
@@ -63,7 +63,7 @@ def test_mv(clean, fs_kind1, fs_kind2):
     "fs_kind1, fs_kind2", [("local", "local"), ("gcs", "local"), ("local", "gcs"), ("gcs", "gcs")]
 )
 def test_cp(clean, fs_kind1, fs_kind2):
-    print("test_cp")
+    print("test_cp", fs_kind1, fs_kind2)
     if skip_gcs[fs_kind1] or skip_gcs[fs_kind2]:
         print("skipped")
         return
