@@ -14,6 +14,7 @@ from transparentpath import TransparentPath
     ]
 )
 def test_csv(clean, fs_kind):
+    print("test_csv", fs_kind)
     if importlib.util.find_spec("pandas") is None:
         pcsv = get_path(fs_kind)
         with pytest.raises(ImportError):
@@ -25,16 +26,19 @@ def test_csv(clean, fs_kind):
         df_csv = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]])
         # noinspection PyTypeChecker
         pcsv = get_path(fs_kind)
+        if pcsv == "skipped":
+            return
         pcsv.write(df_csv)
         assert pcsv.is_file()
         pd.testing.assert_frame_equal(df_csv, pcsv.read(index_col=0))
 
 
 def get_path(fs_kind):
+    print("get_path", fs_kind)
     reload(sys.modules["transparentpath"])
     if skip_gcs[fs_kind]:
         print("skipped")
-        return
+        return "skipped"
     init(fs_kind)
 
     pcsv = TransparentPath("chien.csv")
