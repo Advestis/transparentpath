@@ -22,13 +22,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Test vanilla
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-        run: |
-          pytest -s -v tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-          pytest -s -v tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-          pytest -s -v tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+#      - name: Test vanilla
+#        env:
+#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+#        run: |
+#          pytest -s -v tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+#          pytest -s -v tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+#          pytest -s -v tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
       - name: Install dependencies pandas
         run: |
           pip install pandas

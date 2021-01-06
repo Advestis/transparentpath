@@ -28,6 +28,7 @@ def test_csv(clean, fs_kind):
         pcsv = get_path(fs_kind)
         if pcsv == "skipped":
             return
+        print(TransparentPath.token)
         pcsv.write(df_csv)
         assert pcsv.is_file()
         pd.testing.assert_frame_equal(df_csv, pcsv.read(index_col=0))
