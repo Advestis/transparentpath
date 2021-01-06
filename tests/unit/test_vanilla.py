@@ -298,6 +298,7 @@ def test_glob(clean, fs_kind, pattern, expected):
             p.touch()
         else:
             p.mkdir()
+    print(list(TransparentPath("chien").ls()))
     content = [str(p).split("chien/")[1] for p in TransparentPath().glob(pattern)]
     assert content == expected
 

@@ -26,11 +26,9 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         run: |
-          pytest -s tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-          pytest -s tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-          pytest -s tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-          pip install pandas
-          pytest -s tests/unit/test_pandas.py
+          pytest -s -v tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+          pytest -s -v tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+          pytest -s -v tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
       - name: Install dependencies pandas
         run: |
           pip install pandas
@@ -61,11 +59,9 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         run: |
-          pytest -s tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-          pytest -s tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-          pytest -s tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-          pip install pandas
-          pytest -s tests/unit/test_pandas.py
+          pytest -s -v tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+          pytest -s -v tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+          pytest -s -v tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
       - name: Install dependencies pandas
         run: |
           pip install pandas
@@ -73,4 +69,4 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         run: |
-          pytest -s tests/unit/test_pandas.py
+          pytest -s -v tests/unit/test_pandas.py
