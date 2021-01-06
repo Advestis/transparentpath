@@ -414,6 +414,37 @@ class TransparentPath(os.PathLike):  # noqa : F811
         cls._do_check = True
         cls.LOCAL_SEP = os.path.sep
 
+    @classmethod
+    def show_state(cls):
+        print("fss: ", cls.fss)
+        print("fs_kind: ", cls.fs_kind)
+        print("project: ", cls.project)
+        print("bucket: ", cls.bucket)
+        print("nas_dir: ", cls.nas_dir)
+        print("unset: ", cls.unset)
+        print("cwd: ", cls.cwd)
+        print("token: ", cls.token)
+        print("_do_update_cache: ", cls._do_update_cache)
+        print("_do_check: ", cls._do_check)
+        print("LOCAL_SEP: ", cls.LOCAL_SEP)
+
+    @classmethod
+    def get_state(cls):
+        state = {
+            "fss": cls.fss,
+            "fs_kind": cls.fs_kind,
+            "project": cls.project,
+            "bucket": cls.bucket,
+            "nas_dir": cls.nas_dir,
+            "unset": cls.unset,
+            "cwd": cls.cwd,
+            "token": cls.token,
+            "_do_update_cache": cls._do_update_cache,
+            "_do_check": cls._do_check,
+            "LOCAL_SEP": cls.LOCAL_SEP,
+        }
+        return state
+
     fss = {}
     fs_kind = ""
     project = None

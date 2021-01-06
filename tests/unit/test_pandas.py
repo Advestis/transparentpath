@@ -42,7 +42,7 @@ def get_path(fs_kind):
         return "skipped"
     init(fs_kind)
 
-    print(TransparentPath.token)
+    TransparentPath.show_state()
     pcsv = TransparentPath("chien.csv", token=TransparentPath.token)
     import pandas as pd
     df_csv = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]])
