@@ -24,20 +24,17 @@ cc = "chien/chat"
     ],
 )
 def test_isinstance(clean, what, test_against, expected):
-    print("test_isinstance", what, test_against, expected)
     assert isinstance(what(), test_against) is expected
 
 
 # noinspection PyUnusedLocal
 def test_collapse_dots(clean):
-    print("test_collapse_dots")
     assert TransparentPath("chien/chat/../../../cheval") == TransparentPath("../cheval")
 
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind, excep", [("local", FileExistsError), ("gcs", MultipleExistenceError)])
 def test_multipleexistenceerror(clean, fs_kind, excep):
-    print("test_multipleexistenceerror", fs_kind, excep)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -57,7 +54,6 @@ def test_multipleexistenceerror(clean, fs_kind, excep):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_equal(clean, fs_kind):
-    print("test_equal", fs_kind)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -70,7 +66,6 @@ def test_equal(clean, fs_kind):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_lt(clean, fs_kind):
-    print("test_lt", fs_kind)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -83,7 +78,6 @@ def test_lt(clean, fs_kind):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_gt(clean, fs_kind):
-    print("test_gt", fs_kind)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -96,7 +90,6 @@ def test_gt(clean, fs_kind):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_le(clean, fs_kind):
-    print("test_le", fs_kind)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -111,7 +104,6 @@ def test_le(clean, fs_kind):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_gt(clean, fs_kind):
-    print("test_gt", fs_kind)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -126,7 +118,6 @@ def test_gt(clean, fs_kind):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_contains(clean, fs_kind):
-    print("test_contains", fs_kind)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -138,7 +129,6 @@ def test_contains(clean, fs_kind):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_add(clean, fs_kind):
-    print("test_add", fs_kind)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -151,7 +141,6 @@ def test_add(clean, fs_kind):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_truediv(clean, fs_kind):
-    print("test_truediv", fs_kind)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -164,7 +153,6 @@ def test_truediv(clean, fs_kind):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_itruediv(clean, fs_kind):
-    print("test_itruediv", fs_kind)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -196,7 +184,6 @@ def test_itruediv(clean, fs_kind):
     ],
 )
 def test_isdir(clean, fs_kind, path1, path2, exists, expected):
-    print("test_isdir", fs_kind, path1, path2, exists, expected)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -222,7 +209,6 @@ def test_isdir(clean, fs_kind, path1, path2, exists, expected):
     ],
 )
 def test_isfile(clean, fs_kind, path1, path2, expected):
-    print("test_isfile", fs_kind, path1, path2, expected)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -256,7 +242,6 @@ def test_isfile(clean, fs_kind, path1, path2, expected):
     ],
 )
 def test_rm(clean, fs_kind, path1, path2, kwargs, expected):
-    print("test_rm", fs_kind, path1, path2, kwargs, expected)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -284,7 +269,6 @@ def test_rm(clean, fs_kind, path1, path2, kwargs, expected):
     ],
 )
 def test_glob(clean, fs_kind, pattern, expected):
-    print("test_glob", fs_kind, pattern, expected)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -309,7 +293,6 @@ def test_glob(clean, fs_kind, pattern, expected):
     [("local", ".txt", ".txt"), ("local", "txt", ".txt"), ("gcs", ".txt", ".txt"), ("gcs", "txt", ".txt")],
 )
 def test_with_suffix(clean, fs_kind, suffix, expected):
-    print("test_with_suffix")
     if skip_gcs[fs_kind]:
         print("skipped", fs_kind, suffix, expected)
         return
@@ -322,7 +305,6 @@ def test_with_suffix(clean, fs_kind, suffix, expected):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_ls(clean, fs_kind):
-    print("test_ls", fs_kind)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -343,7 +325,6 @@ def test_ls(clean, fs_kind):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_cd(clean, fs_kind):
-    print("test_cd", fs_kind)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -365,7 +346,6 @@ def test_cd(clean, fs_kind):
     "fs_kind, path", [("local", "chien/chat"), ("local", "chien"), ("gcs", "chien/chat"), ("gcs", "chien")]
 )
 def test_touch(clean, fs_kind, path):
-    print("test_touch", fs_kind, path)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -381,7 +361,6 @@ def test_touch(clean, fs_kind, path):
     "fs_kind, path", [("local", "chien"), ("local", "chien/chat"), ("gcs", "chien"), ("gcs", "chien/chat")]
 )
 def test_mkdir(clean, fs_kind, path):
-    print("test_mkdir", fs_kind, path)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -395,7 +374,6 @@ def test_mkdir(clean, fs_kind, path):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind, to_append", [("local", "chat"), ("gcs", "chat")])
 def test_append(clean, fs_kind, to_append):
-    print("test_append", fs_kind, to_append)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -407,7 +385,6 @@ def test_append(clean, fs_kind, to_append):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_walk(clean, fs_kind):
-    print("test_walk", fs_kind)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -436,7 +413,6 @@ def test_walk(clean, fs_kind):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind, ", ["local", "gcs"])
 def test_exists(clean, fs_kind):
-    print("test_exists", fs_kind)
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -450,7 +426,6 @@ def test_exists(clean, fs_kind):
 
 # noinspection PyUnusedLocal
 def test_buckets(clean):
-    print("test_buckets")
     if skip_gcs["gcs"]:
         print("skipped")
         return
