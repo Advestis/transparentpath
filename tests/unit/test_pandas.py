@@ -43,7 +43,7 @@ def get_path(fs_kind):
     init(fs_kind)
 
     print(TransparentPath.token)
-    pcsv = TransparentPath("chien.csv")
+    pcsv = TransparentPath("chien.csv", token=TransparentPath.token)
     import pandas as pd
     df_csv = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]])
     pcsv.write(df_csv)
