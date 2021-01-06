@@ -44,7 +44,7 @@ def get_path(fs_kind):
 
     TransparentPath.show_state()
     pcsv = TransparentPath("chien.csv", token=TransparentPath.token)
-    print(pcsv.buckets)
+    print(pcsv.fs.buckets)
     import pandas as pd
     df_csv = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]])
     pcsv.write(df_csv)
