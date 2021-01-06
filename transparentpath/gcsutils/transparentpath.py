@@ -149,6 +149,7 @@ def get_fs(
         if token is None:
             fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)
         else:
+            print("coucou")
             fs = gcsfs.GCSFileSystem(project=project, asynchronous=False, token=token)
         # Will raise RefreshError if connection fails
         fs.glob(bucket)
