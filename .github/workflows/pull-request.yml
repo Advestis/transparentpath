@@ -22,21 +22,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-#      - name: Test vanilla
-#        env:
-#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-#        run: |
-#          pytest -s -v tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-#          pytest -s -v tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-#          pytest -s -v tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+      - uses: nick-invision/retry@v2
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        with:
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+            pytest -s -v tests/unit/test_path_creation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+            pytest -s -v tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+            pytest -s -v tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
       - name: Install dependencies pandas
         run: |
           pip install pandas
-      - name: Test pandas
+      - uses: nick-invision/retry@v2
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-        run: |
-          pytest -s -v tests/unit/test_pandas.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+        with:
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_pandas.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
 
   pytest-38:
     runs-on: ubuntu-latest
@@ -55,18 +62,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Test vanilla
+      - uses: nick-invision/retry@v2
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-        run: |
-          pytest -s -v tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-          pytest -s -v tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-          pytest -s -v tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+        with:
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+            pytest -s -v tests/unit/test_path_creation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+            pytest -s -v tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+            pytest -s -v tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
       - name: Install dependencies pandas
         run: |
           pip install pandas
-      - name: Test pandas
+      - uses: nick-invision/retry@v2
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-        run: |
-          pytest -s -v tests/unit/test_pandas.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+        with:
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_pandas.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
