@@ -42,7 +42,11 @@ def get_path(fs_kind):
         return "skipped"
     init(fs_kind)
 
+    print(TransparentPath.token)
     pcsv = TransparentPath("chien.csv")
+    import pandas as pd
+    df_csv = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]])
+    pcsv.write(df_csv)
     pcsv.rm(absent="ignore", ignore_kind=True)
     assert not pcsv.is_file()
     return pcsv
