@@ -58,7 +58,21 @@ except UnicodeDecodeError:
         lines = [line.decode("utf-8") for line in ifile.readlines()]
         long_description = "".join(lines)
 
-requirements = Path("requirements.txt").read_text().splitlines()
+optional_requirements = {"vanilla": ""}
+requirements = []
+all_reqs = []
+
+for afile in Path("").glob("*requirements.txt"):
+    if str(afile) == "requirements.txt":
+        requirements = afile.read_text().splitlines()
+        all_reqs = list(set(all_reqs) & set(afile.read_text().splitlines()))
+    else:
+        option = afile.stem.replace("-requirements", "")
+        option_reqs = afile.read_text().splitlines()
+        all_reqs = list(set(all_reqs) | set(option_reqs))
+        optional_requirements[option] = ",".join(option_reqs)
+optional_requirements["all"] = ",".join(all_reqs)
+
 try:
     version = get_version()
     with open("VERSION.txt", "w") as vfile:
@@ -87,17 +101,7 @@ if __name__ == "__main__":
         packages=find_packages(),
         install_requires=requirements,
         package_data={"": ["*", ".*"]},
-        extras_requires={
-            "vanilla": "",
-            "hdf5": "h5py,tables,tempfile",
-            "zipfile": "zipfile,tempfile",
-            "pandas": "numpy,pandas",
-            "parquet": "numpy,pandas,pyarrow,tempfile",
-            "excel": "numpy,pandas,xlrd,openpyxl,tempfile",
-            "dask": "dask[dataframe,distributed]",
-            "json": "numpy,json",
-            "all": "numpy,h5py,tables,zipfile,pandas,xlrd,openpyxl,pyarrow,dask[dataframe,distributed],tempfile,numpy,json",
-        },
+        extras_requires=optional_requirements,
         classifiers=[
             "Programming Language :: Python :: 3",
             "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
