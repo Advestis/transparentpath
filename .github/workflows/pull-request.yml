@@ -42,9 +42,6 @@ jobs:
   pytest-pandas:
     needs: pytest-vanilla
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [ 3.7, 3.8 ]
     steps:
       - uses: actions/setup-python@v2
         with:
