@@ -1263,7 +1263,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
                         return
             # ...deletes the directory
             else:
-                self.fs.rm(self.__fspath__(), **kwargs)
+                try:
+                    self.fs.rm(self.__fspath__(), **kwargs)
+                except OSError as e:
+                    if "not found" in str(e).lower():
+                        # It is possible that another parallel program deleted the object, in that case just pass
+                        pass
+                    else:
+                        raise e
         # Asked to remove a file...
         else:
             # ...but self points to a directory!
@@ -1283,11 +1290,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     else:
                         return
                 else:
-                    print(self)
-                    print("exists:", self.exists())
-                    print(self.info())
-                    print(list((self / "..").ls()))
-                    self.fs.rm(self.__fspath__(), **kwargs)
+                    try:
+                        self.fs.rm(self.__fspath__(), **kwargs)
+                    except OSError as e:
+                        if "not found" in str(e).lower():
+                            # It is possible that another parallel program deleted the object, in that case just pass
+                            pass
+                        else:
+                            raise e
 
     def rmdir(self, absent: str = "raise", ignore_kind: bool = False) -> None:
         """Removes the directory corresponding to self if exists
