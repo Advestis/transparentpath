@@ -24,7 +24,7 @@ def test_hdf5(clean, fs_kind, data, use_pandas):
 
     # No H5PY module
     if importlib.util.find_spec("h5py") is None:
-        phdf5 = get_path(fs_kind)
+        phdf5 = get_path(fs_kind, use_pandas, data is None)
         with pytest.raises(ImportError):
             if data is None:
                 data = [0, 1]
@@ -47,7 +47,7 @@ def test_hdf5(clean, fs_kind, data, use_pandas):
         import pandas as pd
         import numpy as np
         df_hdf5 = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]])
-        phdf5 = get_path(fs_kind)
+        phdf5 = get_path(fs_kind, use_pandas, data is None)
 
         # No Data : only one set
         if data is None:
@@ -85,14 +85,24 @@ def test_hdf5(clean, fs_kind, data, use_pandas):
                     np.testing.assert_equal(df_hdf5.values * 2, np.array(f["df2"]))
 
 
-def get_path(fs_kind):
+def get_path(fs_kind, use_pandas, simple):
     reload(sys.modules["transparentpath"])
     if skip_gcs[fs_kind]:
         print("skipped")
         return
     init(fs_kind)
 
-    phdf5 = TransparentPath("chien.hdf5")
-    phdf5.rm(absent="ignore", ignore_kind=True)
-    assert not phdf5.is_file()
+    to_add = ""
+    if use_pandas:
+        to_add = "_pandas"
+    if not simple:
+        to_add = f"{to_add}_multi"
+
+    if fs_kind == "local":
+        phdf5 = TransparentPath(f"tests/data/chien{to_add}.hdf5")
+    else:
+        local_path = TransparentPath(f"tests/data/chien{to_add}.hdf5", fs_kind="local")
+        phdf5 = TransparentPath(f"chien.hdf5")
+        local_path.put(phdf5)
+    assert phdf5.is_file()
     return phdf5
