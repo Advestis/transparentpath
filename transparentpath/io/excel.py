@@ -33,7 +33,7 @@ try:
             if self.fs_kind == "local":
                 return pd.read_excel(self.__fspath__(), **kwargs)
             else:
-                f = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+                f = tempfile.NamedTemporaryFile(delete=False, suffix=self.suffix)
                 f.close()  # deletes the tmp file, but we can still use its name
                 self.get(f.name)
                 data = pd.read_excel(f.name, **kwargs)
@@ -63,12 +63,12 @@ try:
         # noinspection PyTypeChecker
 
         if self.fs_kind == "local":
-            data.to_excel(self, **kwargs)
+            data.to_excel(self.__fspath__(), **kwargs)
         else:
-            with tempfile.NamedTemporaryFile(delete=True, suffix=".xlsx") as f:
+            with tempfile.NamedTemporaryFile(delete=True, suffix=self.suffix) as f:
                 check_kwargs(data.to_excel, kwargs)
                 data.to_excel(f.name, **kwargs)
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.__path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
 
 
 except ImportError as e:

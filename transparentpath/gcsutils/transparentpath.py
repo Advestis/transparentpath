@@ -2066,6 +2066,15 @@ except ImportError:
     pass
 
 try:
+    # noinspection PyUnresolvedReferences
+    from ..io.excel import read, write
+
+    setattr(TransparentPath, "read_excel_classic", read)
+    setattr(TransparentPath, "to_excel_classic", write)
+except ImportError:
+    pass
+
+try:
     from ..io.dask import (
         read_csv,
         write_csv,
