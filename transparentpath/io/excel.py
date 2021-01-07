@@ -31,7 +31,7 @@ try:
         # noinspection PyTypeChecker,PyUnresolvedReferences
         try:
             if self.fs_kind == "local":
-                return pd.read_excel(self, **kwargs)
+                return pd.read_excel(self.__fspath__(), **kwargs)
             else:
                 f = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
                 f.close()  # deletes the tmp file, but we can still use its name

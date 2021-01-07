@@ -47,7 +47,7 @@ try:
 
         check_kwargs(pd.read_parquet, kwargs)
         if self.fs_kind == "local":
-            return apply_index_and_date(index_col, parse_dates, pd.read_parquet(str(self), engine="pyarrow", **kwargs))
+            return apply_index_and_date(index_col, parse_dates, pd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs))
 
         else:
             return apply_index_and_date(

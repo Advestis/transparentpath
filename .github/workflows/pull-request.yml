@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        opt: [vanilla, pandas, excel, json, parquet, hdf5, dask, zipfile, all]
+        opt: [vanilla, pandas, excel, json, parquet, hdf5, dask, all]
         python-version: [ 3.7, 3.8 ]
     steps:
       - uses: actions/setup-python@v2
@@ -29,7 +29,7 @@ jobs:
           else
               pip install .[${{ matrix.opt }}]
           fi
-          pytest -s -v tests/dependencies/${{ matrix.opt }}.py
+          pytest -s -v tests/dependencies/dep.py --name ${{ matrix.opt }}
 
   pytest-37:
     runs-on: ubuntu-latest

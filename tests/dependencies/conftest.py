@@ -6,6 +6,7 @@ from pathlib import Path
 def reqs(pytestconfig):
     name = pytestconfig.getoption("name")
     requirements = {}
+    all_reqs = []
 
     for afile in Path("").glob("*requirements.txt"):
         if afile.stem == "requirements":
@@ -21,17 +22,20 @@ def reqs(pytestconfig):
             s = s.split("<")[0] if "<" in s else s
             s = s.split(">")[0] if ">=" in s else s
             requirements[opt].append(s)
+        all_reqs = list(set(all_reqs) | set(requirements[opt]))
+
+    if name == "all":
+        return all_reqs, []
 
     this_one = requirements[name]
     others = []
 
     for opt in requirements:
-        if opt == name:
+        if opt == name or opt == "vanilla":
             continue
         else:
             others += [r for r in requirements[opt] if r not in this_one and r not in others]
-
-    yield this_one, others
+    return this_one, others
 
 
 def pytest_addoption(parser):
