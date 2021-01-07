@@ -2016,6 +2016,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 # Do imports from detached files here because some of them import TransparentPath and need it fully declared.
 
 from ..io.io import put, get, mv, cp, overload_open, read_text, write_stuff, write_bytes
+# noinspection PyUnresolvedReferences
+from ..io import zipfile
 
 overload_open()
 setattr(TransparentPath, "put", put)
@@ -2026,10 +2028,6 @@ setattr(TransparentPath, "read_text", read_text)
 setattr(TransparentPath, "write_stuff", write_stuff)
 setattr(TransparentPath, "write_bytes", write_bytes)
 
-try:
-    from ..io import zipfile
-except ImportError:
-    pass
 
 try:
     # noinspection PyUnresolvedReferences
