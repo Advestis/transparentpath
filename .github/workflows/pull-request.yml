@@ -24,7 +24,7 @@ jobs:
           else
               pip install .[${{ matrix.opt }}]
           fi
-          pytest -s -v tests/dependencies/test_${{ matrix.opt }}.py
+          pytest -s -v tests/dependencies/${{ matrix.opt }}.py
 
   pytest-37:
     runs-on: ubuntu-latest
