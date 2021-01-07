@@ -24,24 +24,11 @@ def clean(pytestconfig):
     # print("\n...executing clean ...\n")
     TransparentPath._do_update_cache = False
     TransparentPath._do_check = False
-    TransparentPath("chien").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.zip").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.zip").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.txt").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.txt").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien2.txt").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien2.txt").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.json").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.json").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.csv").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.csv").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.parquet").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.parquet").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.hdf5").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.hdf5").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.xlsx").rm(recursive=True, ignore_kind=True, absent="ignore")
-    TransparentPath("chien.xlsx").rm(recursive=True, ignore_kind=True, absent="ignore")
+    path = TransparentPath("chien")
+    suffixes = ["", ".zip", ".txt", ".json", ".csv", ".parquet", ".hdf5", ".xlsx"]
+    for suffix in suffixes:
+        path.with_suffix(suffix).rm(recursive=True, ignore_kind=True, absent="ignore")
+        path.with_suffix(suffix).rm(recursive=True, ignore_kind=True, absent="ignore")
     TransparentPath._do_update_cache = True
     TransparentPath._do_check = True
     # print("\n...executing reinit\n")
