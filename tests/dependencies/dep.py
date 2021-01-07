@@ -15,6 +15,8 @@ def test_self(reqs):
 def test_others(reqs):
     failed = []
     for other in reqs[1]:
+        if other in reqs[2]:
+            continue
         print(f"Asserting that {other} is not installed...")
         if importlib.util.find_spec(other) is not None:
             failed.append(other)
