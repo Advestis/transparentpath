@@ -3,6 +3,7 @@ import importlib.util
 
 def test_self(reqs):
     failed = []
+    print("")
     for req in reqs[0]:
         print(f"Asserting that {req} is installed...")
         if importlib.util.find_spec(req) is None:
@@ -14,6 +15,7 @@ def test_self(reqs):
 
 def test_others(reqs):
     failed = []
+    print("")
     for other in reqs[1]:
         if other in reqs[2]:
             continue

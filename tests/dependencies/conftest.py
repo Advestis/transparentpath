@@ -6,7 +6,8 @@ acceptable = {
     "pandas": ["numpy"],
     "hdf5": ["numpy"],
     "parquet": ["numpy"],
-    "excel": ["numpy"]
+    "excel": ["numpy"],
+    "dask": ["pandas", "numpy"]
 }
 
 
