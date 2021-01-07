@@ -3,4 +3,3 @@ gcsfs==0.7.1
 pathlib
 setuptools
 datetime
-pytest

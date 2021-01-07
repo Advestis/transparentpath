@@ -2,20 +2,20 @@ import pytest
 import sys
 import importlib.util
 from importlib import reload
-from .functions import init, skip_gcs
-
 from transparentpath import TransparentPath
+from .functions import init, skip_gcs, get_reqs
 from pathlib import Path
+
+requirements = get_reqs(Path(__file__).stem.split("test_")[1])
+
+reqs_ok = True
+for req in requirements:
+    if importlib.util.find_spec(req) is None:
+        reqs_ok = False
+        break
 
 
 dic = {"animals": {"chien": 4, "bird": 2}, "plants": {"drosera": "miam", "celeri": "beurk"}}
-
-requirements = Path("json-requirements.txt").read_text().splitlines()
-reqs_ok = False
-for req in requirements:
-    if importlib.util.find_spec("json") is None:
-        reqs_ok = False
-        break
 
 
 # noinspection PyUnusedLocal

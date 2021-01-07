@@ -1,5 +1,6 @@
 import os
 from transparentpath import TransparentPath
+from pathlib import Path
 
 project = "sandbox-281209"
 bucket = "code_tests_sand"
@@ -36,3 +37,20 @@ def get_prefixes(fs_kind):
         str_prefix = f"gs://{bucket}"
         pathlib_prefix = bucket
     return str_prefix, pathlib_prefix
+
+
+def get_reqs(name):
+    requirements = []
+    filename = Path(f"{name}-requirements.txt")
+    if name == "vanilla":
+        filename = Path("requirements.txt")
+    if not filename.is_file():
+        raise FileNotFoundError(f"File {filename} does not exist")
+    for s in filename.read_text().splitlines():
+        s = s.split("==")[0] if "==" in s else s
+        s = s.split("<=")[0] if "<=" in s else s
+        s = s.split(">=")[0] if ">=" in s else s
+        s = s.split("<")[0] if "<" in s else s
+        s = s.split(">")[0] if ">=" in s else s
+        requirements.append(s)
+    return requirements

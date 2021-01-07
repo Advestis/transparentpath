@@ -2,8 +2,17 @@ import sys
 import pytest
 import importlib.util
 from importlib import reload
-from .functions import init, skip_gcs
 from transparentpath import TransparentPath
+from .functions import init, skip_gcs, get_reqs
+from pathlib import Path
+
+requirements = get_reqs(Path(__file__).stem.split("test_")[1])
+
+reqs_ok = True
+for req in requirements:
+    if importlib.util.find_spec(req) is None:
+        reqs_ok = False
+        break
 
 
 # noinspection PyUnusedLocal,PyShadowingNames
@@ -23,7 +32,7 @@ from transparentpath import TransparentPath
 def test_hdf5(clean, fs_kind, data, use_pandas):
 
     # No H5PY module
-    if importlib.util.find_spec("h5py") is None:
+    if not reqs_ok:
         phdf5 = get_path(fs_kind, use_pandas, data is None)
         with pytest.raises(ImportError):
             if data is None:

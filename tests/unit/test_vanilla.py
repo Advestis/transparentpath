@@ -1,11 +1,17 @@
 import pytest
-
+import importlib.util
 from transparentpath import TransparentPath
 from transparentpath.gcsutils.transparentpath import MultipleExistenceError
 from pathlib import Path
-from .functions import init, skip_gcs
+from .functions import init, skip_gcs, get_reqs
+
+requirements = get_reqs(Path(__file__).stem.split("test_")[1])
 
 cc = "chien/chat"
+
+for req in requirements:
+    if importlib.util.find_spec(req) is None:
+        raise ImportError(f"TransparentPath needs {req} package")
 
 
 # noinspection PyUnusedLocal

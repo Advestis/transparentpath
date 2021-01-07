@@ -2,18 +2,11 @@ import sys
 import pytest
 import importlib.util
 from importlib import reload
-from .functions import init, skip_gcs
+from .functions import init, skip_gcs, get_reqs
 from transparentpath import TransparentPath
 from pathlib import Path
 
-requirements = []
-for s in Path("pandas-requirements.txt").read_text().splitlines():
-    s = s.split("==")[0] if "==" in s else s
-    s = s.split("<=")[0] if "==" in s else s
-    s = s.split(">=")[0] if "==" in s else s
-    s = s.split("<")[0] if "==" in s else s
-    s = s.split(">")[0] if "==" in s else s
-    requirements.append(s)
+requirements = get_reqs(Path(__file__).stem.split("test_")[1])
 
 reqs_ok = True
 for req in requirements:
