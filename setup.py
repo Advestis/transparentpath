@@ -69,8 +69,12 @@ for afile in Path("").glob("*requirements.txt"):
     else:
         option = afile.stem.replace("-requirements", "")
         optional_requirements[option] = afile.read_text().splitlines()
-        all_reqs = list(set(all_reqs) | set(optional_requirements[option]))
+        print()
         print(afile, optional_requirements[option])
+        print("  all reqs before:", all_reqs)
+        all_reqs = list(set(all_reqs) | set(optional_requirements[option]))
+        print("  all reqs after:", all_reqs)
+        print()
 
 try:
     version = get_version()
