@@ -1401,14 +1401,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Parameters
         -----------
         suffix: str
-            suffix to use, with the dot ('.pdf', '.py', etc ..)
+            suffix to use, with the dot ('.pdf', '.py', etc ..). Can also use '' to remove the suffix.
 
         Returns
         --------
         TransparentPath
 
         """
-        if not suffix.startswith("."):
+        if not suffix.startswith(".") and not suffix == "":
             suffix = f".{suffix}"
         return TransparentPath(
             self.__path.with_suffix(suffix), fs=self.fs_kind, bucket=self.bucket, project=self.project
@@ -1863,9 +1863,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.write_stuff(
                 *args, data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
             )
-        elif self.suffix == ".xlsx":
+        elif self.suffix in [".xlsx", ".xls", ".xlsm"]:
             self.to_excel(
-                data=data, overwrite=overwrite, present=present, update_cache=update_cache, use_dask=use_dask, **kwargs,
+                data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
             )
         else:
             self.write_bytes(
@@ -2075,15 +2075,17 @@ try:
         write_excel,
         read_parquet,
         write_parquet,
+        check_dask
     )
 
-    setattr(TransparentPath, "read_parquet_dask", read_csv)
-    setattr(TransparentPath, "to_parquet_dask", write_csv)
-    setattr(TransparentPath, "read_parquet_dask", read_hdf5)
-    setattr(TransparentPath, "to_parquet_dask", write_hdf5)
-    setattr(TransparentPath, "read_parquet_dask", read_excel)
-    setattr(TransparentPath, "to_parquet_dask", write_excel)
+    setattr(TransparentPath, "read_csv_dask", read_csv)
+    setattr(TransparentPath, "to_csv_dask", write_csv)
+    setattr(TransparentPath, "read_hdf5_dask", read_hdf5)
+    setattr(TransparentPath, "to_hdf5_dask", write_hdf5)
+    setattr(TransparentPath, "read_excel_dask", read_excel)
+    setattr(TransparentPath, "to_excel_dask", write_excel)
     setattr(TransparentPath, "read_parquet_dask", read_parquet)
     setattr(TransparentPath, "to_parquet_dask", write_parquet)
+    setattr(TransparentPath, "check_dask", check_dask)
 except ImportError:
     pass

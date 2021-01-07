@@ -1,6 +1,8 @@
+import sys
 import os
 from transparentpath import TransparentPath
 from pathlib import Path
+from importlib import reload
 
 project = "sandbox-281209"
 bucket = "code_tests_sand"
@@ -54,3 +56,22 @@ def get_reqs(name):
         s = s.split(">")[0] if ">=" in s else s
         requirements.append(s)
     return requirements
+
+
+def get_path(fs_kind, suffix):
+    reload(sys.modules["transparentpath"])
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return "skipped"
+    init(fs_kind)
+
+    if fs_kind == "local":
+        local_path = TransparentPath(f"tests/data/chien{suffix}")
+        pfile = TransparentPath(f"chien{suffix}")
+        local_path.cp(pfile)
+    else:
+        local_path = TransparentPath(f"tests/data/chien{suffix}", fs_kind="local")
+        pfile = TransparentPath(f"chien{suffix}")
+        local_path.put(pfile)
+
+    return pfile

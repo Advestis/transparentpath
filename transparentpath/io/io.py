@@ -129,6 +129,9 @@ def mv(self, other: Union[str, Path, TransparentPath]):
 def cp(self, other: Union[str, Path, TransparentPath]):
     """Used to copy a file or a directory on the same filesystem."""
 
+    if not self.exist():
+        raise FileNotFoundError(f"No such file or directory: {self}")
+
     if not type(other) == TransparentPath:
         other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
     if other.fs_kind != self.fs_kind:

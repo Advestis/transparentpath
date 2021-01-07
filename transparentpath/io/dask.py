@@ -26,7 +26,7 @@ try:
     from .parquet import parquet_ok
     from .parquet import errormessage as errormessage_parquet
 
-    client_ = client
+    TransparentPath.cli = None
 
     def check_dask(self, which: str = "read"):
         if which != "read":
@@ -61,10 +61,10 @@ try:
 
         check_dask(self)
         # noinspection PyTypeChecker,PyUnresolvedReferences
-        if self.path.is_file():
+        if self.is_file():
             to_use = self
         else:
-            to_use = self.path.with_suffix("")
+            to_use = self.with_suffix("")
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
         check_kwargs(dd.read_csv, kwargs)
         return apply_index_and_date_dd(index_col, parse_dates, dd.read_csv(to_use.__fspath__(), **kwargs))
@@ -81,19 +81,23 @@ try:
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
 
         check_dask(self)
-        if self.path.is_file():
+        if self.is_file():
             to_use = self
         else:
-            to_use = self.path.with_suffix("")
+            to_use = self.with_suffix("")
         check_kwargs(dd.read_parquet, kwargs)
         return apply_index_and_date_dd(
             index_col, parse_dates, dd.read_parquet(to_use.__fspath__(), engine="pyarrow", **kwargs)
         )
 
-    def read_hdf5(self, update_cache: bool = True, set_names: str = "", **kwargs,) -> dd.DataFrame:
+    def read_hdf5(self, update_cache: bool = True, set_names: str = "", use_pandas: bool = False, **kwargs) -> \
+            dd.DataFrame:
 
         if not hdf5_ok:
             raise ImportError(errormessage_hdf5)
+
+        if use_pandas:
+            raise NotImplementedError("Using dask in transparentpath does not support pandas's HDFStore")
 
         mode = "r"
         if "mode" in kwargs:
@@ -113,11 +117,11 @@ try:
             self._update_cache()
 
         check_kwargs(dd.read_hdf, kwargs)
-        if self.path.fs_kind == "local":
+        if self.fs_kind == "local":
             return dd.read_hdf(pattern=self, key=set_names, **kwargs)
         f = tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5")
         f.close()  # deletes the tmp file, but we can still use its name to download the remote file locally
-        self.path.get(f.name)
+        self.get(f.name)
         data = self.__class__.cli.submit(dd.read_hdf, f.name, set_names, **kwargs)
         # Do not delete the tmp file, since dask tasks are delayed
         return data.result()
@@ -135,13 +139,13 @@ try:
         check_kwargs(pd.read_excel, kwargs)
         # noinspection PyTypeChecker,PyUnresolvedReferences
         try:
-            if self.path.fs_kind == "local":
-                parts = delayed(pd.read_excel)(self, **kwargs)
+            if self.fs_kind == "local":
+                parts = delayed(pd.read_excel)(self.__fspath__(), **kwargs)
                 return dd.from_delayed(parts)
             else:
                 f = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
                 f.close()  # deletes the tmp file, but we can still use its name
-                self.path.get(f.name)
+                self.get(f.name)
                 parts = delayed(pd.read_excel)(f.name, **kwargs)
                 data = dd.from_delayed(parts)
                 # We should not delete the tmp file, since dask does its operations lasily.
@@ -246,7 +250,7 @@ try:
                     dd.to_hdf, list(sets.values()), [f.name] * len(sets), list(sets.keys()), mode=mode, **kwargs
                 )
                 self.__class__.cli.gather(futures)
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.__path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
         return
 
     def write_excel(
@@ -281,7 +285,7 @@ try:
                 check_kwargs(pd.DataFrame.to_excel, kwargs)
                 parts = delayed(pd.DataFrame.to_excel)(data, f.name, **kwargs)
                 parts.compute()
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.__path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
 
 
 except ImportError as e:

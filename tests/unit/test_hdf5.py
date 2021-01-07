@@ -108,7 +108,9 @@ def get_path(fs_kind, use_pandas, simple):
         to_add = f"{to_add}_multi"
 
     if fs_kind == "local":
-        phdf5 = TransparentPath(f"tests/data/chien{to_add}.hdf5")
+        local_path = TransparentPath(f"tests/data/chien{to_add}.hdf5")
+        phdf5 = TransparentPath(f"chien.hdf5")
+        local_path.cp(phdf5)
     else:
         local_path = TransparentPath(f"tests/data/chien{to_add}.hdf5", fs_kind="local")
         phdf5 = TransparentPath(f"chien.hdf5")

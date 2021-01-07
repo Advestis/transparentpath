@@ -40,6 +40,8 @@ def clean(pytestconfig):
     TransparentPath("chien.parquet").rm(recursive=True, ignore_kind=True, absent="ignore")
     TransparentPath("chien.hdf5").rm(recursive=True, ignore_kind=True, absent="ignore")
     TransparentPath("chien.hdf5").rm(recursive=True, ignore_kind=True, absent="ignore")
+    TransparentPath("chien.xlsx").rm(recursive=True, ignore_kind=True, absent="ignore")
+    TransparentPath("chien.xlsx").rm(recursive=True, ignore_kind=True, absent="ignore")
     TransparentPath._do_update_cache = True
     TransparentPath._do_check = True
     # print("\n...executing reinit\n")

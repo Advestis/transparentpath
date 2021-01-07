@@ -19,19 +19,19 @@ for req in requirements:
         "local", "gcs"
     ]
 )
-def test_csv(clean, fs_kind):
+def test_parquet(clean, fs_kind):
     if reqs_ok is False:
-        pcsv = get_path(fs_kind, ".csv")
+        pparquet = get_path(fs_kind, ".parquet")
         with pytest.raises(ImportError):
-            pcsv.read()
+            pparquet.read()
     else:
         # noinspection PyUnresolvedReferences
         import pandas as pd
-        df_csv = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]])
+        df_parquet = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]])
         # noinspection PyTypeChecker
-        pcsv = get_path(fs_kind, ".csv")
-        if pcsv == "skipped":
+        pparquet = get_path(fs_kind, ".parquet")
+        if pparquet == "skipped":
             return
-        pcsv.write(df_csv)
-        assert pcsv.is_file()
-        pd.testing.assert_frame_equal(df_csv, pcsv.read(index_col=0))
+        pparquet.write(df_parquet)
+        assert pparquet.is_file()
+        pd.testing.assert_frame_equal(df_parquet, pparquet.read())
