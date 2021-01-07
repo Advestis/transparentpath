@@ -2,7 +2,12 @@ import pytest
 from pathlib import Path
 
 
-acceptable = {"pandas": ["numpy"]}
+acceptable = {
+    "pandas": ["numpy"],
+    "hdf5": ["numpy"],
+    "parquet": ["numpy"],
+    "excel": ["numpy"]
+}
 
 
 @pytest.fixture
