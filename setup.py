@@ -65,16 +65,11 @@ all_reqs = []
 for afile in Path("").glob("*requirements.txt"):
     if str(afile) == "requirements.txt":
         requirements = afile.read_text().splitlines()
-        all_reqs = list(set(all_reqs) & set(afile.read_text().splitlines()))
+        all_reqs = list(set(all_reqs) | set(afile.read_text().splitlines()))
     else:
         option = afile.stem.replace("-requirements", "")
         optional_requirements[option] = afile.read_text().splitlines()
-        print()
-        print(afile, optional_requirements[option])
-        print("  all reqs before:", all_reqs)
         all_reqs = list(set(all_reqs) | set(optional_requirements[option]))
-        print("  all reqs after:", all_reqs)
-        print()
 
 try:
     version = get_version()
@@ -89,7 +84,6 @@ except FileNotFoundError as e:
         version = None
 
 optional_requirements["all"] = all_reqs
-print(optional_requirements["all"])
 
 if __name__ == "__main__":
     setup(

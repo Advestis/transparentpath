@@ -26,16 +26,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
           if [ "${{ matrix.opt }}" = "vanilla" ] ; then
-              echo "running pip install -v ."
-              pip install -v .
+              echo "running pip install ."
+              pip install .
           else
-              echo "running pip install -v .[${{ matrix.opt }}]"
-              pip install -v .[${{ matrix.opt }}]
+              echo "running pip install .[${{ matrix.opt }}]"
+              pip install .[${{ matrix.opt }}]
           fi
-          echo ""
-          echo "Installed packages:"
-          pip freeze
-          echo ""
           pytest -s -v tests/dependencies/dep.py --name ${{ matrix.opt }}
 
   pytest-37:
