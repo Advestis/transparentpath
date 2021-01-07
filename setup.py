@@ -84,6 +84,7 @@ except FileNotFoundError as e:
         version = None
 
 optional_requirements["all"] = all_reqs
+print(optional_requirements["all"])
 
 if __name__ == "__main__":
     setup(
