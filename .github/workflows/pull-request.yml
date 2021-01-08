@@ -37,7 +37,7 @@ jobs:
         if: "contains(github.ref, 'optionals')"
         run: echo $BRANCH_NAME
 
-      - name: test2
+      - name: test3
         if: "!contains(github.ref, 'optionals')"
         run: echo $BRANCH_NAME
 
