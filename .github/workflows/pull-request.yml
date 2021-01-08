@@ -4,7 +4,7 @@ on:
       - nightly
       - master
 
-name: ${GITHUB_REF##*/}
+name: ${{ GITHUB_REF##*/ }}
 jobs:
 
   test-setups:

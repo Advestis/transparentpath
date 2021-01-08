@@ -4,7 +4,7 @@ on:
       - nightly
       - master
 
-name: ${GITHUB_REF##*/}
+name: ${{ GITHUB_REF##*/ }}
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -38,7 +38,7 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
-          branch: ${GITHUB_REF##*/}
+          branch: ${{ GITHUB_REF##*/ }}
           force: true
       - name: make doc
         run: |
@@ -55,14 +55,14 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
-          branch: "gh-pages-${GITHUB_REF##*/}"
+          branch: gh-pages-${{ GITHUB_REF##*/ }}
           force: true
       - name: Push doc master
         if: "contains(github.ref, 'master')"
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
-          branch: "gh-pages"
+          branch: gh-pages
           force: true
 
       - name: topypi
@@ -79,7 +79,7 @@ jobs:
         with:
           username: ${{ secrets.docker_login }}
           password: ${{ secrets.docker_passwd }}
-          repository: advestisrepositories/transparentpath-${GITHUB_REF##*/}
+          repository: advestisrepositories/transparentpath-${{ GITHUB_REF##*/ }}
           tag_with_ref: true
       - name: todocker master
         if: "contains(github.ref, 'master')"
