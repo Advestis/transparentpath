@@ -52,7 +52,7 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
-          branch: ${{ BRANCH_NAME }}
+          branch: ${{ env.BRANCH_NAME }}
           force: true
       - name: make doc
         run: |
@@ -69,7 +69,7 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
-          branch: gh-pages-${{ BRANCH_NAME }}
+          branch: gh-pages-${{ env.BRANCH_NAME }}
           force: true
       - name: Push doc master
         if: "contains(github.ref, 'master')"
@@ -93,7 +93,7 @@ jobs:
         with:
           username: ${{ secrets.docker_login }}
           password: ${{ secrets.docker_passwd }}
-          repository: advestisrepositories/transparentpath-$BRANCH_NAME
+          repository: advestisrepositories/transparentpath-${{ env.BRANCH_NAME }}
           tag_with_ref: true
       - name: todocker master
         if: "contains(github.ref, 'master')"
