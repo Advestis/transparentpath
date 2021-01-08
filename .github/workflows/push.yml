@@ -68,14 +68,14 @@ jobs:
           git commit -m "docs"
 
       - name: Push doc sidebranch
-        if: ${{ env.BRANCH_NAME != master && matrix.python-version == 3.8 }}
+        if: ${{ env.BRANCH_NAME != 'master' && matrix.python-version == 3.8 }}
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
           branch: gh-pages-${{ env.BRANCH_NAME }}
           force: true
       - name: Push doc master
-        if: ${{ env.BRANCH_NAME == master && matrix.python-version == 3.8 }}
+        if: ${{ env.BRANCH_NAME == 'master' && matrix.python-version == 3.8 }}
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
