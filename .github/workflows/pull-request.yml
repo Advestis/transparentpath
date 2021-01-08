@@ -1,9 +1,10 @@
 on:
   pull_request:
     branches:
+      - nightly
       - master
 
-name: master
+name: pull_request
 jobs:
 
   test-setups:
