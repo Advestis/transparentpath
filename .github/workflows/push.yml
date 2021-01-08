@@ -39,7 +39,7 @@ jobs:
       - name: build
         run: |
           python -m pip install --upgrade pip
-          pip install setuptools
+          make all
           python setup.py sdist
       - name: commit version
         run: |
