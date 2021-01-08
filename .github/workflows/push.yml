@@ -1,16 +1,16 @@
 on:
   push:
     branches:
-      - master
+      - nightly
 
-name: master
+name: nightly
 jobs:
   publish:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'VERSION-SKIP-CI')"
     strategy:
       matrix:
-        python-version: [ 3.8 ]
+        python-version: [ 3.7, 3.8 ]
     steps:
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -37,7 +37,7 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
-          branch: "master"
+          branch: "nightly"
           force: true
       - name: make doc
         run: |
@@ -52,7 +52,7 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
-          branch: "gh-pages"
+          branch: "gh-pages-nightly"
           force: true
       - name: topypi
         uses: pypa/gh-action-pypi-publish@master
@@ -66,5 +66,5 @@ jobs:
         with:
           username: ${{ secrets.docker_login }}
           password: ${{ secrets.docker_passwd }}
-          repository: advestisrepositories/transparentpath
+          repository: advestisrepositories/transparentpath-nighlty
           tag_with_ref: true

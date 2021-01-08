@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>transparentpath.io.io API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>transparentpath.io.io</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import builtins
+from typing import IO, Union, Any
+from pathlib import Path
+from ..gcsutils.transparentpath import TransparentPath
+
+
+builtins_open = builtins.open
+
+
+def myopen(*args, **kwargs) -&gt; IO:
+    &#34;&#34;&#34;Method overloading builtins&#39; &#39;open&#39; method, allowing to open files on GCS using TransparentPath.&#34;&#34;&#34;
+    if len(args) == 0:
+        raise ValueError(&#34;open method needs arguments.&#34;)
+    thefile = args[0]
+    if type(thefile) == str and &#34;gs://&#34; in thefile:
+        if &#34;gcs&#34; not in TransparentPath.fss:
+            raise OSError(&#34;You are trying to access a file on GCS without having set a proper GCSFileSystem first.&#34;)
+        thefile = TransparentPath(thefile.replace(f&#34;gs://{TransparentPath.bucket}&#34;, &#34;&#34;), fs=&#34;gcs&#34;)
+    if isinstance(thefile, TransparentPath):
+        return thefile.open(*args[1:], **kwargs)
+    elif (
+        isinstance(thefile, str) or isinstance(thefile, Path) or isinstance(thefile, int) or isinstance(thefile, bytes)
+    ):
+        return builtins_open(*args, **kwargs)
+    else:
+        raise ValueError(f&#34;Unknown type {type(thefile)} for path argument&#34;)
+
+
+setattr(builtins, &#34;open&#34;, myopen)
+
+
+def overload_open():
+    setattr(builtins, &#34;open&#34;, myopen)
+
+
+def set_old_open():
+    setattr(builtins, &#34;open&#34;, builtins_open)
+
+
+def put(self, dst: Union[str, Path, TransparentPath]):
+    &#34;&#34;&#34;used to push a local file to the cloud. Does not remove the local file.
+
+    self must be a local TransparentPath. If dst is a TransparentPath, it must be on GCS. If it is a pathlib.Path
+    or a str, it will be casted into a GCS TransparentPath, so a gcs file system must have been set up before. &#34;&#34;&#34;
+
+    if &#34;gcs&#34; not in &#34;&#34;.join(TransparentPath.fss):
+        raise ValueError(&#34;You need to set up a gcs file system before using the put() command.&#34;)
+    if not self.fs_kind == &#34;local&#34;:
+        raise ValueError(
+            &#34;The calling instance of put() must be local. &#34;
+            &#34;To move on gcs a file already on gcs, use mv(&#34;
+            &#34;). To move a file from gcs, to local, use get(&#34;
+            &#34;). &#34;
+        )
+    # noinspection PyUnresolvedReferences
+    if type(dst) == TransparentPath and &#34;gcs&#34; not in dst.fs_kind:
+        raise ValueError(
+            &#34;The second argument can not be a local &#34; &#34;TransparentPath. To move a file &#34; &#34;localy, use the mv() method.&#34;
+        )
+    if type(dst) != TransparentPath:
+        dst = TransparentPath(dst, fs=&#34;gcs&#34;)
+    if self.is_dir():
+        for item in self.glob(&#34;/*&#34;):
+            # noinspection PyUnresolvedReferences
+            item.put(dst / item.name)
+    else:
+        with open(self, &#34;rb&#34;) as f1:
+            with open(dst, &#34;wb&#34;) as f2:
+                data = True
+                while data:
+                    data = f1.read(self.blocksize)
+                    f2.write(data)
+
+
+def get(self, loc: Union[str, Path, TransparentPath]):
+    &#34;&#34;&#34;used to get a remote file to local. Does not remove the remote file.
+
+    self must be a remote TransparentPath. If loc is a TransparentPath, it must be local. If it is a pathlib.Path or
+    a str, it will be casted into a local TransparentPath. &#34;&#34;&#34;
+
+    if &#34;gcs&#34; not in self.fs_kind:
+        raise ValueError(&#34;The calling instance of get() must be on GCS. To move a file localy, use the mv() method.&#34;)
+    # noinspection PyUnresolvedReferences
+    if type(loc) == TransparentPath and loc.fs_kind != &#34;local&#34;:
+        raise ValueError(
+            &#34;The second argument can not be a GCS &#34;
+            &#34;TransparentPath. To move on gcs a file already&#34;
+            &#34;on gcs, use mv(). To move a file from gcs, to&#34;
+            &#34; local, use get()&#34;
+        )
+    if type(loc) != TransparentPath:
+        loc = TransparentPath(loc, fs=&#34;local&#34;, bucket=self.bucket, project=self.project)
+    self.fs.get(self.__fspath__(), loc.__fspath__())
+
+
+def mv(self, other: Union[str, Path, TransparentPath]):
+    &#34;&#34;&#34;Used to move a file or a directory. Works between any filesystems.&#34;&#34;&#34;
+
+    if not type(other) == TransparentPath:
+        other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+
+    if other.fs_kind != self.fs_kind:
+        if self.fs_kind == &#34;local&#34;:
+            self.put(other)
+            self.rm(absent=&#34;raise&#34;, ignore_kind=True)
+        else:
+            self.get(other)
+            self.rm(absent=&#34;raise&#34;, ignore_kind=True)
+        return
+
+    # Do not use filesystem&#39;s move, for it is coded by apes and is not able to use recursive properly
+    # self.fs.mv(self.__fspath__(), other, **kwargs)
+
+    if self.is_file():
+        self.fs.mv(self.__fspath__(), other)
+        return
+
+    for stuff in list(self.glob(&#34;**/*&#34;, fast=True)):
+        # noinspection PyUnresolvedReferences
+        if not stuff.is_file():
+            continue
+        # noinspection PyUnresolvedReferences
+        relative = stuff.split(f&#34;/{self.name}/&#34;)[-1]
+        newpath = other / relative
+        newpath.parent.mkdir(recursive=True)
+        self.fs.mv(stuff.__fspath__(), newpath)
+
+
+def cp(self, other: Union[str, Path, TransparentPath]):
+    &#34;&#34;&#34;Used to copy a file or a directory on the same filesystem.&#34;&#34;&#34;
+
+    if not self.exist():
+        raise FileNotFoundError(f&#34;No such file or directory: {self}&#34;)
+
+    if not type(other) == TransparentPath:
+        other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+    if other.fs_kind != self.fs_kind:
+        if self.fs_kind == &#34;local&#34;:
+            self.put(other)
+        else:
+            self.get(other)
+        return
+
+    # Do not use filesystem&#39;s copy if self is not a file, for it was coded by apes and is not able to use recursive
+    # properly
+
+    if self.is_file():
+        self.fs.cp(self.__fspath__(), other)
+        return
+
+    for stuff in list(self.glob(&#34;**/*&#34;, fast=True)):
+        # noinspection PyUnresolvedReferences
+        if not stuff.is_file():
+            continue
+        # noinspection PyUnresolvedReferences
+        relative = stuff.split(f&#34;/{self.name}/&#34;)[-1]
+        newpath = other / relative
+        newpath.parent.mkdir(recursive=True)
+        self.fs.cp(stuff.__fspath__(), newpath)
+
+
+def read_text(self, *args, get_obj: bool = False, update_cache: bool = True, **kwargs) -&gt; Union[str, IO]:
+    # noinspection PyProtectedMember
+    if update_cache and self.__class__._do_update_cache:
+        self._update_cache()
+
+    byte_mode = True
+    if len(args) == 0:
+        byte_mode = False
+        args = (&#34;rb&#34;,)
+    if &#34;b&#34; not in args[0]:
+        byte_mode = False
+        args[0] += &#34;b&#34;
+    if get_obj:
+        return self.open(*args, **kwargs)
+
+    with self.open(*args, **kwargs) as f:
+        to_ret = f.read()
+        if not byte_mode:
+            to_ret = to_ret.decode()
+    return to_ret
+
+
+def write_stuff(
+    self, data: Any, *args, overwrite: bool = True, present: str = &#34;ignore&#34;, update_cache: bool = True, **kwargs
+) -&gt; None:
+    # noinspection PyProtectedMember
+    if update_cache and self.__class__._do_update_cache:
+        self._update_cache()
+    if not overwrite and self.is_file() and present != &#34;ignore&#34;:
+        raise FileExistsError()
+
+    args = list(args)
+    if len(args) == 0:
+        args = (&#34;w&#34;,)
+
+    with self.open(*args, **kwargs) as f:
+        f.write(data)
+
+
+def write_bytes(
+    self, data: Any, *args, overwrite: bool = True, present: str = &#34;ignore&#34;, update_cache: bool = True, **kwargs,
+) -&gt; None:
+
+    args = list(args)
+    if len(args) == 0:
+        args = (&#34;wb&#34;,)
+    if &#34;b&#34; not in args[0]:
+        args[0] += &#34;b&#34;
+
+    self.write_stuff(data, *tuple(args), overwrite=overwrite, present=present, update_cache=update_cache, **kwargs)</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="transparentpath.io.io.cp"><code class="name flex">
+<span>def <span class="ident">cp</span></span>(<span>self, other: Union[str, pathlib.Path, <a title="transparentpath.gcsutils.transparentpath.TransparentPath" href="../gcsutils/transparentpath.html#transparentpath.gcsutils.transparentpath.TransparentPath">TransparentPath</a>])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Used to copy a file or a directory on the same filesystem.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def cp(self, other: Union[str, Path, TransparentPath]):
+    &#34;&#34;&#34;Used to copy a file or a directory on the same filesystem.&#34;&#34;&#34;
+
+    if not self.exist():
+        raise FileNotFoundError(f&#34;No such file or directory: {self}&#34;)
+
+    if not type(other) == TransparentPath:
+        other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+    if other.fs_kind != self.fs_kind:
+        if self.fs_kind == &#34;local&#34;:
+            self.put(other)
+        else:
+            self.get(other)
+        return
+
+    # Do not use filesystem&#39;s copy if self is not a file, for it was coded by apes and is not able to use recursive
+    # properly
+
+    if self.is_file():
+        self.fs.cp(self.__fspath__(), other)
+        return
+
+    for stuff in list(self.glob(&#34;**/*&#34;, fast=True)):
+        # noinspection PyUnresolvedReferences
+        if not stuff.is_file():
+            continue
+        # noinspection PyUnresolvedReferences
+        relative = stuff.split(f&#34;/{self.name}/&#34;)[-1]
+        newpath = other / relative
+        newpath.parent.mkdir(recursive=True)
+        self.fs.cp(stuff.__fspath__(), newpath)</code></pre>
+</details>
+</dd>
+<dt id="transparentpath.io.io.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self, loc: Union[str, pathlib.Path, <a title="transparentpath.gcsutils.transparentpath.TransparentPath" href="../gcsutils/transparentpath.html#transparentpath.gcsutils.transparentpath.TransparentPath">TransparentPath</a>])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>used to get a remote file to local. Does not remove the remote file.</p>
+<p>self must be a remote TransparentPath. If loc is a TransparentPath, it must be local. If it is a pathlib.Path or
+a str, it will be casted into a local TransparentPath.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self, loc: Union[str, Path, TransparentPath]):
+    &#34;&#34;&#34;used to get a remote file to local. Does not remove the remote file.
+
+    self must be a remote TransparentPath. If loc is a TransparentPath, it must be local. If it is a pathlib.Path or
+    a str, it will be casted into a local TransparentPath. &#34;&#34;&#34;
+
+    if &#34;gcs&#34; not in self.fs_kind:
+        raise ValueError(&#34;The calling instance of get() must be on GCS. To move a file localy, use the mv() method.&#34;)
+    # noinspection PyUnresolvedReferences
+    if type(loc) == TransparentPath and loc.fs_kind != &#34;local&#34;:
+        raise ValueError(
+            &#34;The second argument can not be a GCS &#34;
+            &#34;TransparentPath. To move on gcs a file already&#34;
+            &#34;on gcs, use mv(). To move a file from gcs, to&#34;
+            &#34; local, use get()&#34;
+        )
+    if type(loc) != TransparentPath:
+        loc = TransparentPath(loc, fs=&#34;local&#34;, bucket=self.bucket, project=self.project)
+    self.fs.get(self.__fspath__(), loc.__fspath__())</code></pre>
+</details>
+</dd>
+<dt id="transparentpath.io.io.mv"><code class="name flex">
+<span>def <span class="ident">mv</span></span>(<span>self, other: Union[str, pathlib.Path, <a title="transparentpath.gcsutils.transparentpath.TransparentPath" href="../gcsutils/transparentpath.html#transparentpath.gcsutils.transparentpath.TransparentPath">TransparentPath</a>])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Used to move a file or a directory. Works between any filesystems.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def mv(self, other: Union[str, Path, TransparentPath]):
+    &#34;&#34;&#34;Used to move a file or a directory. Works between any filesystems.&#34;&#34;&#34;
+
+    if not type(other) == TransparentPath:
+        other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+
+    if other.fs_kind != self.fs_kind:
+        if self.fs_kind == &#34;local&#34;:
+            self.put(other)
+            self.rm(absent=&#34;raise&#34;, ignore_kind=True)
+        else:
+            self.get(other)
+            self.rm(absent=&#34;raise&#34;, ignore_kind=True)
+        return
+
+    # Do not use filesystem&#39;s move, for it is coded by apes and is not able to use recursive properly
+    # self.fs.mv(self.__fspath__(), other, **kwargs)
+
+    if self.is_file():
+        self.fs.mv(self.__fspath__(), other)
+        return
+
+    for stuff in list(self.glob(&#34;**/*&#34;, fast=True)):
+        # noinspection PyUnresolvedReferences
+        if not stuff.is_file():
+            continue
+        # noinspection PyUnresolvedReferences
+        relative = stuff.split(f&#34;/{self.name}/&#34;)[-1]
+        newpath = other / relative
+        newpath.parent.mkdir(recursive=True)
+        self.fs.mv(stuff.__fspath__(), newpath)</code></pre>
+</details>
+</dd>
+<dt id="transparentpath.io.io.myopen"><code class="name flex">
+<span>def <span class="ident">myopen</span></span>(<span>*args, **kwargs) ‑> <class 'IO'></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Method overloading builtins' 'open' method, allowing to open files on GCS using TransparentPath.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def myopen(*args, **kwargs) -&gt; IO:
+    &#34;&#34;&#34;Method overloading builtins&#39; &#39;open&#39; method, allowing to open files on GCS using TransparentPath.&#34;&#34;&#34;
+    if len(args) == 0:
+        raise ValueError(&#34;open method needs arguments.&#34;)
+    thefile = args[0]
+    if type(thefile) == str and &#34;gs://&#34; in thefile:
+        if &#34;gcs&#34; not in TransparentPath.fss:
+            raise OSError(&#34;You are trying to access a file on GCS without having set a proper GCSFileSystem first.&#34;)
+        thefile = TransparentPath(thefile.replace(f&#34;gs://{TransparentPath.bucket}&#34;, &#34;&#34;), fs=&#34;gcs&#34;)
+    if isinstance(thefile, TransparentPath):
+        return thefile.open(*args[1:], **kwargs)
+    elif (
+        isinstance(thefile, str) or isinstance(thefile, Path) or isinstance(thefile, int) or isinstance(thefile, bytes)
+    ):
+        return builtins_open(*args, **kwargs)
+    else:
+        raise ValueError(f&#34;Unknown type {type(thefile)} for path argument&#34;)</code></pre>
+</details>
+</dd>
+<dt id="transparentpath.io.io.overload_open"><code class="name flex">
+<span>def <span class="ident">overload_open</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def overload_open():
+    setattr(builtins, &#34;open&#34;, myopen)</code></pre>
+</details>
+</dd>
+<dt id="transparentpath.io.io.put"><code class="name flex">
+<span>def <span class="ident">put</span></span>(<span>self, dst: Union[str, pathlib.Path, <a title="transparentpath.gcsutils.transparentpath.TransparentPath" href="../gcsutils/transparentpath.html#transparentpath.gcsutils.transparentpath.TransparentPath">TransparentPath</a>])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>used to push a local file to the cloud. Does not remove the local file.</p>
+<p>self must be a local TransparentPath. If dst is a TransparentPath, it must be on GCS. If it is a pathlib.Path
+or a str, it will be casted into a GCS TransparentPath, so a gcs file system must have been set up before.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def put(self, dst: Union[str, Path, TransparentPath]):
+    &#34;&#34;&#34;used to push a local file to the cloud. Does not remove the local file.
+
+    self must be a local TransparentPath. If dst is a TransparentPath, it must be on GCS. If it is a pathlib.Path
+    or a str, it will be casted into a GCS TransparentPath, so a gcs file system must have been set up before. &#34;&#34;&#34;
+
+    if &#34;gcs&#34; not in &#34;&#34;.join(TransparentPath.fss):
+        raise ValueError(&#34;You need to set up a gcs file system before using the put() command.&#34;)
+    if not self.fs_kind == &#34;local&#34;:
+        raise ValueError(
+            &#34;The calling instance of put() must be local. &#34;
+            &#34;To move on gcs a file already on gcs, use mv(&#34;
+            &#34;). To move a file from gcs, to local, use get(&#34;
+            &#34;). &#34;
+        )
+    # noinspection PyUnresolvedReferences
+    if type(dst) == TransparentPath and &#34;gcs&#34; not in dst.fs_kind:
+        raise ValueError(
+            &#34;The second argument can not be a local &#34; &#34;TransparentPath. To move a file &#34; &#34;localy, use the mv() method.&#34;
+        )
+    if type(dst) != TransparentPath:
+        dst = TransparentPath(dst, fs=&#34;gcs&#34;)
+    if self.is_dir():
+        for item in self.glob(&#34;/*&#34;):
+            # noinspection PyUnresolvedReferences
+            item.put(dst / item.name)
+    else:
+        with open(self, &#34;rb&#34;) as f1:
+            with open(dst, &#34;wb&#34;) as f2:
+                data = True
+                while data:
+                    data = f1.read(self.blocksize)
+                    f2.write(data)</code></pre>
+</details>
+</dd>
+<dt id="transparentpath.io.io.read_text"><code class="name flex">
+<span>def <span class="ident">read_text</span></span>(<span>self, *args, get_obj: bool = False, update_cache: bool = True, **kwargs) ‑> Union[str, IO]</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def read_text(self, *args, get_obj: bool = False, update_cache: bool = True, **kwargs) -&gt; Union[str, IO]:
+    # noinspection PyProtectedMember
+    if update_cache and self.__class__._do_update_cache:
+        self._update_cache()
+
+    byte_mode = True
+    if len(args) == 0:
+        byte_mode = False
+        args = (&#34;rb&#34;,)
+    if &#34;b&#34; not in args[0]:
+        byte_mode = False
+        args[0] += &#34;b&#34;
+    if get_obj:
+        return self.open(*args, **kwargs)
+
+    with self.open(*args, **kwargs) as f:
+        to_ret = f.read()
+        if not byte_mode:
+            to_ret = to_ret.decode()
+    return to_ret</code></pre>
+</details>
+</dd>
+<dt id="transparentpath.io.io.set_old_open"><code class="name flex">
+<span>def <span class="ident">set_old_open</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_old_open():
+    setattr(builtins, &#34;open&#34;, builtins_open)</code></pre>
+</details>
+</dd>
+<dt id="transparentpath.io.io.write_bytes"><code class="name flex">
+<span>def <span class="ident">write_bytes</span></span>(<span>self, data: Any, *args, overwrite: bool = True, present: str = 'ignore', update_cache: bool = True, **kwargs) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def write_bytes(
+    self, data: Any, *args, overwrite: bool = True, present: str = &#34;ignore&#34;, update_cache: bool = True, **kwargs,
+) -&gt; None:
+
+    args = list(args)
+    if len(args) == 0:
+        args = (&#34;wb&#34;,)
+    if &#34;b&#34; not in args[0]:
+        args[0] += &#34;b&#34;
+
+    self.write_stuff(data, *tuple(args), overwrite=overwrite, present=present, update_cache=update_cache, **kwargs)</code></pre>
+</details>
+</dd>
+<dt id="transparentpath.io.io.write_stuff"><code class="name flex">
+<span>def <span class="ident">write_stuff</span></span>(<span>self, data: Any, *args, overwrite: bool = True, present: str = 'ignore', update_cache: bool = True, **kwargs) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def write_stuff(
+    self, data: Any, *args, overwrite: bool = True, present: str = &#34;ignore&#34;, update_cache: bool = True, **kwargs
+) -&gt; None:
+    # noinspection PyProtectedMember
+    if update_cache and self.__class__._do_update_cache:
+        self._update_cache()
+    if not overwrite and self.is_file() and present != &#34;ignore&#34;:
+        raise FileExistsError()
+
+    args = list(args)
+    if len(args) == 0:
+        args = (&#34;w&#34;,)
+
+    with self.open(*args, **kwargs) as f:
+        f.write(data)</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="transparentpath.io" href="index.html">transparentpath.io</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="two-column">
+<li><code><a title="transparentpath.io.io.cp" href="#transparentpath.io.io.cp">cp</a></code></li>
+<li><code><a title="transparentpath.io.io.get" href="#transparentpath.io.io.get">get</a></code></li>
+<li><code><a title="transparentpath.io.io.mv" href="#transparentpath.io.io.mv">mv</a></code></li>
+<li><code><a title="transparentpath.io.io.myopen" href="#transparentpath.io.io.myopen">myopen</a></code></li>
+<li><code><a title="transparentpath.io.io.overload_open" href="#transparentpath.io.io.overload_open">overload_open</a></code></li>
+<li><code><a title="transparentpath.io.io.put" href="#transparentpath.io.io.put">put</a></code></li>
+<li><code><a title="transparentpath.io.io.read_text" href="#transparentpath.io.io.read_text">read_text</a></code></li>
+<li><code><a title="transparentpath.io.io.set_old_open" href="#transparentpath.io.io.set_old_open">set_old_open</a></code></li>
+<li><code><a title="transparentpath.io.io.write_bytes" href="#transparentpath.io.io.write_bytes">write_bytes</a></code></li>
+<li><code><a title="transparentpath.io.io.write_stuff" href="#transparentpath.io.io.write_stuff">write_stuff</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>
