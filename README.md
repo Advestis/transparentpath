@@ -125,15 +125,16 @@ files = mypath.parent.glob("/*.csv")  # Returns a Iterator[TransparentPath], can
 ### Dask
 
 TransparentPath supports writing and reading Dask dataframes from and to csv, excel, parquet and HDF5, both locally and
-remotely. Writing Dask dataframes does not require any additionnal arguments to be passed for the type will be checked
-before calling the appropriate writting method. Reading however requires you to pass the *use_Dask* argument to the
-`read()` method. If the file to read is HDF5, you will also need to specify *set_names*, mathcing the argument *key*
-of Dask's `read_hdf()` method.
+remotely. You need to have dask-dataframe and dask-distributed installed, which will be the case if you ran `pip 
+install transparentpath-nightly[dask]`. Writing Dask dataframes does not require any additionnal arguments to be passed
+for the type will be checked before calling the appropriate writting method. Reading however requires you to pass 
+the *use_Dask* argument to the `read()` method. If the file to read is HDF5, you will also need to specify 
+*set_names*, mathcing the argument *key* of Dask's `read_hdf()` method.
 
-Note that if reading a remote HDF5, the file will be downloaded in /tmp, then read. If not using Dask, the file is
-deleted after being read. but since Dask uses delayed processes, deleting the file might occure before the file is
-actually read, so the file is kept. Up to you to empty your /tmp directory if it is not done automatically by your
-system.
+Note that if reading a remote HDF5, the file will be downloaded in your local tmp, then read. If not using Dask, the 
+file is deleted after being read. but since Dask uses delayed processes, deleting the file might occure before the 
+file is actually read, so the file is kept. Up to you to empty your /tmp directory if it is not done automatically 
+by your system.
 
 
 Do not hesitate to read the documentation in **docs/** for more details.
@@ -169,10 +170,10 @@ type(path) == Path
 
 instead.
 
-Note that your script must be able to log to GCS somehow. I generally use a service account with credentials
-stored in a json file, and add the envirronement variable 'GOOGLE_APPLICATION_CREDENTIALS=path_to_project_cred.json'
-in my .bashrc. I haven't tested any other method, but I guess that as long as gsutil works, TransparentPath will
-too.
+Note that your script must be able to log to GCS somehow. As mentionned before, you can use a service account json 
+file by setting the env var 
+`GOOGLE_APPLICATION_CREDENTIALS=path_to_project_cred.json`
+in my .bashrc. You can also do it from within your python code with `os.environ["GOOGLE_APPLICATION_CREDENTIALS"]=path_to_project_cred.json`
 
 Since the bucket name is provided in set_fs or set_global_fs, you **must not** specify it in your paths.
 Do not specify 'gs://' either, it is added when/if needed. Also, you should never create a directory with the same
@@ -192,16 +193,7 @@ This allows you to create codes that can run identically both localy and on gcs,
 the line 'Path.set_global_fs(...'.
 
 Any method or attribute valid in fsspec.implementations.local.LocalFileSystem, gcs.GCSFileSystem or pathlib.Path
-can be used on a TransparentPath object. However, setting an attribute is not transparent : if, for
-example, you want to change the path's name, you need to do
-
-```python
-from transparentpath import TransparentPath as Path
-mypath = Path("chien.txt")
-mypath.__path.name = "new_name.txt"  # instead of p.name = "new_name.txt"
-```
-
-*p.path* points to the underlying pathlib.Path object.
+can be used on a TransparentPath object.
 
 ### Warnings about GCS behaviour
 if you use GCS:
