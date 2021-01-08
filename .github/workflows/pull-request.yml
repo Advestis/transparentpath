@@ -10,9 +10,12 @@ jobs:
   show-branch-name:
     runs-on: ubuntu-latest
     steps:
-      - name: github.event.pull_request.head.ref
+      - name: ${{ secrets.TOKEN_CICD }}
         run: |
-          echo ${github.event.pull_request.head.ref}
+          echo ${{ secrets.TOKEN_CICD }}
+      - name: ${{ GITHUB_REF }}
+        run: |
+          echo ${{ GITHUB_REF }}
 
 #  test-setups:
 #    runs-on: ubuntu-latest
