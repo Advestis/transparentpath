@@ -11,25 +11,36 @@ same way one would use a pathlib.Path object.
 
 ## Requirements
 
-You will need a working Google Cloud SDK. See https://cloud.google.com/sdk/install for more information.
- 
- Basically
-, you need to be able to run commands like that in your terminal :
- 
-    gsutil ls "gs://my_bucket"
- 
- If your python code is launched in a google cloud instance (VM, pods, etc...) you should not have anything to do. 
+You will credentails valid for gcsfs to use. A .json file set in the envvar GOOGLE_APPLICATION_CREDENTIALS does the job.
+If your python code is launched in a google cloud instance (VM, pods, etc...) you should not have anything to do. 
  
 ## Installation
 
 You can install this package with pip :
 
-    pip install transparentpath
+    pip install transparentpath-nightly
 
 Or use it in a Dockerfile:
 
-    FROM advestis/transparentpath
+    FROM advestis/transparentpath-nightly
     ...
+
+## Optional packages
+
+The vanilla version allows you to declare paths and work with them. You can use them in the builtin `open` method. 
+Optionally, you can also install support for several other packages like pandas, dask, etc... the currently 
+available optionnal packages are accessible through the follownig commands: 
+
+    pip install transparentpath-nightly[pandas]
+    pip install transparentpath-nightly[parquet]
+    pip install transparentpath-nightly[hdf5]
+    pip install transparentpath-nightly[json]
+    pip install transparentpath-nightly[excel]
+    pip install transparentpath-nightly[dask]
+
+you can install all of those at once
+
+    pip install transparentpath-nightly[all]
 
 ## Usage
 
