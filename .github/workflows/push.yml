@@ -4,7 +4,7 @@ on:
       - nightly
       - master
 
-name: ${{ GITHUB_REF##*/ }}
+name: push
 jobs:
   publish:
     runs-on: ubuntu-latest

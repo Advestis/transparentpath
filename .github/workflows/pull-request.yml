@@ -4,8 +4,15 @@ on:
       - nightly
       - master
 
-name: ${{ GITHUB_REF##*/ }}
+name: pull_request
 jobs:
+
+  show-branch-name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: show
+        run: |
+          echo ${{ GITHUB_REF##*/ }}
 
   test-setups:
     runs-on: ubuntu-latest
