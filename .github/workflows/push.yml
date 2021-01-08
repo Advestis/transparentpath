@@ -49,15 +49,18 @@ jobs:
           git add .
           git commit -m "VERSION-SKIP-CI"
       - name: Push version
+        if: ${{ matrix.python-version == 3.8 }}
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
           branch: ${{ env.BRANCH_NAME }}
           force: true
       - name: make doc
+        if: ${{ matrix.python-version == 3.8 }}
         run: |
           make doc
       - name: commit doc
+        if: ${{ matrix.python-version == 3.8 }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
@@ -72,7 +75,7 @@ jobs:
           branch: gh-pages-${{ env.BRANCH_NAME }}
           force: true
       - name: Push doc master
-        if: "contains(github.ref, 'master')"
+        if: contains(github.ref, 'master') && ${{ matrix.python-version == 3.8 }}
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
