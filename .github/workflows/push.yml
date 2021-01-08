@@ -52,7 +52,7 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
-          branch: $BRANCH_NAME
+          branch: ${BRANCH_NAME}
           force: true
       - name: make doc
         run: |
