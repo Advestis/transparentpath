@@ -148,7 +148,7 @@ jobs:
 
   pytest-38:
     runs-on: ubuntu-latest
-    needs: pytest-38
+    needs: pytest-37
     steps:
       - uses: actions/setup-python@v2
         with:
