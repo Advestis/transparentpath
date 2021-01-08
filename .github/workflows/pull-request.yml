@@ -10,9 +10,9 @@ jobs:
   show-branch-name:
     runs-on: ubuntu-latest
     steps:
-      - name: show
+      - name: ${GITHUB_REF##*/}
         run: |
-          echo ${{ GITHUB_REF##*/ }}
+          echo ${GITHUB_REF##*/}
 
   test-setups:
     runs-on: ubuntu-latest
