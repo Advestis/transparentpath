@@ -40,8 +40,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install setuptools
-          make install
-          make sdist
+          python setup.py sdist
       - name: commit version
         run: |
           git add VERSION.txt
