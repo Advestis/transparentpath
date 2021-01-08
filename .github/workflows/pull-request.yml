@@ -30,6 +30,18 @@ jobs:
       - name: Get branch name
         run: echo 'The branch name is' $BRANCH_NAME
 
+      - name: test
+        if: "!contains(github.ref, 'master')"
+        run: echo $BRANCH_NAME
+
+      - name: test2
+        if: "contains(github.ref, 'optionals')"
+        run: echo $BRANCH_NAME
+
+      - name: test2
+        if: "!contains(github.ref, 'optionals')"
+        run: echo $BRANCH_NAME
+
 #  test-setups:
 #    runs-on: ubuntu-latest
 #    strategy:

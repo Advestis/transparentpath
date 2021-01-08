@@ -13,6 +13,27 @@ jobs:
       matrix:
         python-version: [ 3.7, 3.8 ]
     steps:
+
+      # extract branch name
+      - name: Extract branch name
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: echo "::set-env name=BRANCH_NAME::$(echo ${GITHUB_REF#refs/heads/})"
+        id: extract_branch
+
+      # extract branch name on pull request
+      - name: Print branch name
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
+        if: github.event_name == 'pull_request'
+        run: echo "::set-env name=BRANCH_NAME::$(echo ${GITHUB_HEAD_REF})"
+
+      # print branch name
+      - name: Get branch name
+        run: echo 'The branch name is' $BRANCH_NAME
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -38,7 +59,7 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
-          branch: ${GITHUB_REF##*/}
+          branch: $BRANCH_NAME
           force: true
       - name: make doc
         run: |
@@ -55,7 +76,7 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
-          branch: gh-pages-${GITHUB_REF##*/}
+          branch: gh-pages-$BRANCH_NAME
           force: true
       - name: Push doc master
         if: "contains(github.ref, 'master')"
@@ -79,7 +100,7 @@ jobs:
         with:
           username: ${{ secrets.docker_login }}
           password: ${{ secrets.docker_passwd }}
-          repository: advestisrepositories/transparentpath-${GITHUB_REF##*/}
+          repository: advestisrepositories/transparentpath-$BRANCH_NAME
           tag_with_ref: true
       - name: todocker master
         if: "contains(github.ref, 'master')"
