@@ -2,8 +2,9 @@ on:
   pull_request:
     branches:
       - master
+      - nightly
 
-name: master
+name: pull_request
 jobs:
 
   test-setups:
@@ -56,7 +57,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -70,7 +71,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -84,7 +85,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -98,7 +99,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -112,7 +113,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -126,7 +127,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -140,7 +141,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -169,7 +170,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -183,7 +184,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -197,7 +198,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -211,7 +212,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -225,7 +226,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -239,7 +240,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -253,7 +254,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |

@@ -2,8 +2,9 @@ on:
   push:
     branches:
       - nightly
+      - master
 
-name: nightly
+name: push
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -12,6 +13,21 @@ jobs:
       matrix:
         python-version: [ 3.7, 3.8 ]
     steps:
+
+      # extract branch name
+      - name: Extract branch name
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
+        if: github.event_name != 'pull_request'
+        run: echo "::set-env name=BRANCH_NAME::$(echo ${GITHUB_REF#refs/heads/})"
+
+      # extract branch name on pull request
+      - name: Extract branch name PR
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
+        if: github.event_name == 'pull_request'
+        run: echo "::set-env name=BRANCH_NAME::$(echo ${GITHUB_HEAD_REF})"
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -37,7 +53,7 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
-          branch: "nightly"
+          branch: $BRANCH_NAME
           force: true
       - name: make doc
         run: |
@@ -48,12 +64,22 @@ jobs:
           git config --local user.name "GitHub Action"
           git add .
           git commit -m "docs"
-      - name: Push doc
+
+      - name: Push doc sidebranch
+        if: "!contains(github.ref, 'master')"
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.TOKEN_CICD }}
-          branch: "gh-pages-nightly"
+          branch: gh-pages-$BRANCH_NAME
           force: true
+      - name: Push doc master
+        if: "contains(github.ref, 'master')"
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.TOKEN_CICD }}
+          branch: gh-pages
+          force: true
+
       - name: topypi
         uses: pypa/gh-action-pypi-publish@master
         with:
@@ -61,10 +87,20 @@ jobs:
           password: ${{ secrets.pypi_passwd }}
           skip_existing: true
           verbose: true
-      - name: todocker
+
+      - name: todocker sidebranch
+        if: "!contains(github.ref, 'master')"
         uses: docker/build-push-action@v1
         with:
           username: ${{ secrets.docker_login }}
           password: ${{ secrets.docker_passwd }}
-          repository: advestisrepositories/transparentpath-nighlty
+          repository: advestisrepositories/transparentpath-$BRANCH_NAME
+          tag_with_ref: true
+      - name: todocker master
+        if: "contains(github.ref, 'master')"
+        uses: docker/build-push-action@v1
+        with:
+          username: ${{ secrets.docker_login }}
+          password: ${{ secrets.docker_passwd }}
+          repository: advestisrepositories/transparentpath
           tag_with_ref: true
