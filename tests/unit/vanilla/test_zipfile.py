@@ -1,6 +1,6 @@
 import zipfile
 import pytest
-from .functions import init, skip_gcs
+from ..functions import init, skip_gcs
 
 from transparentpath import TransparentPath
 

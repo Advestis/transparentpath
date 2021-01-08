@@ -2,7 +2,7 @@ import gcsfs
 import pytest
 from fsspec.implementations.local import LocalFileSystem
 from transparentpath import TransparentPath
-from .functions import init, skip_gcs, reinit
+from ..functions import init, skip_gcs, reinit
 
 
 # noinspection PyUnusedLocal

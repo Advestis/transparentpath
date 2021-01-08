@@ -3,7 +3,7 @@ import importlib.util
 from transparentpath import TransparentPath
 from transparentpath.gcsutils.transparentpath import MultipleExistenceError
 from pathlib import Path
-from .functions import init, skip_gcs, get_reqs
+from ..functions import init, skip_gcs, get_reqs
 
 requirements = get_reqs(Path(__file__).stem.split("test_")[1])
 

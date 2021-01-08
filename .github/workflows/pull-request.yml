@@ -50,6 +50,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
       - name: test-vanilla
         uses: nick-invision/retry@v2
         env:
@@ -59,10 +60,22 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            pytest -s -v tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-            pytest -s -v tests/unit/test_path_creation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-            pytest -s -v tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-            pytest -s -v tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+            pytest -s -v tests/unit/vanilla --token "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Install dependencies json
+        run: |
+          pip install -r json-requirements.txt
+      - name: test-json
+        uses: nick-invision/retry@v2
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_json.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+
       - name: Install dependencies pandas
         run: |
           pip install -r pandas-requirements.txt
@@ -77,9 +90,65 @@ jobs:
           command: |
             pytest -s -v tests/unit/test_pandas.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
 
+      - name: Install dependencies parquet
+        run: |
+          pip install -r parquet-requirements.txt
+      - name: test-parquet
+        uses: nick-invision/retry@v2
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_parquet.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Install dependencies excel
+        run: |
+          pip install -r excel-requirements.txt
+      - name: test-excel
+        uses: nick-invision/retry@v2
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_excel.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Install dependencies hdf5
+        run: |
+          pip install -r hdf5-requirements.txt
+      - name: test-hdf5
+        uses: nick-invision/retry@v2
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_hdf5.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Install dependencies dask
+        run: |
+          pip install -r dask-requirements.txt
+      - name: test-dask
+        uses: nick-invision/retry@v2
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_dask.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+
   pytest-38:
     runs-on: ubuntu-latest
-    needs: pytest-37
+    needs: pytest-38
     steps:
       - uses: actions/setup-python@v2
         with:
@@ -94,6 +163,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
       - name: test-vanilla
         uses: nick-invision/retry@v2
         env:
@@ -103,10 +173,22 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            pytest -s -v tests/unit/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-            pytest -s -v tests/unit/test_path_creation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-            pytest -s -v tests/unit/test_vanilla.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
-            pytest -s -v tests/unit/test_io.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+            pytest -s -v tests/unit/vanilla --token "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Install dependencies json
+        run: |
+          pip install -r json-requirements.txt
+      - name: test-json
+        uses: nick-invision/retry@v2
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_json.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+
       - name: Install dependencies pandas
         run: |
           pip install -r pandas-requirements.txt
@@ -120,3 +202,59 @@ jobs:
           retry_on: error
           command: |
             pytest -s -v tests/unit/test_pandas.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Install dependencies parquet
+        run: |
+          pip install -r parquet-requirements.txt
+      - name: test-parquet
+        uses: nick-invision/retry@v2
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_parquet.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Install dependencies excel
+        run: |
+          pip install -r excel-requirements.txt
+      - name: test-excel
+        uses: nick-invision/retry@v2
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_excel.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Install dependencies hdf5
+        run: |
+          pip install -r hdf5-requirements.txt
+      - name: test-hdf5
+        uses: nick-invision/retry@v2
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_hdf5.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Install dependencies dask
+        run: |
+          pip install -r dask-requirements.txt
+      - name: test-dask
+        uses: nick-invision/retry@v2
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_dask.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
