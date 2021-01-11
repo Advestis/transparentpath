@@ -13,9 +13,17 @@ def myopen(*args, **kwargs) -> IO:
         raise ValueError("open method needs arguments.")
     thefile = args[0]
     if type(thefile) == str and "gs://" in thefile:
-        if "gcs" not in TransparentPath.fss:
-            raise OSError("You are trying to access a file on GCS without having set a proper GCSFileSystem first.")
-        thefile = TransparentPath(thefile.replace(f"gs://{TransparentPath.bucket}", ""), fs="gcs")
+        if "fs" not in kwargs:
+            found = False
+            for fs in TransparentPath.fss:
+                if "gcs" in fs:
+                    found = True
+                    thefile = TransparentPath(thefile.replace(f"gs://{TransparentPath.bucket}", ""), fs=fs)
+                    break
+            if not found:
+                raise OSError("You are trying to access a file on GCS without having set a proper GCSFileSystem first.")
+        else:
+            thefile = TransparentPath(thefile.replace(f"gs://{TransparentPath.bucket}", ""), fs=kwargs["fs"])
     if isinstance(thefile, TransparentPath):
         return thefile.open(*args[1:], **kwargs)
     elif (
