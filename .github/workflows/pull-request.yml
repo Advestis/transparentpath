@@ -1,18 +1,22 @@
 on:
-  pull_request:
-    branches:
-      - master
-      - nightly
+  push: windows
+#  pull_request:
+#    branches:
+#      - master
+#      - nightly
+
+strategy:
+  matrix:
+    opt: [vanilla, pandas, excel, json, parquet, hdf5, dask, all]
+    python-version: [ 3.7, 3.8 ]
+    os: [ubuntu-latest, windows-latest]
 
 name: pull_request
 jobs:
 
   test-setups:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        opt: [vanilla, pandas, excel, json, parquet, hdf5, dask, all]
-        python-version: [ 3.7, 3.8 ]
+    if: !(contains(matrix.os, 'windows') && matrix.opt == 'hdf5')
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/setup-python@v2
         with:
@@ -22,11 +26,25 @@ jobs:
         with:
           token: ${{ secrets.token_cicd }}
           fetch-depth: 0
-      - name: test dependencies ${{ matrix.opt }}
+      - name: test dependencies ${{ matrix.opt }} - ubuntu
+        if: contains(matrix.os, 'ubuntu')
         run: |
           python -m pip install --upgrade pip
           pip install pytest
           if [ "${{ matrix.opt }}" = "vanilla" ] ; then
+              echo "running pip install ."
+              pip install .
+          else
+              echo "running pip install .[${{ matrix.opt }}]"
+              pip install .[${{ matrix.opt }}]
+          fi
+          pytest -s -v tests/dependencies/dep.py --name ${{ matrix.opt }}
+      - name: test dependencies ${{ matrix.opt }} - windows
+        if: contains(matrix.os, 'windows')
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+          if ( "${{ matrix.opt }}" = "vanilla" ) ; then
               echo "running pip install ."
               pip install .
           else
