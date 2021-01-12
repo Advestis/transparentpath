@@ -8,8 +8,8 @@ on:
 
 name: pull_request
 jobs:
-#  if: !(contains(matrix.os, 'windows') && matrix.opt == 'hdf5')
   hello:
+    if: !(contains(matrix.os, 'windows') && matrix.opt == 'hdf5')
     strategy:
       matrix:
         opt: [ vanilla, pandas, excel, json, parquet, hdf5, dask, all ]
