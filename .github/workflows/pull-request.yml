@@ -16,8 +16,8 @@ jobs:
         os: [ ubuntu-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
     steps:
-      if: "!(contains(matrix.os, 'windows'))"
        - name: Hello
+          if: "!(contains(matrix.os, 'windows'))"
          run: echo "runs ${{ matrix.opt }} on python ${{ matrix.python-version }} and os ${{ matrix.os }}"
 
 #  test-setups:
