@@ -1,5 +1,6 @@
 on:
-  push: windows
+  push:
+    branches: windows
 #  pull_request:
 #    branches:
 #      - master
