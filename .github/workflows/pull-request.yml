@@ -15,7 +15,10 @@ name: pull_request
 jobs:
 #  if: !(contains(matrix.os, 'windows') && matrix.opt == 'hdf5')
   hello:
-    run: echo "runs ${{ matrix.opt }}" # on python ${{ matrix.python-version }} and os ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    steps:
+       - name: Hello
+         run: echo "runs ${{ matrix.opt }}" # on python ${{ matrix.python-version }} and os ${{ matrix.os }}"
 
 #  test-setups:
 #    runs-on: ${{ matrix.os }}
