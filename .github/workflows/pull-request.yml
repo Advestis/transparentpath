@@ -13,9 +13,9 @@ strategy:
 
 name: pull_request
 jobs:
+  if: !(contains(matrix.os, 'windows') && matrix.opt == 'hdf5')
 
   test-setups:
-    if: !(contains(matrix.os, 'windows') && matrix.opt == 'hdf5')
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/setup-python@v2
