@@ -18,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
        - name: Hello
-         run: echo "runs ${{ matrix.opt }}" # on python ${{ matrix.python-version }} and os ${{ matrix.os }}"
+         run: echo "runs ${{ matrix.opt }} on python ${{ matrix.python-version }} and os ${{ matrix.os }}"
 
 #  test-setups:
 #    runs-on: ${{ matrix.os }}
