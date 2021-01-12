@@ -52,7 +52,7 @@ jobs:
               echo "running pip install .[${{ matrix.opt }}]"
               pip install .[${{ matrix.opt }}]
           }
-          pytest -s -v tests/dependencies/dep.py --name ${{ matrix.opt }}
+          pytest -s -v tests\dependencies\dep.py --name ${{ matrix.opt }}
 
 #  pytest-37:
 #    runs-on: ubuntu-latest
