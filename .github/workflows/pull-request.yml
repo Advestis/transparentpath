@@ -14,9 +14,9 @@ jobs:
         opt: [ vanilla, pandas, excel, json, parquet, hdf5, dask, all ]
         python-version: [ 3.7, 3.8 ]
         os: [ ubuntu-latest, windows-latest ]
-    if: "!(contains(matrix.os, 'windows'))"
     runs-on: ${{ matrix.os }}
     steps:
+      if: "!(contains(matrix.os, 'windows'))"
        - name: Hello
          run: echo "runs ${{ matrix.opt }} on python ${{ matrix.python-version }} and os ${{ matrix.os }}"
 
