@@ -9,12 +9,12 @@ on:
 name: pull_request
 jobs:
   hello:
-    if: "!(contains(matrix.os, 'windows'))"
     strategy:
       matrix:
         opt: [ vanilla, pandas, excel, json, parquet, hdf5, dask, all ]
         python-version: [ 3.7, 3.8 ]
         os: [ ubuntu-latest, windows-latest ]
+    if: "!(contains(matrix.os, 'windows'))"
     runs-on: ${{ matrix.os }}
     steps:
        - name: Hello
