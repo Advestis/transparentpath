@@ -298,15 +298,16 @@ jobs:
           pip install -r requirements.txt
 
       - name: test-vanilla
-        uses: nick-invision/retry@v2
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-        with:
-          timeout_minutes: 60
-          max_attempts: 3
-          retry_on: error
-          command: |
-            python -m pytest -s -v tests/unit/vanilla --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+        run: pytest -s -v tests/unit/vanilla --token ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+#        uses: nick-invision/retry@v2
+#        env:
+#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+#        with:
+#          timeout_minutes: 60
+#          max_attempts: 3
+#          retry_on: error
+#          command: |
+#            pytest -s -v tests/unit/vanilla --token $Env:GOOGLE_APPLICATION_CREDENTIALS
 
       - name: Install dependencies json
         run: |
@@ -320,7 +321,7 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            python -m pytest -s -v tests/unit/test_json.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+            pytest -s -v tests/unit/test_json.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
 
       - name: Install dependencies pandas
         run: |
@@ -334,7 +335,7 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            python -m pytest -s -v tests/unit/test_pandas.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+            pytest -s -v tests/unit/test_pandas.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
 
       - name: Install dependencies parquet
         run: |
@@ -348,7 +349,7 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            python -m pytest -s -v tests/unit/test_parquet.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+            pytest -s -v tests/unit/test_parquet.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
 
       - name: Install dependencies excel
         run: |
@@ -362,7 +363,7 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            python -m pytest -s -v tests/unit/test_excel.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+            pytest -s -v tests/unit/test_excel.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
 
 #      - name: Install dependencies hdf5
 #        run: |
@@ -376,7 +377,7 @@ jobs:
 #          max_attempts: 3
 #          retry_on: error
 #          command: |
-#            python -m pytest -s -v tests/unit/test_hdf5.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+#            pytest -s -v tests/unit/test_hdf5.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
 
       - name: Install dependencies dask
         run: |
@@ -390,7 +391,7 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            python -m pytest -s -v tests/unit/test_dask.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+            pytest -s -v tests/unit/test_dask.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
 
   pytest-38-windows:
     runs-on: windows-latest
@@ -419,7 +420,7 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            python -m pytest -s -v tests/unit/vanilla --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+            pytest -s -v tests/unit/vanilla --token $Env:GOOGLE_APPLICATION_CREDENTIALS
 
       - name: Install dependencies json
         run: |
@@ -433,7 +434,7 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            python -m pytest -s -v tests/unit/test_json.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+            pytest -s -v tests/unit/test_json.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
 
       - name: Install dependencies pandas
         run: |
@@ -447,7 +448,7 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            python -m pytest -s -v tests/unit/test_pandas.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+            pytest -s -v tests/unit/test_pandas.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
 
       - name: Install dependencies parquet
         run: |
@@ -461,7 +462,7 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            python -m pytest -s -v tests/unit/test_parquet.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+            pytest -s -v tests/unit/test_parquet.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
 
       - name: Install dependencies excel
         run: |
@@ -475,7 +476,7 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            python -m pytest -s -v tests/unit/test_excel.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+            pytest -s -v tests/unit/test_excel.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
 
 #      - name: Install dependencies hdf5
 #        run: |
@@ -489,7 +490,7 @@ jobs:
 #          max_attempts: 3
 #          retry_on: error
 #          command: |
-#            python -m pytest -s -v tests/unit/test_hdf5.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+#            pytest -s -v tests/unit/test_hdf5.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
 
       - name: Install dependencies dask
         run: |
@@ -503,4 +504,4 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            python -m pytest -s -v tests/unit/test_dask.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
+            pytest -s -v tests/unit/test_dask.py --token $Env:GOOGLE_APPLICATION_CREDENTIALS
