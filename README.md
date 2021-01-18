@@ -195,6 +195,8 @@ the line 'Path.set_global_fs(...'.
 Any method or attribute valid in fsspec.implementations.local.LocalFileSystem, gcs.GCSFileSystem or pathlib.Path
 can be used on a TransparentPath object.
 
+## Warnings
+
 ### Warnings about GCS behaviour
 if you use GCS:
 
@@ -216,14 +218,19 @@ straightforward).
 7. To actually check whether the directory exists (for, like, reading from it), add the kwarg 'exist=True' to
 is_dir() if using GCS.
 
-8. If a file exists with the same path than a directory, then the class is not able to know which one is the
-file and which one is the directory, and will raise a MultipleExistenceError at object creation. Will also
-check for multiplicity at almost every method in case an exterior source created a duplicate of the
-file/directory.
+8. It is possible on GCS to have a file and a directory at the same place with the exact same name.
+   Creating a TransparentPath pointing to the said location will raise a MultipleExistenceError at object creation.
+   The class checks for multiplicity at almost every method, in case an exterior source created a duplicate 
+   of the file/directory.
 
-If a method in a package you did not create uses the os.open(), you will have to create a class to override this
-method and anything using its ouput. Indeed os.open returns a file descriptor, not an IO, and I did not find a
-way to access file descriptors on gcs. For example, in the FileLock package, the acquire() method calls the
+### os.open
+
+os.open is overloaded by TransparentPath to support giving a TransparentPath to it. If a method in a package you did 
+not create uses the os.open() in a *with* statement, everything should work out of the box with a TransparentPath. 
+
+However, if it uses the **output** of os.open, you will have to create a class to 
+override this method and anything using its ouput. Indeed, os.open returns a file descriptor, not an IO, and I did 
+not find a way to access file descriptors on gcs. For example, in the FileLock package, the acquire() method calls the
 _acquire() method which calls os.open(), so I had to do that:
 
 ```python
@@ -263,3 +270,15 @@ def _acquire(self):
 
 I tried to implement a working version of any method valid in pathlib.Path or in file systems, but futur changes
 in any of those will not be taken into account quickly.
+
+### Other warnings
+
+When a TransparentPath object is instantiated, its FileSystem if remembered by the class and all following objects 
+will use the same FileSystem if not otherwise specified. This is to allow switching between local and gcs files in a
+single line of code.
+
+This can give rise to strange behavior if running a code on PyCharm (and maybe with other IDEs 
+too, but I tested only this one) : if you run two different codes in two different PyCharm windows using the PyCharm's 
+"Run" button (I suspect the same will be observed using "debug"), then the first FileSystem to be instantiated by any 
+code will be shared by both codes. This does not happen if you run those codes in the terminal with the "python" 
+command however.
