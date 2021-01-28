@@ -1068,7 +1068,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         elif kind == "fs":
             the_obj = getattr(self.fs, obj_name)
             if callable(the_obj):
-                to_ret = the_obj(*new_args, **kwargs)
+                if len(signature(the_obj).parameters) == 0:
+                    to_ret = the_obj()
+                else:
+                    to_ret = the_obj(*new_args, **kwargs)
             else:
                 return the_obj
             return to_ret
