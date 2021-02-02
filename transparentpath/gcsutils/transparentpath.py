@@ -741,6 +741,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def path(self, value):
         raise AttributeError("Can not set protected attribute 'path'")
 
+    def __dask_tokenize__(self):
+        return hash(self)
+
     def __contains__(self, item: str) -> bool:
         """Overload of 'in' operator
         Use __fspath__ instead of str(self) so that any method trying to assess whether the path is on gcs using
