@@ -455,6 +455,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
     _do_update_cache = True
     _do_check = True
     LOCAL_SEP = os.path.sep
+    caching: str = "None"
+    caching_max_memory = 1000000000
+    cached_data_dict = collections.OrderedDict()
 
     _attributes = ["fs", "path", "fs_kind", "project", "bucket"]
 
@@ -558,6 +561,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         bucket: Optional[str] = None,
         project: Optional[str] = None,
         token: Optional[Union[dict, str]] = None,
+        enable_caching: bool = True,
         **kwargs,
     ):
         """Creator of the TranparentPath object
@@ -592,7 +596,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             Any optional kwargs valid in pathlib.Path
 
         """
-
+        self.enable_caching = enable_caching
         if path is None:
             path = "."
 
@@ -1693,6 +1697,39 @@ class TransparentPath(os.PathLike):  # noqa : F811
             to_ret = [self.cast_iterable(item) for item in iter_]
             return to_ret
 
+    def caching_saver(self, file):
+        """
+        save fetched data in tmp file or dict, if not exceeding caching_max_memory else remove oldest data
+        """
+        if self.enable_caching:
+            used_memory = 0
+            if self.caching == "ram":
+                if sys.getsizeof(file) > self.caching_max_memory:
+                    raise BufferError("TOO FAT FILE")
+                for i in self.cached_data_dict.items():
+                    used_memory += sys.getsizeof(i)
+                while used_memory+sys.getsizeof(file) > self.caching_max_memory:
+                    bye = self.cached_data_dict.popitem(last=False)
+                    used_memory -= sys.getsizeof(bye)
+                self.cached_data_dict[self] = file
+            elif self.caching == "tmpfile":
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=self.suffix)
+                self.get(temp_file.name)
+                tempfilesize = temp_file.file.tell()
+                temp_file.close()
+                if tempfilesize > self.caching_max_memory:
+                    raise BufferError("TOO FAT FILE")
+                for values in self.cached_data_dict.values():
+                    used_memory += values["memory"]
+                while used_memory + tempfilesize > self.caching_max_memory:
+                    bye = self.cached_data_dict.popitem(last=False)
+                    bye["file"].close()
+                    used_memory -= bye["memory"]
+                    del bye
+                self.cached_data_dict[self] = {"file": temp_file.name, "memory": tempfilesize}
+            else:
+                return None
+
     def read(
         self,
         *args,
@@ -1747,6 +1784,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
         -------
         Any
         """
+        if self.enable_caching:
+            if self.caching == "ram":
+                if self in self.cached_data_dict.keys():
+                    return self.cached_data_dict[self]
+            elif self.caching == "tmpfile":
+                if self in self.cached_data_dict.keys():
+                    return TransparentPath(self.cached_data_dict[self]["file"].name, fs="local").read(**kwargs)
 
         if TransparentPath._do_check:
             self._check_multiplicity()
@@ -1758,7 +1802,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 raise FileNotFoundError(f"Could not find file {self}")
 
         if self.suffix == ".csv":
-            return self.read_csv(update_cache=update_cache, use_dask=use_dask, **kwargs)
+            ret = self.read_csv(update_cache=update_cache, use_dask=use_dask, **kwargs)
+            self.caching_saver(ret)
+            return ret
         elif self.suffix == ".parquet":
             index_col = None
             if "index_col" in kwargs:
@@ -1769,15 +1815,24 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if index_col:
                 # noinspection PyUnresolvedReferences
                 content.set_index(content.columns[index_col])
+            self.caching_saver(content)
             return content
         elif self.suffix == ".hdf5" or self.suffix == ".h5":
-            return self.read_hdf5(update_cache=update_cache, use_pandas=use_pandas, use_dask=use_dask, **kwargs)
+            ret = self.read_hdf5(update_cache=update_cache, use_pandas=use_pandas, use_dask=use_dask, **kwargs)
+            self.caching_saver(ret)
+            return ret
         elif self.suffix == ".json":
-            return self.read_json(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
+            ret = self.read_json(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
+            self.caching_saver(ret)
+            return ret
         elif self.suffix in [".xlsx", ".xls", ".xlsm"]:
-            return self.read_excel(update_cache=update_cache, use_dask=use_dask, **kwargs)
+            ret = self.read_excel(update_cache=update_cache, use_dask=use_dask, **kwargs)
+            self.caching_saver(ret)
+            return ret
         else:
-            return self.read_text(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
+            ret = self.read_text(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
+            self.caching_saver(ret)
+            return ret
 
     # noinspection PyUnresolvedReferences
     def write(
