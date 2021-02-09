@@ -63,7 +63,7 @@ def put(self, dst: Union[str, Path, TransparentPath]):
     # noinspection PyUnresolvedReferences
     if type(dst) == TransparentPath and "gcs" not in dst.fs_kind:
         raise ValueError(
-            "The second argument can not be a local " "TransparentPath. To move a file " "localy, use the mv() method."
+            "The second argument can not be a local TransparentPath. To move a file localy, use the mv() method."
         )
     if type(dst) != TransparentPath:
         dst = TransparentPath(dst, fs="gcs")
@@ -80,7 +80,7 @@ def put(self, dst: Union[str, Path, TransparentPath]):
                     f2.write(data)
 
 
-def get(self, loc: Union[str, Path, TransparentPath]):
+def get(self, loc: Union[str, Path, TransparentPath], recursive: bool = False):
     """used to get a remote file to local. Does not remove the remote file.
 
     self must be a remote TransparentPath. If loc is a TransparentPath, it must be local. If it is a pathlib.Path or
@@ -98,7 +98,7 @@ def get(self, loc: Union[str, Path, TransparentPath]):
         )
     if type(loc) != TransparentPath:
         loc = TransparentPath(loc, fs="local", bucket=self.bucket, project=self.project)
-    self.fs.get(self.__fspath__(), loc.__fspath__())
+    self.fs.get(self.__fspath__(), loc.__fspath__(), recursive=recursive)
 
 
 def mv(self, other: Union[str, Path, TransparentPath]):
