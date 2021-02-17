@@ -1,5 +1,6 @@
 import builtins
 import os
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Union, Tuple, Any, Iterator, Optional, Iterable, List, Callable
@@ -145,6 +146,7 @@ def get_fs(
 
     """
     if "gcs" in fs_kind:
+        check_credentials(token)
         bucket = bucket.replace("/", "")
         if token is None:
             fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)  # check_connection fails for some reason
@@ -225,6 +227,25 @@ def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
         del kwargs["parse_dates"]
     # noinspection PyTypeChecker
     return index_col, parse_dates, kwargs
+
+
+def check_credentials(token: str = None):
+    if token is None and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
+        raise EnvironmentError(
+            "If no token is explicitely specified, needs GOOGLE_APPLICATION_CREDENTIALS"
+            "environnement variable to be set"
+        )
+    elif token is None:
+        token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        if not Path(token).is_file():
+            raise FileNotFoundError(f"Crendential file {token} not found")
+
+
+def extract_project_from_token(token: str = None) -> str:
+    content = json.load(open(token))
+    if "project_id" not in content:
+        raise ValueError(f"Credential file {token} does not contain project_id key.")
+    return content["project_id"]
 
 
 class MultipleExistenceError(Exception):
@@ -537,10 +558,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
         TransparentPath._set_nas_dir(cls, nas_dir)
 
         if "gcs" in cls.fs_kind:
+            check_credentials(token)
             if cls.bucket is None:
                 raise ValueError("Need to provide a bucket name!")
             if cls.project is None:
-                raise ValueError("Need to provide a project name!")
+                cls.project = extract_project_from_token(token)
             cls.fs_kind = f"gcs_{cls.project}"
 
         cls.fss[cls.fs_kind] = get_fs(cls.fs_kind, cls.project, cls.bucket, cls.token)
@@ -631,10 +653,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         # In case we initiate a path containing 'gs://'
         if remote_prefix in str(path):
-
+            check_credentials(token)
             if project is None:
                 if TransparentPath.project is None:
-                    raise ValueError("You specified a path starting with 'gs://' but did not specify any GCP project")
+                    TransparentPath.project = extract_project_from_token(token)
                 project = TransparentPath.project
 
             if fs == "local":
@@ -680,8 +702,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.nas_dir = TransparentPath.nas_dir
 
         if "gcs" in self.fs_kind:
+            check_credentials(self.token)
             if self.project is None:
-                raise ValueError("If File System is to be GCS, please provide the project name")
+                self.project = extract_project_from_token(self.token)
             if self.bucket is None:
                 raise ValueError("If File System is to be GCS, please provide the bucket name")
             self.fs_kind = f"gcs_{self.project}"
@@ -979,10 +1002,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
 
         if "gcs" in self.fs_kind:
+            check_credentials(self.token)
             if self.bucket is None:
                 raise ValueError("Need to provide a bucket name!")
             if self.project is None:
-                raise ValueError("Need to provide a project name!")
+                self.project = extract_project_from_token(self.token)
             self.fs_kind = f"{self.fs_kind}"
 
         # If class has same kind of file system instance, use it
@@ -2022,6 +2046,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 # Do imports from detached files here because some of them import TransparentPath and need it fully declared.
 
 from ..io.io import put, get, mv, cp, overload_open, read_text, write_stuff, write_bytes
+
 # noinspection PyUnresolvedReferences
 from ..io import zipfile
 
@@ -2090,7 +2115,7 @@ try:
         write_excel,
         read_parquet,
         write_parquet,
-        check_dask
+        check_dask,
     )
 
     setattr(TransparentPath, "read_csv_dask", read_csv)
