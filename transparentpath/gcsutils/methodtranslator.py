@@ -1,5 +1,10 @@
 from typing import Dict, Tuple, List
-from .transparentpath import TPValueError
+
+
+class TPValueError(ValueError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
 
 
 class MethodTranslator(object):

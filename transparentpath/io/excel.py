@@ -68,7 +68,7 @@ try:
             with tempfile.NamedTemporaryFile(delete=True, suffix=self.suffix) as f:
                 check_kwargs(data.to_excel, kwargs)
                 data.to_excel(f.name, **kwargs)
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
 
 
 except ImportError as e:

@@ -223,10 +223,8 @@ def get_fs(
         else:
             fs = gcsfs.GCSFileSystem(project=project, asynchronous=False, token=token)
         # Will raise RefreshError if connection fails
-        if bucket is not None:
-            bucket = bucket.replace("/", "")
-            fs.glob(bucket)
-            check_buckets(fs, bucket)
+        bucket = bucket.replace("/", "")
+        check_buckets(fs, bucket)
         return fs, project
     else:
         return LocalFileSystem(), None
@@ -254,6 +252,7 @@ def get_buckets(fs: gcsfs.GCSFileSystem) -> List[str]:
 
 def check_buckets(fs: Union[gcsfs.GCSFileSystem, LocalFileSystem], bucket: str):
     if isinstance(fs, gcsfs.GCSFileSystem):
+        fs.glob(bucket)
         buckets = get_buckets(fs)
         if f"{bucket}/" not in buckets:
             raise TPNotADirectoryError(
@@ -307,11 +306,18 @@ def check_credentials(token: str = None):
         )
     elif token is None:
         token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        if not Path(token).is_file():
+        if not Path(token, fs="local").is_file():
             raise TPFileNotFoundError(f"Crendential file {token} not found")
 
 
 def extract_project_from_token(token: str = None) -> str:
+    if token is None and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
+        raise TPEnvironmentError(
+            "If no token is explicitely specified, needs GOOGLE_APPLICATION_CREDENTIALS"
+            "environnement variable to be set"
+        )
+    elif token is None:
+        token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     content = json.load(open(token))
     if "project_id" not in content:
         raise TPValueError(f"Credential file {token} does not contain project_id key.")
@@ -462,7 +468,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     @classmethod
     def reinit(cls):
         cls.fss = {}
-        cls.fs_kind = ""
+        cls.fs_kind = None
         cls.bucket = None
         cls.nas_dir = "/media/SERVEUR"
         cls.unset = True
@@ -567,6 +573,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
         if "gcs" not in fs and fs != "local":
             raise TPValueError(f"Unknown value {fs} for parameter 'fs'")
+        if "gcs" in fs and bucket is None:
+            raise TPValueError("If using set_global_fs for GCS, provide a bucket name otherwise the command is useless")
 
         cls.fs_kind = fs
         cls.bucket = bucket
@@ -575,9 +583,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         TransparentPath._set_nas_dir(cls, nas_dir)
 
         fs, project = get_fs(cls.fs_kind, cls.bucket, cls.token)
-        cls.fss[cls.fs_kind] = fs
         if project is not None:
             cls.fs_kind = f"gcs_{project}"
+        cls.fss[cls.fs_kind] = fs
         TransparentPath.unset = False
 
     def __init__(
@@ -695,7 +703,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.bucket = bucket if bucket is not None else TransparentPath.bucket
         self.token = token if token is not None else TransparentPath.token
         self.fs_kind = fs if fs is not None else TransparentPath.fs_kind
-        if self.fs_kind == "":
+        if self.fs_kind == "" or self.fs_kind is None:
             self.fs_kind = "local"
         self.fs = None
         self.nas_dir = TransparentPath.nas_dir
@@ -704,8 +712,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
             project = extract_project_from_token(token)
             check_credentials(self.token)
             if self.bucket is None:
-                raise TPValueError("If File System is to be GCS, please provide the bucket name, either by using "
-                                   "bucket= or by giving a path starting by gs://bucket/...")
+                raise TPValueError(
+                    "If File System is to be GCS, please provide the bucket name, either by using "
+                    "bucket= or by giving a path starting by gs://bucket/..."
+                )
             self.fs_kind = f"gcs_{project}"
 
         # Set the file system of this class's instance. If an instance of same file system exists in class's fss,
@@ -934,9 +944,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if not callable(obj):
                 # Fetch the self.path's attributes to set it to self
                 if type(obj) == type(self.__path):  # noqa: E721
-                    setattr(
-                        self, obj_name, TransparentPath(obj, fs=self.fs_kind, bucket=self.bucket)
-                    )
+                    setattr(self, obj_name, TransparentPath(obj, fs=self.fs_kind, bucket=self.bucket))
                     return TransparentPath(obj, fs=self.fs_kind, bucket=self.bucket)
                 elif isinstance(obj, Iterable):
                     obj = self.cast_iterable(obj)
@@ -1008,6 +1016,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if use_common:
             self.fs = TransparentPath.fss[self.fs_kind]
             self.nas_dir = TransparentPath.nas_dir
+            check_buckets(self.fs, self.bucket)
         # Else, init a new file system instance and share it with
         # TransparentPath
         else:
@@ -1608,10 +1617,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             thefile = TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket)
             if thefile.is_file():
                 raise TPFileExistsError(
-                    "A parent directory can not be "
-                    "created because there is already a"
-                    " file at"
-                    f" {thefile}"
+                    "A parent directory can not be created because there is already a file at" f" {thefile}"
                 )
 
         if self.fs_kind == "local":

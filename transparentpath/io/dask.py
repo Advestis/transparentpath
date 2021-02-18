@@ -176,7 +176,7 @@ try:
             path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
         futures = self.__class__.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
         outfiles = [
-            TransparentPath(f, fs=self.fs_kind, bucket=self.bucket, project=self.project) for f in futures.result()
+            TransparentPath(f, fs=self.fs_kind, bucket=self.bucket) for f in futures.result()
         ]
         if len(outfiles) == 1:
             outfiles[0].mv(self)
@@ -251,7 +251,7 @@ try:
                     dd.to_hdf, list(sets.values()), [f.name] * len(sets), list(sets.keys()), mode=mode, **kwargs
                 )
                 self.__class__.cli.gather(futures)
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
         return
 
     def write_excel(
@@ -286,7 +286,7 @@ try:
                 check_kwargs(pd.DataFrame.to_excel, kwargs)
                 parts = delayed(pd.DataFrame.to_excel)(data, f.name, **kwargs)
                 parts.compute()
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
 
 
 except ImportError as e:

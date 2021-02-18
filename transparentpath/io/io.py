@@ -98,7 +98,7 @@ def get(self, loc: Union[str, Path, TransparentPath], recursive: bool = False):
             " local, use get()"
         )
     if type(loc) != TransparentPath:
-        loc = TransparentPath(loc, fs="local", bucket=self.bucket, project=self.project)
+        loc = TransparentPath(loc, fs="local", bucket=self.bucket)
     self.fs.get(self.__fspath__(), loc.__fspath__(), recursive=recursive)
 
 
@@ -106,7 +106,7 @@ def mv(self, other: Union[str, Path, TransparentPath]):
     """Used to move a file or a directory. Works between any filesystems."""
 
     if not type(other) == TransparentPath:
-        other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+        other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket)
 
     if other.fs_kind != self.fs_kind:
         if self.fs_kind == "local":
@@ -142,7 +142,7 @@ def cp(self, other: Union[str, Path, TransparentPath]):
         raise TPFileNotFoundError(f"No such file or directory: {self}")
 
     if not type(other) == TransparentPath:
-        other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+        other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket)
     if other.fs_kind != self.fs_kind:
         if self.fs_kind == "local":
             self.put(other)

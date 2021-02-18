@@ -42,7 +42,7 @@ try:
         This allows to do :
         >>> from transparentpath import TransparentPath  # doctest: +SKIP
         >>> import numpy as np  # doctest: +SKIP
-        >>> TransparentPath.set_global_fs("gcs", bucket="bucket_name", project="project_name")  # doctest: +SKIP
+        >>> TransparentPath.set_global_fs("gcs", bucket="bucket_name")  # doctest: +SKIP
         >>> path = TransparentPath("chien.hdf5"  # doctest: +SKIP
         >>>
         >>> with path.write() as ifile:  # doctest: +SKIP
@@ -216,7 +216,7 @@ try:
                     for aset in sets:
                         thefile[aset] = sets[aset]
                     thefile.close()
-                    TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
+                    TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
 
     try:
         # noinspection PyUnresolvedReferences
