@@ -3,6 +3,13 @@ errormessage = (
     "through TransparentPath.\nYou can change that by running 'pip install transparentpath[excel]'."
 )
 
+
+class TPImportError(ImportError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
 excel_ok = False
 
 try:
@@ -13,12 +20,12 @@ try:
     import sys
     import importlib.util
     from typing import Union, List, Tuple
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs
+    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError
 
     if importlib.util.find_spec("xlrd") is None:
-        raise ImportError("Need the 'xlrd' package")
+        raise TPImportError("Need the 'xlrd' package")
     if importlib.util.find_spec("openpyxl") is None:
-        raise ImportError("Need the 'openpyxl' package")
+        raise TPImportError("Need the 'openpyxl' package")
 
     excel_ok = True
 
@@ -58,7 +65,7 @@ try:
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         # noinspection PyTypeChecker
 
@@ -68,10 +75,8 @@ try:
             with tempfile.NamedTemporaryFile(delete=True, suffix=self.suffix) as f:
                 check_kwargs(data.to_excel, kwargs)
                 data.to_excel(f.name, **kwargs)
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
 
 
 except ImportError as e:
-    # import warnings
-    # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
-    raise e
+    raise TPImportError(str(e))

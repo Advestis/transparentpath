@@ -4,12 +4,18 @@ errormessage = (
 )
 
 
+class TPImportError(ImportError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
 try:
     # noinspection PyUnresolvedReferences
     import pandas as pd
     import tempfile
     from typing import Union, List
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs
+    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError
 
     class MyHDFStore(pd.HDFStore):
         """Same as MyHDFFile but for pd.HDFStore objects"""
@@ -58,13 +64,11 @@ try:
         if update_cache and self._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         check_kwargs(data.to_csv, kwargs)
         data.to_csv(self.__fspath__(), **kwargs)
 
 
 except ImportError as e:
-    # import warnings
-    # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
-    raise e
+    raise TPImportError(str(e))

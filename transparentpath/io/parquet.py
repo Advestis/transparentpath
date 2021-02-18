@@ -5,6 +5,13 @@ errormessage = (
 
 parquet_ok = False
 
+
+class TPImportError(ImportError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
 try:
     # noinspection PyUnresolvedReferences
     import pandas as pd
@@ -12,10 +19,10 @@ try:
     import sys
     from typing import Union, List, Tuple
     import importlib.util
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs
+    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError
 
     if importlib.util.find_spec("pyarrow") is None:
-        raise ImportError("Need the 'pyarrow' package")
+        raise TPImportError("Need the 'pyarrow' package")
 
     parquet_ok = True
 
@@ -72,7 +79,7 @@ try:
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         if to_dataframe and isinstance(data, pd.Series):
             name = data.name
@@ -90,6 +97,4 @@ try:
 
 
 except ImportError as e:
-    # import warnings
-    # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
-    raise e
+    raise TPImportError(str(e))

@@ -3,6 +3,13 @@ errormessage = (
     "TransparentPath.\nYou can change that by running 'pip install transparentpath[dask]'."
 )
 
+
+class TPImportError(ImportError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
 try:
     # noinspection PyUnresolvedReferences,PyPackageRequirements
     import dask.dataframe as dd
@@ -18,7 +25,8 @@ try:
     # noinspection PyPackageRequirements
     import pandas as pd
 
-    from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs
+    from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs, \
+        TPFileNotFoundError, TPValueError, TPFileExistsError
     from .hdf5 import hdf5_ok
     from .hdf5 import errormessage as errormessage_hdf5
     from .excel import excel_ok
@@ -34,7 +42,7 @@ try:
         if self.__class__.cli is None:
             self.__class__.cli = client.Client(processes=False)
         if self.suffix != ".csv" and self.suffix != ".parquet" and not self.is_file():
-            raise FileNotFoundError(f"Could not find file {self}")
+            raise TPFileNotFoundError(f"Could not find file {self}")
         else:
             # noinspection PyUnresolvedReferences
             if (
@@ -43,7 +51,7 @@ try:
                 and not self.with_suffix("").is_dir(exist=True)
                 and "*" not in str(self)
             ):
-                raise FileNotFoundError(f"Could not find file nor directory {self}")
+                raise TPFileNotFoundError(f"Could not find file nor directory {self}")
 
     def apply_index_and_date_dd(index_col: int, parse_dates: bool, df: dd.DataFrame) -> dd.DataFrame:
         if index_col is not None:
@@ -72,7 +80,7 @@ try:
     def read_parquet(self, update_cache: bool = True, **kwargs) -> Union[dd.DataFrame, dd.Series]:
 
         if not parquet_ok:
-            raise ImportError(errormessage_parquet)
+            raise TPImportError(errormessage_parquet)
 
         # noinspection PyProtectedMember
         if update_cache and self.__class__._do_update_cache:
@@ -94,7 +102,7 @@ try:
             dd.DataFrame:
 
         if not hdf5_ok:
-            raise ImportError(errormessage_hdf5)
+            raise TPImportError(errormessage_hdf5)
 
         if use_pandas:
             raise NotImplementedError("Using dask in transparentpath does not support pandas's HDFStore")
@@ -104,11 +112,11 @@ try:
             mode = kwargs["mode"]
             del kwargs["mode"]
         if "r" not in mode:
-            raise ValueError("If using read_hdf5, mode must contain 'r'")
+            raise TPValueError("If using read_hdf5, mode must contain 'r'")
 
         check_dask(self)
         if len(set_names) == 0:
-            raise ValueError(
+            raise TPValueError(
                 "If using Dask, you must specify the dataset name to extract using set_names='aname' or a wildcard."
             )
 
@@ -129,7 +137,7 @@ try:
     def read_excel(self, update_cache: bool = True, **kwargs) -> pd.DataFrame:
 
         if not excel_ok:
-            raise ImportError(errormessage_excel)
+            raise TPImportError(errormessage_excel)
 
         # noinspection PyProtectedMember
         if update_cache and self.__class__._do_update_cache:
@@ -165,7 +173,7 @@ try:
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         if self.__class__.cli is None:
             self.__class__.cli = client.Client(processes=False)
@@ -175,7 +183,7 @@ try:
             path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
         futures = self.__class__.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
         outfiles = [
-            TransparentPath(f, fs=self.fs_kind, bucket=self.bucket, project=self.project) for f in futures.result()
+            TransparentPath(f, fs=self.fs_kind, bucket=self.bucket) for f in futures.result()
         ]
         if len(outfiles) == 1:
             outfiles[0].mv(self)
@@ -193,13 +201,13 @@ try:
     ) -> None:
 
         if not hdf5_ok:
-            raise ImportError(errormessage_hdf5)
+            raise TPImportError(errormessage_hdf5)
 
         # noinspection PyProtectedMember
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         if columns_to_string and not isinstance(data.columns[0], str):
             data.columns = data.columns.astype(str)
@@ -216,7 +224,7 @@ try:
     ) -> Union[None, "h5py.File"]:
 
         if not hdf5_ok:
-            raise ImportError(errormessage_hdf5)
+            raise TPImportError(errormessage_hdf5)
 
         if use_pandas:
             raise NotImplementedError("TransparentPath does not support storing Dask objects in pandas's HDFStore yet.")
@@ -250,7 +258,7 @@ try:
                     dd.to_hdf, list(sets.values()), [f.name] * len(sets), list(sets.keys()), mode=mode, **kwargs
                 )
                 self.__class__.cli.gather(futures)
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
         return
 
     def write_excel(
@@ -263,13 +271,13 @@ try:
     ) -> None:
 
         if not excel_ok:
-            raise ImportError(errormessage_excel)
+            raise TPImportError(errormessage_excel)
 
         # noinspection PyProtectedMember
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         if self.fs_kind == "local":
             if self.__class__.cli is None:
@@ -285,10 +293,8 @@ try:
                 check_kwargs(pd.DataFrame.to_excel, kwargs)
                 parts = delayed(pd.DataFrame.to_excel)(data, f.name, **kwargs)
                 parts.compute()
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
 
 
 except ImportError as e:
-    # import warnings
-    # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
-    raise e
+    raise TPImportError(str(e))

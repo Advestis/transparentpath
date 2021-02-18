@@ -1,4 +1,3 @@
-# noinspection PyUnresolvedReferences
 import zipfile
 import tempfile
 from pathlib import Path

@@ -4,7 +4,6 @@ from transparentpath import TransparentPath
 from pathlib import Path
 from importlib import reload
 
-project = "sandbox-281209"
 bucket = "code_tests_sand"
 skip_gcs = {"local": False, "gcs": False}
 
@@ -18,14 +17,13 @@ skip_gcs = {"local": False, "gcs": False}
 def before_init():
     assert TransparentPath.fss == {}
     assert TransparentPath.unset
-    assert TransparentPath.fs_kind == ""
-    assert TransparentPath.project is None
+    assert TransparentPath.fs_kind is None
     assert TransparentPath.bucket is None
     assert TransparentPath.nas_dir == "/media/SERVEUR"
 
 
 def init(fs_kind):
-    TransparentPath.set_global_fs(fs_kind, project=project, bucket=bucket)
+    TransparentPath.set_global_fs(fs_kind, bucket=bucket)
 
 
 def reinit():
