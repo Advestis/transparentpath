@@ -3,6 +3,13 @@ errormessage = (
     "TransparentPath.\nYou can change that by running 'pip install transparentpath[dask]'."
 )
 
+
+class TPImportError(ImportError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
 try:
     # noinspection PyUnresolvedReferences,PyPackageRequirements
     import dask.dataframe as dd
@@ -19,7 +26,7 @@ try:
     import pandas as pd
 
     from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs, \
-        TPFileNotFoundError, TPImportError, TPValueError, TPFileExistsError
+        TPFileNotFoundError, TPValueError, TPFileExistsError
     from .hdf5 import hdf5_ok
     from .hdf5 import errormessage as errormessage_hdf5
     from .excel import excel_ok
@@ -290,6 +297,4 @@ try:
 
 
 except ImportError as e:
-    # import warnings
-    # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
     raise TPImportError(str(e))

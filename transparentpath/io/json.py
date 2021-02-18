@@ -4,6 +4,12 @@ errormessage = (
 )
 
 
+class TPImportError(ImportError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
 try:
     import json
 
@@ -11,7 +17,6 @@ try:
     import numpy as np
     from typing import Any
     from datetime import date, datetime
-    from ..gcsutils.transparentpath import TPImportError
 
     class JSONEncoder(json.JSONEncoder):
         """
@@ -55,6 +60,4 @@ try:
 
 
 except ImportError as e:
-    # import warnings
-    # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
     raise TPImportError(str(e))

@@ -3,6 +3,13 @@ errormessage = (
     "through TransparentPath.\nYou can change that by running 'pip install transparentpath[excel]'."
 )
 
+
+class TPImportError(ImportError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
 excel_ok = False
 
 try:
@@ -13,7 +20,7 @@ try:
     import sys
     import importlib.util
     from typing import Union, List, Tuple
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPImportError, TPFileExistsError
+    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError
 
     if importlib.util.find_spec("xlrd") is None:
         raise TPImportError("Need the 'xlrd' package")
@@ -72,6 +79,4 @@ try:
 
 
 except ImportError as e:
-    # import warnings
-    # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
     raise TPImportError(str(e))

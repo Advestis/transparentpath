@@ -4,7 +4,11 @@ errormessage = (
 )
 hdf5_ok = False
 
-TPImportError = ImportError
+
+class TPImportError(ImportError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
 
 
 class MyHDFFile:
@@ -26,7 +30,7 @@ try:
     import tempfile
     from typing import Union, Any
     from pathlib import Path
-    from ..gcsutils.transparentpath import TransparentPath, TPImportError, TPValueError
+    from ..gcsutils.transparentpath import TransparentPath, TPValueError
     from .pandas import MyHDFStore
     import sys
     import importlib.util
@@ -226,6 +230,4 @@ try:
         pass
 
 except ImportError as e:
-    # import warnings
-    # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
     raise TPImportError(str(e))
