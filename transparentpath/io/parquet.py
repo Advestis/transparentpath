@@ -12,10 +12,10 @@ try:
     import sys
     from typing import Union, List, Tuple
     import importlib.util
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs
+    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPImportError, TPFileExistsError
 
     if importlib.util.find_spec("pyarrow") is None:
-        raise ImportError("Need the 'pyarrow' package")
+        raise TPImportError("Need the 'pyarrow' package")
 
     parquet_ok = True
 
@@ -72,7 +72,7 @@ try:
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         if to_dataframe and isinstance(data, pd.Series):
             name = data.name
@@ -92,4 +92,4 @@ try:
 except ImportError as e:
     # import warnings
     # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
-    raise e
+    raise TPImportError(str(e))

@@ -11,6 +11,7 @@ try:
     import numpy as np
     from typing import Any
     from datetime import date, datetime
+    from ..gcsutils.transparentpath import TPImportError
 
     class JSONEncoder(json.JSONEncoder):
         """
@@ -56,4 +57,4 @@ try:
 except ImportError as e:
     # import warnings
     # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
-    raise e
+    raise TPImportError(str(e))

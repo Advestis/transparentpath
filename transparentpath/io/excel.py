@@ -13,12 +13,12 @@ try:
     import sys
     import importlib.util
     from typing import Union, List, Tuple
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs
+    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPImportError, TPFileExistsError
 
     if importlib.util.find_spec("xlrd") is None:
-        raise ImportError("Need the 'xlrd' package")
+        raise TPImportError("Need the 'xlrd' package")
     if importlib.util.find_spec("openpyxl") is None:
-        raise ImportError("Need the 'openpyxl' package")
+        raise TPImportError("Need the 'openpyxl' package")
 
     excel_ok = True
 
@@ -58,7 +58,7 @@ try:
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         # noinspection PyTypeChecker
 
@@ -74,4 +74,4 @@ try:
 except ImportError as e:
     # import warnings
     # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
-    raise e
+    raise TPImportError(str(e))

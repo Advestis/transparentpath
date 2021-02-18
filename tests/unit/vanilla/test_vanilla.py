@@ -1,7 +1,7 @@
 import pytest
 import importlib.util
 from transparentpath import TransparentPath
-from transparentpath.gcsutils.transparentpath import MultipleExistenceError
+from transparentpath.gcsutils.transparentpath import TPMultipleExistenceError
 from pathlib import Path
 from ..functions import init, skip_gcs, get_reqs
 
@@ -39,7 +39,7 @@ def test_collapse_dots(clean):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind, excep", [("local", FileExistsError), ("gcs", MultipleExistenceError)])
+@pytest.mark.parametrize("fs_kind, excep", [("local", FileExistsError), ("gcs", TPMultipleExistenceError)])
 def test_multipleexistenceerror(clean, fs_kind, excep):
     if skip_gcs[fs_kind]:
         print("skipped")

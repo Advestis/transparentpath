@@ -4,15 +4,17 @@ errormessage = (
 )
 hdf5_ok = False
 
+TPImportError = ImportError
+
 
 class MyHDFFile:
     def __init__(self):
-        raise ImportError(errormessage)
+        raise TPImportError(errormessage)
 
 
 class MyHDFStore:
     def __init__(self):
-        raise ImportError(
+        raise TPImportError(
             "pandas does not seem to be installed. You will not be able to use pandas objects through "
             "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'."
         )
@@ -24,7 +26,7 @@ try:
     import tempfile
     from typing import Union, Any
     from pathlib import Path
-    from ..gcsutils.transparentpath import TransparentPath
+    from ..gcsutils.transparentpath import TransparentPath, TPImportError, TPValueError
     from .pandas import MyHDFStore
     import sys
     import importlib.util
@@ -32,7 +34,7 @@ try:
     hdf5_ok = True
 
     if importlib.util.find_spec("tables") is None:
-        raise ImportError("Need the 'tables' package")
+        raise TPImportError("Need the 'tables' package")
 
     class MyHDFFile(h5py.File):
         """Class to override h5py.File to handle files on GCS.
@@ -116,7 +118,7 @@ try:
             mode = kwargs["mode"]
             del kwargs["mode"]
         if "r" not in mode:
-            raise ValueError("If using read_hdf5, mode must contain 'r'")
+            raise TPValueError("If using read_hdf5, mode must contain 'r'")
 
         class_to_use = h5py.File
         if use_pandas:
@@ -226,4 +228,4 @@ try:
 except ImportError as e:
     # import warnings
     # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
-    raise e
+    raise TPImportError(str(e))

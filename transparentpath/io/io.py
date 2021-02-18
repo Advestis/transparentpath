@@ -1,7 +1,7 @@
 import builtins
 from typing import IO, Union, Any
 from pathlib import Path
-from ..gcsutils.transparentpath import TransparentPath
+from ..gcsutils.transparentpath import TransparentPath, TPValueError, TPFileExistsError, TPFileNotFoundError
 
 
 builtins_open = builtins.open
@@ -10,20 +10,21 @@ builtins_open = builtins.open
 def myopen(*args, **kwargs) -> IO:
     """Method overloading builtins' 'open' method, allowing to open files on GCS using TransparentPath."""
     if len(args) == 0:
-        raise ValueError("open method needs arguments.")
+        raise TPValueError("open method needs arguments.")
     thefile = args[0]
     if type(thefile) == str and "gs://" in thefile:
-        if "fs" not in kwargs:
-            found = False
-            for fs in TransparentPath.fss:
-                if "gcs" in fs:
-                    found = True
-                    thefile = TransparentPath(thefile.replace(f"gs://{TransparentPath.bucket}", ""), fs=fs)
-                    break
-            if not found:
-                raise OSError("You are trying to access a file on GCS without having set a proper GCSFileSystem first.")
-        else:
-            thefile = TransparentPath(thefile.replace(f"gs://{TransparentPath.bucket}", ""), fs=kwargs["fs"])
+        # if "fs" not in kwargs:
+        #     found = False
+        #     for fs in TransparentPath.fss:
+        #         if "gcs" in fs:
+        #             found = True
+        #             thefile = TransparentPath(thefile.replace(f"gs://{TransparentPath.bucket}", ""), fs=fs)
+        #             break
+        #     if not found:
+        #         raise OSError("You are trying to access a file on GCS without
+        #         having set a proper GCSFileSystem first.")
+        # else:
+        thefile = TransparentPath(thefile)
     if isinstance(thefile, TransparentPath):
         return thefile.open(*args[1:], **kwargs)
     elif (
@@ -31,7 +32,7 @@ def myopen(*args, **kwargs) -> IO:
     ):
         return builtins_open(*args, **kwargs)
     else:
-        raise ValueError(f"Unknown type {type(thefile)} for path argument")
+        raise TPValueError(f"Unknown type {type(thefile)} for path argument")
 
 
 setattr(builtins, "open", myopen)
@@ -52,9 +53,9 @@ def put(self, dst: Union[str, Path, TransparentPath]):
     or a str, it will be casted into a GCS TransparentPath, so a gcs file system must have been set up before. """
 
     if "gcs" not in "".join(TransparentPath.fss):
-        raise ValueError("You need to set up a gcs file system before using the put() command.")
+        raise TPValueError("You need to set up a gcs file system before using the put() command.")
     if not self.fs_kind == "local":
-        raise ValueError(
+        raise TPValueError(
             "The calling instance of put() must be local. "
             "To move on gcs a file already on gcs, use mv("
             "). To move a file from gcs, to local, use get("
@@ -62,7 +63,7 @@ def put(self, dst: Union[str, Path, TransparentPath]):
         )
     # noinspection PyUnresolvedReferences
     if type(dst) == TransparentPath and "gcs" not in dst.fs_kind:
-        raise ValueError(
+        raise TPValueError(
             "The second argument can not be a local TransparentPath. To move a file localy, use the mv() method."
         )
     if type(dst) != TransparentPath:
@@ -87,10 +88,10 @@ def get(self, loc: Union[str, Path, TransparentPath], recursive: bool = False):
     a str, it will be casted into a local TransparentPath. """
 
     if "gcs" not in self.fs_kind:
-        raise ValueError("The calling instance of get() must be on GCS. To move a file localy, use the mv() method.")
+        raise TPValueError("The calling instance of get() must be on GCS. To move a file localy, use the mv() method.")
     # noinspection PyUnresolvedReferences
     if type(loc) == TransparentPath and loc.fs_kind != "local":
-        raise ValueError(
+        raise TPValueError(
             "The second argument can not be a GCS "
             "TransparentPath. To move on gcs a file already"
             "on gcs, use mv(). To move a file from gcs, to"
@@ -138,7 +139,7 @@ def cp(self, other: Union[str, Path, TransparentPath]):
     """Used to copy a file or a directory on the same filesystem."""
 
     if not self.exist():
-        raise FileNotFoundError(f"No such file or directory: {self}")
+        raise TPFileNotFoundError(f"No such file or directory: {self}")
 
     if not type(other) == TransparentPath:
         other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
@@ -196,7 +197,7 @@ def write_stuff(
     if update_cache and self.__class__._do_update_cache:
         self._update_cache()
     if not overwrite and self.is_file() and present != "ignore":
-        raise FileExistsError()
+        raise TPFileExistsError()
 
     args = list(args)
     if len(args) == 0:

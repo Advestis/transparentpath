@@ -18,7 +18,8 @@ try:
     # noinspection PyPackageRequirements
     import pandas as pd
 
-    from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs
+    from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs, \
+        TPFileNotFoundError, TPImportError, TPValueError, TPFileExistsError
     from .hdf5 import hdf5_ok
     from .hdf5 import errormessage as errormessage_hdf5
     from .excel import excel_ok
@@ -34,7 +35,7 @@ try:
         if self.__class__.cli is None:
             self.__class__.cli = client.Client(processes=False)
         if self.suffix != ".csv" and self.suffix != ".parquet" and not self.is_file():
-            raise FileNotFoundError(f"Could not find file {self}")
+            raise TPFileNotFoundError(f"Could not find file {self}")
         else:
             # noinspection PyUnresolvedReferences
             if (
@@ -43,7 +44,7 @@ try:
                 and not self.with_suffix("").is_dir(exist=True)
                 and "*" not in str(self)
             ):
-                raise FileNotFoundError(f"Could not find file nor directory {self}")
+                raise TPFileNotFoundError(f"Could not find file nor directory {self}")
 
     def apply_index_and_date_dd(index_col: int, parse_dates: bool, df: dd.DataFrame) -> dd.DataFrame:
         if index_col is not None:
@@ -72,7 +73,7 @@ try:
     def read_parquet(self, update_cache: bool = True, **kwargs) -> Union[dd.DataFrame, dd.Series]:
 
         if not parquet_ok:
-            raise ImportError(errormessage_parquet)
+            raise TPImportError(errormessage_parquet)
 
         # noinspection PyProtectedMember
         if update_cache and self.__class__._do_update_cache:
@@ -94,7 +95,7 @@ try:
             dd.DataFrame:
 
         if not hdf5_ok:
-            raise ImportError(errormessage_hdf5)
+            raise TPImportError(errormessage_hdf5)
 
         if use_pandas:
             raise NotImplementedError("Using dask in transparentpath does not support pandas's HDFStore")
@@ -104,11 +105,11 @@ try:
             mode = kwargs["mode"]
             del kwargs["mode"]
         if "r" not in mode:
-            raise ValueError("If using read_hdf5, mode must contain 'r'")
+            raise TPValueError("If using read_hdf5, mode must contain 'r'")
 
         check_dask(self)
         if len(set_names) == 0:
-            raise ValueError(
+            raise TPValueError(
                 "If using Dask, you must specify the dataset name to extract using set_names='aname' or a wildcard."
             )
 
@@ -129,7 +130,7 @@ try:
     def read_excel(self, update_cache: bool = True, **kwargs) -> pd.DataFrame:
 
         if not excel_ok:
-            raise ImportError(errormessage_excel)
+            raise TPImportError(errormessage_excel)
 
         # noinspection PyProtectedMember
         if update_cache and self.__class__._do_update_cache:
@@ -165,7 +166,7 @@ try:
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         if self.__class__.cli is None:
             self.__class__.cli = client.Client(processes=False)
@@ -193,13 +194,13 @@ try:
     ) -> None:
 
         if not hdf5_ok:
-            raise ImportError(errormessage_hdf5)
+            raise TPImportError(errormessage_hdf5)
 
         # noinspection PyProtectedMember
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         if columns_to_string and not isinstance(data.columns[0], str):
             data.columns = data.columns.astype(str)
@@ -216,7 +217,7 @@ try:
     ) -> Union[None, "h5py.File"]:
 
         if not hdf5_ok:
-            raise ImportError(errormessage_hdf5)
+            raise TPImportError(errormessage_hdf5)
 
         if use_pandas:
             raise NotImplementedError("TransparentPath does not support storing Dask objects in pandas's HDFStore yet.")
@@ -263,13 +264,13 @@ try:
     ) -> None:
 
         if not excel_ok:
-            raise ImportError(errormessage_excel)
+            raise TPImportError(errormessage_excel)
 
         # noinspection PyProtectedMember
         if update_cache and self.__class__._do_update_cache:
             self._update_cache()
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         if self.fs_kind == "local":
             if self.__class__.cli is None:
@@ -291,4 +292,4 @@ try:
 except ImportError as e:
     # import warnings
     # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
-    raise e
+    raise TPImportError(str(e))
