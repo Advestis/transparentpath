@@ -310,12 +310,15 @@ def check_credentials(token: str = None):
             raise TPFileNotFoundError(f"Crendential file {token} not found")
 
 
-def extract_project_from_token(token: str = None) -> str:
+def extract_project(token: str = None) -> str:
     if token is None and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
-        raise TPEnvironmentError(
-            "If no token is explicitely specified, needs GOOGLE_APPLICATION_CREDENTIALS"
-            "environnement variable to be set"
-        )
+        project = gcsfs.GCSFileSystem().project
+        if project is None:
+            raise TPEnvironmentError(
+                "If no token is explicitely specified and GOOGLE_APPLICATION_CREDENTIALS environnement variable is not"
+                " set, you need to have done gcloud init or to be on GCP already to create a TransparentPath"
+            )
+        return project
     elif token is None:
         token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     content = json.load(open(token))
