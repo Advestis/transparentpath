@@ -216,7 +216,6 @@ def get_fs(
     """
 
     if "gcs" in fs_kind:
-        check_credentials(token)
         project = extract_project(token)
         if token is None:
             fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)  # check_connection fails for some reason
@@ -298,18 +297,6 @@ def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
     return index_col, parse_dates, kwargs
 
 
-def check_credentials(token: str = None):
-    if token is None and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
-        raise TPEnvironmentError(
-            "If no token is explicitely specified, needs GOOGLE_APPLICATION_CREDENTIALS"
-            "environnement variable to be set"
-        )
-    elif token is None:
-        token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        if not Path(token, fs="local").is_file():
-            raise TPFileNotFoundError(f"Crendential file {token} not found")
-
-
 def extract_project(token: str = None) -> str:
     if token is None and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
         project = gcsfs.GCSFileSystem().project
@@ -321,6 +308,8 @@ def extract_project(token: str = None) -> str:
         return project
     elif token is None:
         token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if not Path(token, fs="local").is_file():
+        raise TPFileNotFoundError(f"Crendential file {token} not found")
     content = json.load(open(token))
     if "project_id" not in content:
         raise TPValueError(f"Credential file {token} does not contain project_id key.")
@@ -379,6 +368,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
     To work, TransparentPath needs the environnement variable 'GOOGLE_APPLICATION_CREDENTIALS=path_to_project_cred.json'
     to be set. It can be in your .bashrc, or given in any other way to python as long as it is in os.environ. You can
     also pass the 'token=path_to_project_cred.json' argument to either set_global_fs or to the path instanciation.
+
+    If your code is running on a VM or pod on GCP, you do not need to provide any credentials.
 
     When trying to instantiate a remote path, TransparentPath will try to call the 'ls()' method of gcsfs. If it
     fails, it will raise an error.
@@ -667,7 +658,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         prefix_processed = False
         if remote_prefix in str(path):
             prefix_processed = True
-            check_credentials(token)
             project = extract_project(token)
 
             if fs == "local":
@@ -712,8 +702,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.nas_dir = TransparentPath.nas_dir
 
         if "gcs" in self.fs_kind and not prefix_processed:
-            project = extract_project(token)
-            check_credentials(self.token)
+            project = extract_project(self.token)
             if self.bucket is None:
                 raise TPValueError(
                     "If File System is to be GCS, please provide the bucket name, either by using "

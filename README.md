@@ -177,6 +177,8 @@ Path.set_global_fs("gcs", bucket="bucket", token="path_to_project_cred.json")
 path = Path("gs://bucket/file", token="path_to_project_cred.json")
 ```
 
+If your code is running on a VM or pod on GCP, you do not need to provide any credentials.
+
 Since the bucket name is provided in set_global_fs, you **must not** specify it in your paths unless you also 
 include "gs://" in front of it. You should never create a path with a directory with the same name as your current 
 bucket.
