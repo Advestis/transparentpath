@@ -217,7 +217,7 @@ def get_fs(
 
     if "gcs" in fs_kind:
         check_credentials(token)
-        project = extract_project_from_token(token)
+        project = extract_project(token)
         if token is None:
             fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)  # check_connection fails for some reason
         else:
@@ -310,12 +310,15 @@ def check_credentials(token: str = None):
             raise TPFileNotFoundError(f"Crendential file {token} not found")
 
 
-def extract_project_from_token(token: str = None) -> str:
+def extract_project(token: str = None) -> str:
     if token is None and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
-        raise TPEnvironmentError(
-            "If no token is explicitely specified, needs GOOGLE_APPLICATION_CREDENTIALS"
-            "environnement variable to be set"
-        )
+        project = gcsfs.GCSFileSystem().project
+        if project is None:
+            raise TPEnvironmentError(
+                "If no token is explicitely specified and GOOGLE_APPLICATION_CREDENTIALS environnement variable is not"
+                " set, you need to have done gcloud init or to be on GCP already to create a TransparentPath"
+            )
+        return project
     elif token is None:
         token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     content = json.load(open(token))
@@ -665,7 +668,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if remote_prefix in str(path):
             prefix_processed = True
             check_credentials(token)
-            project = extract_project_from_token(token)
+            project = extract_project(token)
 
             if fs == "local":
                 raise TPValueError(
@@ -709,7 +712,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.nas_dir = TransparentPath.nas_dir
 
         if "gcs" in self.fs_kind and not prefix_processed:
-            project = extract_project_from_token(token)
+            project = extract_project(token)
             check_credentials(self.token)
             if self.bucket is None:
                 raise TPValueError(
