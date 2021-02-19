@@ -217,7 +217,7 @@ def get_fs(
 
     if "gcs" in fs_kind:
         check_credentials(token)
-        project = extract_project_from_token(token)
+        project = extract_project(token)
         if token is None:
             fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)  # check_connection fails for some reason
         else:
@@ -668,7 +668,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if remote_prefix in str(path):
             prefix_processed = True
             check_credentials(token)
-            project = extract_project_from_token(token)
+            project = extract_project(token)
 
             if fs == "local":
                 raise TPValueError(
@@ -712,7 +712,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.nas_dir = TransparentPath.nas_dir
 
         if "gcs" in self.fs_kind and not prefix_processed:
-            project = extract_project_from_token(token)
+            project = extract_project(token)
             check_credentials(self.token)
             if self.bucket is None:
                 raise TPValueError(
