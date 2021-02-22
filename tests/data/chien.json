@@ -1,0 +1,10 @@
+{
+  "animals": {
+    "chien": 4,
+    "bird": 2
+  },
+  "plants": {
+    "drosera": "miam",
+    "celeri": "beurk"
+  }
+}

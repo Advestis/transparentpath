@@ -1,27 +1,105 @@
 import builtins
 import os
-import tempfile
 import json
-import sys
-import zipfile
-import h5py
+from time import time
+from copy import copy
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Tuple, Any, IO, Iterator, Optional, List, Callable, Iterable
+from typing import Union, Tuple, Any, Iterator, Optional, Iterable, List, Callable
 
-import pandas as pd
 from .methodtranslator import MultiMethodTranslator
-from ..jsonencoder.jsonencoder import JSONEncoder
-from inspect import signature
 import gcsfs
 from fsspec.implementations.local import LocalFileSystem
+from inspect import signature
 
-import dask.dataframe as dd
-from dask.delayed import delayed
-from dask.distributed import client
+remote_prefix = "gs://"
 
-builtins_open = builtins.open
-builtins_isinstance = builtins.isinstance
+
+class TPValueError(ValueError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
+class TPFileExistsError(FileExistsError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
+class TPFileNotFoundError(FileNotFoundError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
+class TPNotADirectoryError(NotADirectoryError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
+class TPIsADirectoryError(IsADirectoryError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
+class TPImportError(ImportError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
+class TPEnvironmentError(EnvironmentError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
+class TPTypeError(TypeError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
+class TPAttributeError(AttributeError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
+class TPMultipleExistenceError(Exception):
+    """Exception raised when a path's destination already contain more than
+    one element.
+    """
+
+    def __init__(self, path, ls):
+        self.path = path
+        self.ls = ls
+        self.message = (
+            f"Error in TransparentPath: Multiple objects exist at path {path}.\nHere is the output of ls in the "
+            f"parent directory:\n {self.ls}"
+        )
+        super().__init__(self.message)
+
+    def __str__(self):
+        return self.message
+
+
+def errormessage(which) -> str:
+    return (
+        f"Support for {which} does not seem to be installed for TransparentPath.\n"
+        f"You can change that by running 'pip install transparentpath[{which}]'."
+    )
+
+
+def errorfunction(which) -> Callable:
+    # noinspection PyUnusedLocal
+    def _errorfunction(*args, **kwargs):
+        raise TPImportError(errormessage(which))
+
+    return _errorfunction
 
 
 # So I can use it in myisinstance
@@ -31,101 +109,7 @@ class TransparentPath:
         pass
 
 
-zipfileclass = zipfile.ZipFile
-
-
-class MyHDFFile(h5py.File):
-    """Class to override h5py.File to handle files on GCS.
-
-    This allows to do :
-    >>> from transparentpath import TransparentPath  # doctest: +SKIP
-    >>> import numpy as np  # doctest: +SKIP
-    >>> TransparentPath.set_global_fs("gcs", bucket="bucket_name", project="project_name")  # doctest: +SKIP
-    >>> path = TransparentPath("chien.hdf5")  # doctest: +SKIP
-    >>>
-    >>> with path.write() as ifile:  # doctest: +SKIP
-    >>>     ifile["data"] = np.array([1, 2])  # doctest: +SKIP
-    """
-
-    def __init__(self, *args, remote: Union[TransparentPath, None] = None, **kwargs):
-        """Overload of h5py.File.__init__, to accept a 'remote' argument
-
-        Parameters
-        ----------
-        args: tuple
-            First argument is the local path to read. It can be a TransparentPath or a tempfile._TemporaryFileWrapper
-        remote: Union[TransparentPath, None]
-            Path to the file on GCS. Only relevant if file is opened in a 'with' statement in write mode. It
-            will be used to put the modified local temporary HDF5 back to GCS. If specified, args[0] is expected to
-            be a tempfile._TemporaryFileWrapper (Default value = None).
-        kwargs: dict
-        """
-        self.remote_file = remote
-        self.local_path = args[0]
-        # noinspection PyUnresolvedReferences,PyProtectedMember
-        if isinstance(self.local_path, tempfile._TemporaryFileWrapper):
-            # noinspection PyUnresolvedReferences
-            h5py.File.__init__(self, args[0].name, *args[1:], **kwargs)
-        else:
-            h5py.File.__init__(self, *args, **kwargs)
-
-    def __exit__(self, *args):
-        """Overload of the h5py.File.__exit__ method to push any modified local temporary HDF5 back to GCS after
-        a 'with' statement."""
-        h5py.File.__exit__(self, *args)
-        if self.remote_file is not None:
-            # noinspection PyUnresolvedReferences
-            TransparentPath(self.local_path.name, fs="local").put(self.remote_file)
-            # noinspection PyUnresolvedReferences
-            self.local_path.close()
-
-
-class MyHDFStore(pd.HDFStore):
-    """Same as MyHDFFile but for pd.HDFStore objects"""
-
-    def __init__(self, *args, remote: Union[TransparentPath, None] = None, **kwargs):
-        self.remote_file = remote
-        self.local_path = args[0]
-        # noinspection PyUnresolvedReferences,PyProtectedMember
-        if isinstance(self.local_path, tempfile._TemporaryFileWrapper):
-            pd.HDFStore.__init__(self, args[0].name, *args[1:], **kwargs)
-        else:
-            pd.HDFStore.__init__(self, *args, **kwargs)
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        pd.HDFStore.__exit__(self, exc_type, exc_value, traceback)
-        if self.remote_file is not None:
-            TransparentPath(self.local_path.name, fs="local").put(self.remote_file)
-            self.local_path.close()
-
-
-class Myzipfile(zipfileclass):
-    """
-    Overload of ZipFile class to handle files on GCS
-    """
-
-    def __init__(self, path, *args, **kwargs):
-        if type(path) == TransparentPath and "gcs" in path.fs_kind:
-            f = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
-            f.close()  # deletes tmp file, but we can still use its name
-            path.get(f.name)
-            path = Path(f.name)  # Path is pathlib, not TransparentPath
-            super().__init__(path, *args, **kwargs)
-            path.unlink()
-        else:
-            super().__init__(path, *args, **kwargs)
-
-
-zipfile.ZipFile = Myzipfile
-
-
-def check_dask():
-    if "dask" not in sys.modules:
-        raise ImportError(
-            "Daks does not seem to be installed. You will not be able to use Dask DataFrames"
-            " in TransparentPath.\n You can change that by running"
-            " 'pip install transparentpath[dask]'."
-        )
+builtins_isinstance = builtins.isinstance
 
 
 def mysmallisinstance(obj1: Any, obj2) -> bool:
@@ -163,29 +147,7 @@ def myisinstance(obj1: Any, obj2) -> bool:
 setattr(builtins, "isinstance", myisinstance)
 
 
-def myopen(*args, **kwargs) -> IO:
-    """Method overloading builtins' 'open' method, allowing to open files on GCS using TransparentPath."""
-    if len(args) == 0:
-        raise ValueError("open method needs arguments.")
-    thefile = args[0]
-    if type(thefile) == str and "gs://" in thefile:
-        if "gcs" not in TransparentPath.fss:
-            raise OSError("You are trying to access a file on GCS without having set a proper GCSFileSystem first.")
-        thefile = TransparentPath(thefile)
-    if isinstance(thefile, TransparentPath):
-        return thefile.open(*args[1:], **kwargs)
-    elif (
-        isinstance(thefile, str) or isinstance(thefile, Path) or isinstance(thefile, int) or isinstance(thefile, bytes)
-    ):
-        return builtins_open(*args, **kwargs)
-    else:
-        raise ValueError(f"Unknown type {type(thefile)} for path argument")
-
-
-setattr(builtins, "open", myopen)
-
-
-def collapse_ddots(path: Union[Path, TransparentPath, str]) -> Union[TransparentPath, Path]:
+def collapse_ddots(path: Union[Path, TransparentPath, str]) -> TransparentPath:
     """Collapses the double-dots (..) in the path
 
     Parameters
@@ -196,7 +158,7 @@ def collapse_ddots(path: Union[Path, TransparentPath, str]) -> Union[Transparent
 
     Returns
     -------
-    Union[TransparentPath, Path]
+    TransparentPath
         The collapsed path.
 
     """
@@ -205,12 +167,22 @@ def collapse_ddots(path: Union[Path, TransparentPath, str]) -> Union[Transparent
     # noinspection PyUnresolvedReferences
     thebucket = path.bucket if type(path) == TransparentPath else None
     # noinspection PyUnresolvedReferences
-    theproject = path.project if type(path) == TransparentPath else None
+    notupdatecache = path.notupdatecache if type(path) == TransparentPath else None
+    # noinspection PyUnresolvedReferences
+    when_checked = path.when_checked if type(path) == TransparentPath else None
+    # noinspection PyUnresolvedReferences
+    when_updated = path.when_updated if type(path) == TransparentPath else None
+    # noinspection PyUnresolvedReferences
+    update_expire = path.update_expire if type(path) == TransparentPath else None
+    # noinspection PyUnresolvedReferences
+    check_expire = path.check_expire if type(path) == TransparentPath else None
+    # noinspection PyUnresolvedReferences
+    token = path.token if type(path) == TransparentPath else None
 
     newpath = Path(path) if type(path) == str else path
 
     if str(newpath) == ".." or str(newpath) == "/..":
-        raise ValueError("Can not go before root")
+        raise TPValueError("Can not go before root")
 
     while ".." in newpath.parts:
         # noinspection PyUnresolvedReferences
@@ -225,25 +197,36 @@ def collapse_ddots(path: Union[Path, TransparentPath, str]) -> Union[Transparent
     if str(newpath) == str(path):
         return path
     return (
-        TransparentPath(newpath, collapse=False, nocheck=True, fs=thetype, bucket=thebucket, project=theproject)
+        TransparentPath(
+            newpath,
+            collapse=False,
+            nocheck=True,
+            fs=thetype,
+            bucket=thebucket,
+            notupdatecache=notupdatecache,
+            when_checked=when_checked,
+            when_updated=when_updated,
+            update_expire=update_expire,
+            check_expire=check_expire,
+            token=token,
+        )
         if thetype is not None
         else newpath
     )
 
 
 def get_fs(
-    fs_kind: str, project: str, bucket: str, token: Optional[Union[str, dict]] = None
-) -> Union[gcsfs.GCSFileSystem, LocalFileSystem]:
+    fs_kind: str, bucket: str, token: Optional[Union[str, dict]] = None
+) -> Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem], Union[None, str]]:
     """Gets the FileSystem object of either gcs or local (Default)
+
+    If GCS is asked and bucket is specified, will check that it exists and is accessible.
 
 
     Parameters
     ----------
     fs_kind: str
         Returns GCSFileSystem if 'gcs_*', LocalFilsSystem if 'local'.
-
-    project: str
-        project name for GCS
 
     bucket: str
         bucket name for GCS
@@ -253,26 +236,27 @@ def get_fs(
 
     Returns
     -------
-    Union[gcsfs.GCSFileSystem, LocalFileSystem]
-        The FileSystem object and the string 'gcs' or 'local'
+    Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem], Union[None, str]]
+        The FileSystem object and the project if on GCS, else None
 
     """
+
     if "gcs" in fs_kind:
-        bucket = bucket.replace("/", "")
+        project = extract_project(token)
         if token is None:
-            fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)
+            fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)  # check_connection fails for some reason
         else:
             fs = gcsfs.GCSFileSystem(project=project, asynchronous=False, token=token)
         # Will raise RefreshError if connection fails
-        fs.glob(bucket)
+        bucket = bucket.replace("/", "")
         check_buckets(fs, bucket)
-        return fs
+        return fs, project
     else:
-        return LocalFileSystem()
+        return LocalFileSystem(), None
 
 
 def get_buckets(fs: gcsfs.GCSFileSystem) -> List[str]:
-    """Return list of all buckets under the current project."""
+    """Return list of all buckets."""
     if "" not in fs.dircache:
         items = []
         page = fs.call("GET", "b/", project=fs.project, json_out=True)
@@ -293,58 +277,13 @@ def get_buckets(fs: gcsfs.GCSFileSystem) -> List[str]:
 
 def check_buckets(fs: Union[gcsfs.GCSFileSystem, LocalFileSystem], bucket: str):
     if isinstance(fs, gcsfs.GCSFileSystem):
+        fs.glob(bucket)
         buckets = get_buckets(fs)
         if f"{bucket}/" not in buckets:
-            raise NotADirectoryError(
-                f"Bucket {bucket} does not exist in "
-                f"project {fs.project}, or you can not "
-                f"see it. Available buckets are:\n"
-                f"{buckets}"
+            raise TPNotADirectoryError(
+                f"Bucket {bucket} does not exist in project {fs.project}, or you can not "
+                f"see it. Available buckets are:\n {buckets}"
             )
-
-
-class MultipleExistenceError(Exception):
-    """Exception raised when a path's destination already contain more than
-    one element.
-    """
-
-    def __init__(self, path, ls):
-        self.path = path
-        self.ls = ls
-        self.message = (
-            f"Multiple objects exist at path {path}.\nHere is "
-            f"the output of ls in the parent directory:\n"
-            f" {self.ls}"
-        )
-        super().__init__(self.message)
-
-    def __str__(self):
-        return self.message
-
-
-def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
-    index_col = kwargs.get("index_col", None)
-    parse_dates = kwargs.get("parse_dates", None)
-    if index_col is not None:
-        del kwargs["index_col"]
-    if parse_dates is not None:
-        del kwargs["parse_dates"]
-    # noinspection PyTypeChecker
-    return index_col, parse_dates, kwargs
-
-
-def apply_index_and_date(
-    index_col: int, parse_dates: bool, df: Union[pd.DataFrame, dd.DataFrame]
-) -> Union[pd.DataFrame, dd.DataFrame]:
-    if index_col is not None:
-        df = df.set_index(df.columns[index_col])
-        df.index = df.index.rename(None)
-    if parse_dates is not None:
-        if isinstance(df, dd.DataFrame):
-            df.index = dd.to_datetime(df.index)
-        else:
-            df.index = pd.to_datetime(df.index)
-    return df
 
 
 def check_kwargs(method: Callable, kwargs: dict):
@@ -361,7 +300,7 @@ def check_kwargs(method: Callable, kwargs: dict):
             return
         for arg in kwargs:
             if arg not in sig.parameters:
-                unexpected_kwargs.append(kwargs[arg])
+                unexpected_kwargs.append(f"{arg}={kwargs[arg]}")
 
         if len(unexpected_kwargs) > 0:
             s = f"You provided unexpected kwargs for method {method.__name__}:"
@@ -370,7 +309,37 @@ def check_kwargs(method: Callable, kwargs: dict):
         return
 
     if s != "":
-        raise ValueError(s)
+        raise TPValueError(s)
+
+
+def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
+    index_col = kwargs.get("index_col", None)
+    parse_dates = kwargs.get("parse_dates", None)
+    if index_col is not None:
+        del kwargs["index_col"]
+    if parse_dates is not None:
+        del kwargs["parse_dates"]
+    # noinspection PyTypeChecker
+    return index_col, parse_dates, kwargs
+
+
+def extract_project(token: str = None) -> str:
+    if token is None and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
+        project = gcsfs.GCSFileSystem().project
+        if project is None:
+            raise TPEnvironmentError(
+                "If no token is explicitely specified and GOOGLE_APPLICATION_CREDENTIALS environnement variable is not"
+                " set, you need to have done gcloud init or to be on GCP already to create a TransparentPath"
+            )
+        return project
+    elif token is None:
+        token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if not TransparentPath(token, fs="local", nocheck=True, notupdatecache=True).is_file():
+        raise TPFileNotFoundError(f"Crendential file {token} not found")
+    content = json.load(open(token))
+    if "project_id" not in content:
+        raise TPValueError(f"Credential file {token} does not contain project_id key.")
+    return content["project_id"]
 
 
 # noinspection PyRedeclaration
@@ -380,28 +349,26 @@ class TransparentPath(os.PathLike):  # noqa : F811
     same way one would use a pathlib.Path object. All instances of TransparentPath are absolute, even if created with
     relative paths.
 
-    Doing 'isinstance(path, str)' with a TransparentPath will return True (required to allow 'open(TransparentPath()'
+    Doing 'isinstance(path, str)' with a TransparentPath will return True (required to allow 'open(TransparentPath())'
     to work). If you want to check whether path is actually a TransparentPath and nothing else, use 'type(path) ==
     TransparentPath' instead.
 
-    If using a local file system, you do not have to set anything,
-    just instantiate your paths like that:
+    If you are using a local file system, you do not have to set anything, just instantiate your paths like that:
 
     >>> # noinspection PyShadowingNames
     >>> from transparentpath import TransparentPath as Path
     >>> mypath = Path("foo") / "bar"
     >>> other_path = mypath / "stuff"
 
-    If using GCS, you will have to provide a bucket, and a project name. You can either use the class 'set_global_fs'
-    method, specify the appropriate keywords when calling your first path, or giving a path that starts with
-    'gs://bucketname/'. Then all the other paths will use the same file system.
+    If using GCS, you can either use the class 'set_global_fs' method, or specify the appropriate keywords when calling
+    your first path, or giving a path that starts with 'gs://bucketname/'.
 
     So either do
 
     >>> # noinspection PyShadowingNames
     >>> from transparentpath import TransparentPath as Path
-    >>> Path.set_global_fs('gcs', bucket="my_bucket_name", project="my_project")  # doctest: +SKIP
-    >>> # will use GCS
+    >>> Path.set_global_fs('gcs', bucket="my_bucket_name")  # doctest: +SKIP
+    >>> # will use GCS, and will be gs://my_bucket_name/foo
     >>> mypath = Path("foo")  # doctest: +SKIP
     >>> # will use GCS
     >>> other_path = Path("foo2")  # doctest: +SKIP
@@ -410,42 +377,35 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     >>> # noinspection PyShadowingNames
     >>> from transparentpath import TransparentPath as Path
-    >>> mypath = Path("foo", fs='gcs', bucket="my_bucket_name", project="my_project")  # doctest: +SKIP
-    >>> # will use GCS
+    >>> mypath = Path("foo", fs='gcs', bucket="my_bucket_name")  # doctest: +SKIP
+    >>> # will use LocalFileSystem
     >>> other_path = Path("foo2")  # doctest: +SKIP
 
     Or
 
     >>> # noinspection PyShadowingNames
     >>> from transparentpath import TransparentPath as Path
-    >>> mypath = Path("gs://my_bucket_name/foo", project="my_project")  # doctest: +SKIP
-    >>> # will use GCS
-    >>> other_path = Path("foo2")  # doctest: +SKIP
-
-    However, no matter how you initialise a remote file, gs://bucketname will never figure in its name. It will not be
-    stored in the underlying pathlib.Path object, and calling str(mypath) will not show it either. However, you can
-    retreive the full path including gs://bucketname if any by calling
-
+    >>> mypath = Path("gs://my_bucket_name/foo")  # doctest: +SKIP
     >>> mypath.__fspath__()  # doctest: +SKIP
     gs://my_bucket_name/foo
+    >>> str(mypath)  # doctest: +SKIP
+    gs://my_bucket_name/foo
 
-    Note that your script must be able to log to GCS somehow. I generally use a service account with credentials
-    stored in a json file, and add the envirronement variable 'GOOGLE_APPLICATION_CREDENTIALS=path_to_project_cred.json'
-    in my .bashrc. I haven't tested any other method, but I guess that as long as gsutil works, TransparentPath will
-    too.
+    To work, TransparentPath needs the environnement variable 'GOOGLE_APPLICATION_CREDENTIALS=path_to_project_cred.json'
+    to be set. It can be in your .bashrc, or given in any other way to python as long as it is in os.environ. You can
+    also pass the 'token=path_to_project_cred.json' argument to either set_global_fs or to the path instanciation.
+
+    If your code is running on a VM or pod on GCP, you do not need to provide any credentials.
+
     When trying to instantiate a remote path, TransparentPath will try to call the 'ls()' method of gcsfs. If it
     fails, it will raise an error.
-
-    Since the bucket name is provided in set_fs or set_global_fs, you **must not** specify it in your paths.
-    Do not specify 'gs://' either, it is added when/if needed. Also, you should never create a directory with the same
-    name as your current bucket.
 
     If your directories architecture on GCS is the same than localy up to some root directory, you can do:
 
     >>> # noinspection PyShadowingNames
     >>> from transparentpath import TransparentPath as Path
-    >>> Path.nas_dir = "/media/SERVEUR" # it is the default value, but reset here for example
-    >>> Path.set_global_fs("gcs", bucket="my_bucket", project="my_project")  # doctest: +SKIP
+    >>> Path.nas_dir = "/media/SERVEUR"
+    >>> Path.set_global_fs("gcs", bucket="my_bucket")  # doctest: +SKIP
     >>> p = Path("/media/SERVEUR") / "chien" / "chat"  # Will be gs://my_bucket/chien/chat  # doctest: +SKIP
 
     If the line 'Path.set_global_fs(...' is not commented out, the resulting path will be 'gs://my_bucket/chien/chat'.
@@ -454,13 +414,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
     the line 'Path.set_global_fs(...'.
 
     Any method or attribute valid in fsspec.implementations.local.LocalFileSystem, gcs.GCSFileSystem or pathlib.Path
-    can be used on a TransparentPath object.
+    or str can be used on a TransparentPath object.
 
-    instead of 'p.name = "new_name"'. 'p.path' points to the underlying pathlib.Path object.
+    'p.path' points to the underlying pathlib.Path object.
 
     TransparentPath has built-in read and write methods that recognize the file's suffix to call the appropriate
     method (csv, parquet, hdf5, json or open). It has a built-in override of open, which allows you to pass a
-    TransparentPath to python's open method.
+    TransparentPath to python's open method, or to use open('gs://bucket_name/file').
 
     WARNINGS if you use GCS:
         1: Remember that directories are not a thing on GCS.
@@ -475,18 +435,63 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         5: Since most of the times we use is_dir() we want to check whether a directry exists to write in it,
         by default the is_dir() method will return True if the directory does not exists on GCS (see point 3)(will
-        still return false if using a local file system).
+        still return false if using a local file system). The only case is_dir() will return False is if a file with
+        the same name exists (localy, behavior is straightforward). To actually check whether the directory exists (
+        for, like, reading from it), add the kwarg 'exist=True' to is_dir() if using GCS.
 
-        6: The only case is_dir() will return False is if a file with the same name exists (localy, behavior is
-        straightforward).
-
-        7: To actually check whether the directory exists (for, like, reading from it), add the kwarg 'exist=True' to
-        is_dir() if using GCS.
-
-        8: If a file exists with the same path than a directory, then the class is not able to know which one is the
-        file and which one is the directory, and will raise a MultipleExistenceError at object creation. Will also
+        6: If a file exists at the same path than a directory, then the class is not able to know which one is the
+        file and which one is the directory, and will raise a TPMultipleExistenceError upon object creation. Will also
         check for multiplicity at almost every method in case an exterior source created a duplicate of the
-        file/directory.
+        file/directory. This case can't happen locally. However, it can happen on remote if the cache is not updated
+        frequently. Donig this check can significantly increase computation time (if using glob on a directory
+        containing a lot of files for example). You can deactivate it either globally (TransparentPath._do_check =
+        False and TransparentPath._do_update_cache = False), for a specific path (pass notupdatecache=True at path
+        creation), or for glob and ls by passing fast=True as additional argument.
+
+    TransparentPath  on GCS is slow because of the verification for multiple existance and the cache updating.
+    However one can tweak those a bit. As mentionned earlier, cache updating and multiple existence check can be
+    deactivated for all paths by doing
+
+    >>> from transparentpath import TransparentPath
+    >>> TransparentPath._do_update_cache = False
+    >>> TransparentPath._do_check = False
+
+    They can also be deactivated for one path only by doing
+
+    >>> p = TransparentPath("somepath", nocheck=True, notupdatecache=True)
+
+    It is also possible to specify when to do those check : at path creation, path usage (read, write, exists...) or
+    both. Here to it can be set on all paths or only some :
+
+    >>> TransparentPath._when_checked = {"created": True, "used": False}  # Default value
+    >>> TransparentPath._when_updated = {"created": True, "used": False}  # Default value
+    >>> p = TransparentPath("somepath", when_checked={"created": False, "used": False},
+    >>>                     notupdatecache={"created": False, "used": False})
+
+    There is also an expiration time in seconds for check and update : the operation is not done if it was done not a
+    long time ago. Those expiration times are of 1 second by default and can be changed through :
+
+    >>> TransparentPath._check_expire = 10
+    >>> TransparentPath._update_expire = 10
+    >>> p = TransparentPath("somepath", check_expire=0, update_expire=0)
+
+    glob() and ls() have their own way to be accelerated :
+
+    >>> p.glob("/*", fast=True)
+    >>> p.ls("", fast=True)
+
+    Basically, fast=True means do not check and do not update the cache for all the items found by the method.
+
+    All paths created from another path will share its parent's attributes :
+     * fs_kind
+     * bucket
+     * notupdatecache
+     * nocheck
+     * when_checked
+     * when_updated
+     * update_expire
+     * check_expire
+     * token
 
     If a method in a package you did not create uses the os.open(), you will have to create a class to override this
     method and anything using its ouput. Indeed os.open returns a file descriptor, not an IO, and I did not find a
@@ -525,19 +530,76 @@ class TransparentPath(os.PathLike):  # noqa : F811
     in any of those will not be taken into account quickly.
     """
 
+    @classmethod
+    def reinit(cls):
+        cls.fss = {}
+        cls.fs_kind = None
+        cls.bucket = None
+        cls.nas_dir = "/media/SERVEUR"
+        cls.unset = True
+        cls.cwd = os.getcwd()
+        cls.token = None
+        cls._do_update_cache = True
+        cls._do_check = True
+        cls._check_expire = 1
+        cls._update_expire = 1
+        cls._when_checked = {"used": False, "created": True}
+        cls._when_updated = {"used": False, "created": True}
+        cls.LOCAL_SEP = os.path.sep
+
+    @classmethod
+    def show_state(cls):
+        print("fss: ", cls.fss)
+        print("fs_kind: ", cls.fs_kind)
+        print("bucket: ", cls.bucket)
+        print("nas_dir: ", cls.nas_dir)
+        print("unset: ", cls.unset)
+        print("cwd: ", cls.cwd)
+        print("token: ", cls.token)
+        print("_do_update_cache: ", cls._do_update_cache)
+        print("_do_check: ", cls._do_check)
+        print("_check_expire: ", cls._check_expire)
+        print("_update_expire: ", cls._update_expire)
+        print("_when_checked: ", cls._when_checked)
+        print("_when_updated: ", cls._when_updated)
+        print("LOCAL_SEP: ", cls.LOCAL_SEP)
+
+    @classmethod
+    def get_state(cls):
+        state = {
+            "fss": cls.fss,
+            "fs_kind": cls.fs_kind,
+            "bucket": cls.bucket,
+            "nas_dir": cls.nas_dir,
+            "unset": cls.unset,
+            "cwd": cls.cwd,
+            "token": cls.token,
+            "_do_update_cache": cls._do_update_cache,
+            "_do_check": cls._do_check,
+            "_check_expire": cls._check_expire,
+            "_update_expire": cls._update_expire,
+            "_when_checked": cls._when_checked,
+            "_when_updated": cls._when_updated,
+            "LOCAL_SEP": cls.LOCAL_SEP,
+        }
+        return state
+
     fss = {}
-    fs_kind = ""
-    project = None
+    fs_kind = None
     bucket = None
     nas_dir = "/media/SERVEUR"
     unset = True
     cwd = os.getcwd()
-    cli = None
     token = None
     _do_update_cache = True
     _do_check = True
+    _check_expire = 1
+    _update_expire = 1
+    _when_checked = {"used": False, "created": True}
+    _when_updated = {"used": False, "created": True}
+    LOCAL_SEP = os.path.sep
 
-    _attributes = ["fs", "path", "fs_kind", "project", "bucket"]
+    _attributes = ["fs", "path", "fs_kind", "bucket", "token", "sep", "nas_dir"]
 
     method_without_self_path = [
         "end_transaction",
@@ -561,16 +623,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
         cls,
         fs: str,
         bucket: Optional[str] = None,
-        project: Optional[str] = None,
-        make_main: bool = True,
         nas_dir: Optional[Union[TransparentPath, Path, str]] = None,
         token: Optional[Union[dict, str]] = None,
     ) -> None:
         """To call before creating any instance to set the file system.
 
-        If not called, default file system is local. If the first parameter is 'local', the file system is local,
-        and 'bucket' and 'project' are not needed. If the first parameter is 'gcs', file system is GCS and 'bucket' and
-        'project' are needed.
+        If not called, default file system is local. If the first parameter is 'local', the file system is local. If
+        the first parameter is 'gcs', file system is GCS.
 
 
         Parameters
@@ -580,13 +639,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         bucket: str
             The bucket name if using gcs (Default value =  None)
-
-        project: str
-            The project name if using gcs (Default value = None)
-
-        make_main: bool
-            If True, any instance created after this call to set_global_fs will be fs. If False, just add the new
-            file system to cls.fss, but do not use it as default file system. (Default value = True)
 
         nas_dir: Union[TransparentPath, Path, str]
             If specified, TransparentPath will delete any occurence of 'nas_dir' at the beginning of created paths if fs
@@ -600,45 +652,36 @@ class TransparentPath(os.PathLike):  # noqa : F811
         None
 
         """
-
         if "gcs" not in fs and fs != "local":
-            raise ValueError(f"Unknown value {fs} for parameter 'gcs'")
+            raise TPValueError(f"Unknown value {fs} for parameter 'fs'")
+        if "gcs" in fs and bucket is None:
+            raise TPValueError("If using set_global_fs for GCS, provide a bucket name otherwise the command is useless")
 
-        main_fs = None
-        if cls.fs_kind is not None and not make_main:
-            main_fs = cls.fs_kind
         cls.fs_kind = fs
         cls.bucket = bucket
-
-        if project is not None:
-            cls.project = project
-
-        if token is not None:
-            cls.token = token
+        cls.token = token
 
         TransparentPath._set_nas_dir(cls, nas_dir)
 
-        if "gcs" in cls.fs_kind:
-            if cls.bucket is None:
-                raise ValueError("Need to provide a bucket name!")
-            if cls.project is None:
-                raise ValueError("Need to provide a project name!")
-            cls.fs_kind = f"gcs_{cls.project}"
-
-        cls.fss[cls.fs_kind] = get_fs(cls.fs_kind, cls.project, cls.bucket, cls.token)
+        fs, project = get_fs(cls.fs_kind, cls.bucket, cls.token)
+        if project is not None:
+            cls.fs_kind = f"gcs_{project}"
+        cls.fss[cls.fs_kind] = fs
         TransparentPath.unset = False
-
-        if main_fs is not None:
-            cls.fs_kind = main_fs
 
     def __init__(
         self,
         path: Union[Path, TransparentPath, str] = ".",
-        nocheck: bool = False,
         collapse: bool = True,
         fs: Optional[str] = None,
         bucket: Optional[str] = None,
-        project: Optional[str] = None,
+        token: Optional[Union[dict, str]] = None,
+        nocheck: Optional[bool] = None,
+        notupdatecache: Optional[bool] = None,
+        update_expire: Optional[int] = None,
+        check_expire: Optional[int] = None,
+        when_checked: Optional[dict] = None,
+        when_updated: Optional[dict] = None,
         **kwargs,
     ):
         """Creator of the TranparentPath object
@@ -648,23 +691,41 @@ class TransparentPath(os.PathLike):  # noqa : F811
         path: Union[pathlib.Path, TransparentPath, str]
             The path of the object (Default value = '.')
 
-        nocheck: bool
-            If True, will not call check_multiplicity (quicker but less secure). (Default value = False)
-
         collapse: bool
             If True, will collapse any double dots ('..') in path. (Default value = True)
 
-        fs: str
+        fs: Optional[str]
             The file system to use, 'local' or 'gcs'. If None, uses the default one set by set_global_fs if any,
             or 'local' (Default = None)
 
-        project: str
-            The project name if using GCS. If None and using GCS, then a GCSFileSystem must have been set earlier
-            using set_global_fs() (Default = None)
+        bucket: Optional[str]
+            The bucket name if using GCS path is not 'gs://bucket/...'
 
-        bucket: str
-            The bucket name if using GCS If None and using GCS, then a GCSFileSystem must have been set earlier
-            using set_global_fs() (Default = None)
+        token: Optional[Union[dict, str]]
+            The path to google application credentials json file to use. See GCSFileSystem initialisation.
+
+        nocheck: bool
+            If True, will not call check_multiplicity (quicker but less secure). Takes the value of
+            not Transparentpath._do_check if None (Default value = None)
+
+        notupdatecache: bool
+            If True, will not call _invalidate_cache when doing operations on this path (quicker but less secure).
+            Takes the value of not Transparentpath._do_update_cache if None (Default value = None)
+
+        update_expire: Optional[int]
+            Time in second after which the cache is considered obsolete and must be updated. Takes the value of
+            Transparentpath._update_expire if None (Default value = None)
+
+        check_expire: Optional[int]
+            Time in second after which the check for multiple existence is considered obsolete and must be updated.
+            Takes the value of Transparentpath._check_expire if None (Default value = None)
+
+        when_checked: Optional[dict]
+            Dict of the form {"used: True, "created": True}, that indicates when to check multiplicity of the path.
+            Takes the value of Transparentpath._when_checked if None (Default value = None)
+
+        when_updated: Optional[dict]
+            Same as when_checked but for cache update.
 
         kwargs:
             Any optional kwargs valid in pathlib.Path
@@ -679,7 +740,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             and not (type(path) == str)
             and not (type(path) == TransparentPath)
         ):
-            raise TypeError(f"Unsupported type {type(path)} for path")
+            raise TPTypeError(f"Unsupported type {type(path)} for path")
 
         # I never remember whether I should use fs='local' or fs_kind='local'. That way I don't need to.
         if "fs_kind" in kwargs and fs is None:
@@ -690,8 +751,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         # ask for a new file system
         if type(path) == TransparentPath and fs is None:
             # noinspection PyUnresolvedReferences
-            self.project = path.project
-            # noinspection PyUnresolvedReferences
             self.bucket = path.bucket
             # noinspection PyUnresolvedReferences
             self.fs_kind = path.fs_kind
@@ -701,63 +760,91 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.nas_dir = path.nas_dir
             # noinspection PyUnresolvedReferences
             self.__path = path.path
+            # noinspection PyUnresolvedReferences
+            self.sep = path.sep
+            # noinspection PyUnresolvedReferences
+            self.token = path.token
+            # noinspection PyUnresolvedReferences
+            self.nocheck = path.nocheck
+            # noinspection PyUnresolvedReferences
+            self.notupdatecache = path.notupdatecache
+            # noinspection PyUnresolvedReferences
+            self.last_check = path.last_check
+            # noinspection PyUnresolvedReferences
+            self.last_update = path.last_update
+            # noinspection PyUnresolvedReferences
+            self.update_expire = path.update_expire
+            # noinspection PyUnresolvedReferences
+            self.check_expire = path.check_expire
+            # noinspection PyUnresolvedReferences
+            self.when_checked = path.when_checked
+            # noinspection PyUnresolvedReferences
+            self.when_updated = path.when_updated
             return
 
         # In case we initiate a path containing 'gs://'
-        if "gs://" in str(path):
-
-            if project is None:
-                if TransparentPath.project is None:
-                    raise ValueError("You specified a path starting with 'gs://' but did not specify any GCP project")
-                project = TransparentPath.project
+        prefix_processed = False
+        if remote_prefix in str(path):
+            prefix_processed = True
+            project = extract_project(token)
 
             if fs == "local":
-                raise ValueError(
+                raise TPValueError(
                     "You specified a path starting with 'gs://' but ask for it to be local. This is not possible."
                 )
             fs = f"gcs_{project}"
-            splitted = str(path).split("gs://")
+            splitted = str(path).split(remote_prefix)
             if len(splitted) == 0:
                 if bucket is None and TransparentPath.bucket is None:
-                    raise ValueError(
-                        "If using a path starting with 'gs://', you must include the bucket name unless it"
-                        "is specified with bucket= or if TransparentPath already has been set to use a"
-                        "specified bucket"
+                    raise TPValueError(
+                        "If using a path starting with 'gs://', you must include the bucket name in it unless it"
+                        "is specified with bucket= or if TransparentPath already has been set to use a specified bucket"
+                        "with set_global_fs"
                     )
-                path = str(path).replace("gs://", "")
+                path = str(path).replace(remote_prefix, "")
 
             else:
                 bucket_from_path = splitted[1].split("/")[0]
                 if bucket is not None:
                     if bucket != bucket_from_path:
-                        raise ValueError(
+                        raise TPValueError(
                             f"Bucket name {bucket_from_path} was found in your path name, but it does "
                             f"not match the bucket name you specified with bucket={bucket}"
                         )
                 else:
                     bucket = bucket_from_path
-                if TransparentPath.bucket is None:
-                    TransparentPath.bucket = bucket_from_path
-                path = str(path).replace("gs://", "").replace(bucket_from_path, "")
+                # if TransparentPath.bucket is None:
+                #     TransparentPath.bucket = bucket_from_path
+                path = str(path).replace(remote_prefix, "").replace(bucket_from_path, "")
                 if path.startswith("/"):
                     path = path[1:]
 
         self.__path = Path(str(path).encode("utf-8").decode("utf-8"), **kwargs)
 
-        self.project = project if project is not None else TransparentPath.project
         self.bucket = bucket if bucket is not None else TransparentPath.bucket
+        self.token = token if token is not None else TransparentPath.token
         self.fs_kind = fs if fs is not None else TransparentPath.fs_kind
-        if self.fs_kind == "":
+        if self.fs_kind == "" or self.fs_kind is None:
             self.fs_kind = "local"
         self.fs = None
         self.nas_dir = TransparentPath.nas_dir
+        self.nocheck = nocheck if nocheck is not None else not TransparentPath._do_check
+        self.notupdatecache = notupdatecache if notupdatecache is not None else not TransparentPath._do_update_cache
+        self.last_check = 0
+        self.last_update = 0
+        self.update_expire = update_expire if update_expire is not None else TransparentPath._update_expire
+        self.check_expire = check_expire if check_expire is not None else TransparentPath._check_expire
+        self.when_checked = when_checked if when_checked is not None else TransparentPath._when_checked
+        self.when_updated = when_updated if when_updated is not None else TransparentPath._when_updated
 
-        if "gcs" in self.fs_kind:
-            if self.project is None:
-                raise ValueError("If File System is to be GCS, please provide the project name")
+        if "gcs" in self.fs_kind and not prefix_processed:
+            project = extract_project(self.token)
             if self.bucket is None:
-                raise ValueError("If File System is to be GCS, please provide the bucket name")
-            self.fs_kind = f"gcs_{self.project}"
+                raise TPValueError(
+                    "If File System is to be GCS, please provide the bucket name, either by using "
+                    "bucket= or by giving a path starting by gs://bucket/..."
+                )
+            self.fs_kind = f"gcs_{project}"
 
         # Set the file system of this class's instance. If an instance of same file system exists in class's fss,
         # will use it. Else, will create a new one and share it with class for future re-use.
@@ -776,7 +863,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             # ON LOCAL
 
             if len(self.__path.parts) > 0 and self.__path.parts[0] == "..":
-                raise ValueError("The path can not start with '..'")
+                raise TPValueError("The path can not start with '..'")
 
         else:
 
@@ -792,7 +879,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 self.__path = Path(self.bucket)
             elif len(self.__path.parts) > 0:
                 if self.__path.parts[0] == "..":
-                    raise ValueError("Trying to access a path before bucket")
+                    raise TPValueError("Trying to access a path before bucket")
                 if str(self.__path)[0] == "/":
                     self.__path = Path(str(self.__path)[1:])
 
@@ -801,10 +888,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
             else:
                 self.__path = Path(self.bucket) / self.__path
             if len(self.__path.parts) > 1 and self.bucket in self.__path.parts[1:]:
-                raise ValueError("You should never use your bucket name as a directory or file name.")
+                raise TPValueError("You should never use your bucket name as a directory or file name.")
 
-        if nocheck is False and TransparentPath._do_check:
+        if self.when_checked["created"] and not self.nocheck:
             self._check_multiplicity()
+        elif self.when_updated["created"] and not self.notupdatecache:  # Else, because called by check_multiplicity
+            self._update_cache()
 
     @property
     def path(self):
@@ -812,7 +901,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     @path.setter
     def path(self, value):
-        raise AttributeError("Can not set protected attribute 'path'")
+        raise TPAttributeError("Can not set protected attribute 'path'")
+
+    def __dask_tokenize__(self):
+        return hash(self)
 
     def __contains__(self, item: str) -> bool:
         """Overload of 'in' operator
@@ -848,7 +940,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return str(self) >= str(other)
 
     def __add__(self, other: str) -> TransparentPath:
-        """You can do :
+        """Alias of truediv
+
+        You can do :
         >>> from transparentpath import TransparentPath
         >>> p = TransparentPath("/chat")
         >>> p + "chien"
@@ -866,7 +960,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return self.__itruediv__(other)
 
     def __radd__(self, other):
-        raise TypeError(
+        raise TPTypeError(
             "You cannot div/add by a TransparentPath because they are all absolute path, which would result in a path "
             "before root "
         )
@@ -876,40 +970,55 @@ class TransparentPath(os.PathLike):  # noqa : F811
         TransparentPath behaves like pathlib.Path in regard to the division :
         it appends the denominator to the numerator.
 
-
         Parameters
         ----------
         other: str
             The relative path to append to self
 
-
         Returns
         -------
         TransparentPath
             The appended path
-
         """
+
+        if other.startswith(self.sep):
+            other = other[1:]
+
         if type(other) == str:
-            return TransparentPath(self.__path / other, fs=self.fs_kind, project=self.project, bucket=self.bucket)
+            return TransparentPath(
+                self.__path / other,
+                fs=self.fs_kind,
+                bucket=self.bucket,
+                notupdatecache=self.notupdatecache,
+                nocheck=self.nocheck,
+                when_checked=self.when_checked,
+                when_updated=self.when_updated,
+                update_expire=self.update_expire,
+                check_expire=self.check_expire,
+                token=self.token,
+            )
         else:
-            raise TypeError(f"Can not divide a TransparentPath by a {type(other)}, only by a string.")
+            raise TPTypeError(f"Can not divide a TransparentPath by a {type(other)}, only by a string.")
 
     def __itruediv__(self, other: str) -> TransparentPath:
         """itruediv will be an actual itruediv only if other is a str"""
+
+        if other.startswith(self.sep):
+            other = other[1:]
+
         if type(other) == str:
             self.__path /= other
             return self
         else:
-            raise TypeError(f"Can not divide a TransparentPath by a {type(other)}, only by a string.")
+            raise TPTypeError(f"Can not divide a TransparentPath by a {type(other)}, only by a string.")
 
     def __rtruediv__(self, other: Union[TransparentPath, Path, str]):
-        raise TypeError(
+        raise TPTypeError(
             "You cannot div/add by a TransparentPath because they are all absolute path, which would result in a path "
             "before root "
         )
 
     def __str__(self) -> str:
-        """Will not contain gs://, even if the file system is GCS. To get the path with gs://, use self.__fspath__()"""
         return self.__fspath__()
 
     def __repr__(self) -> str:
@@ -919,9 +1028,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if self.fs_kind == "local":
             return str(self.__path)
         else:
-            return "gs://" + str(self.__path)
+            return remote_prefix + str(self.__path)
 
     def __hash__(self) -> int:
+        """Uniaue hash number.
+
+         Two TransarentPath will have a same hash number if their fspath are the same and fs_kind (which will inlude
+         the project name if remote) are the same."""
         hash_number = int.from_bytes((self.fs_kind + self.__fspath__()).encode(), "little") + int.from_bytes(
             self.fs_kind.encode(), "little"
         )
@@ -949,10 +1062,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
 
         if callable(self):
-            raise AttributeError(f"{obj_name} does not belong to TransparentPath")
+            raise TPAttributeError(f"{obj_name} does not belong to TransparentPath")
 
         if obj_name in TransparentPath._attributes:
-            raise AttributeError(
+            raise TPAttributeError(
                 f"Attribute {obj_name} is expected to belong to TransparentPath but is not found. Something somehow "
                 f"tried to access this attribute before a proper call to __init__. "
             )
@@ -972,12 +1085,22 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if not callable(obj):
                 # Fetch the self.path's attributes to set it to self
                 if type(obj) == type(self.__path):  # noqa: E721
-                    setattr(
-                        self, obj_name, TransparentPath(obj, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+                    newpath = TransparentPath(
+                        obj,
+                        fs=self.fs_kind,
+                        bucket=self.bucket,
+                        notupdatecache=self.notupdatecache,
+                        nocheck=self.nocheck,
+                        when_checked=self.when_checked,
+                        when_updated=self.when_updated,
+                        update_expire=self.update_expire,
+                        check_expire=self.check_expire,
+                        token=self.token,
                     )
-                    return TransparentPath(obj, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+                    setattr(self, obj_name, newpath)
+                    return newpath
                 elif isinstance(obj, Iterable):
-                    obj = self.cast_iterable(obj)
+                    obj = self._cast_iterable(obj)
                     setattr(self, obj_name, obj)
                     return obj
                 else:
@@ -986,7 +1109,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             elif self.fs_kind == "local":
                 return lambda *args, **kwargs: self._obj_missing(obj_name, "pathlib", *args, **kwargs)
             else:
-                raise AttributeError(f"{obj_name} is not an attribute nor a method of TransparentPath")
+                raise TPAttributeError(f"{obj_name} is not an attribute nor a method of TransparentPath")
 
         elif obj_name in dir(""):
             obj = getattr("", obj_name)
@@ -997,7 +1120,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             else:
                 return lambda *args, **kwargs: self._obj_missing(obj_name, "str", *args, **kwargs)
         else:
-            raise AttributeError(f"{obj_name} is not an attribute nor a method of TransparentPath")
+            raise TPAttributeError(f"{obj_name} is not an attribute nor a method of TransparentPath")
 
     # /////////////// #
     # PRIVATE METHODS #
@@ -1013,60 +1136,61 @@ class TransparentPath(os.PathLike):  # noqa : F811
             else:
                 obj.nas_dir = nas_dir
 
-    def _update_cache(self):
-        """Calls FileSystem's invalidate_cache() to discard the cache then calls a non-distruptive method (fs.info(
-        bucket)) to update it.
-
-        If local, on need to update the chache. Not even sure it needs to be invalidated...
-        """
-        self.fs.invalidate_cache()
-        if "gcs" in self.fs_kind:
-            try:
-                self.fs.info(self.bucket)
-            except FileNotFoundError:
-                # noinspection PyStatementEffect
-                self.buckets
-
     def _cast_fast(self, path: str) -> TransparentPath:
-        return TransparentPath(path, fs=self.fs_kind, nocheck=True, bucket=self.bucket, project=self.project)
+        return TransparentPath(
+            path,
+            fs=self.fs_kind,
+            nocheck=True,
+            notupdatecache=True,
+            bucket=self.bucket,
+            when_checked=self.when_checked,
+            when_updated=self.when_updated,
+            update_expire=self.update_expire,
+            check_expire=self.check_expire,
+            token=self.token,
+        )
 
     def _cast_slow(self, path: str) -> TransparentPath:
-        return TransparentPath(path, fs=self.fs_kind, nocheck=False, bucket=self.bucket, project=self.project)
+        return TransparentPath(
+            path,
+            fs=self.fs_kind,
+            nocheck=False,
+            notupdatecache=False,
+            bucket=self.bucket,
+            when_checked={"created": False, "used": False},
+            when_updated={"created": False, "used": False},
+            update_expire=self.update_expire,
+            check_expire=self.check_expire,
+            token=self.token,
+        )
 
     def _set_fs(self) -> None:
         """ Create a new filesystem objet from self, or get the existing one
         """
 
-        if "gcs" in self.fs_kind:
-            if self.bucket is None:
-                raise ValueError("Need to provide a bucket name!")
-            if self.project is None:
-                raise ValueError("Need to provide a project name!")
-            self.fs_kind = f"{self.fs_kind}"
-
-        # If class has same kind of file system instance, use it
+        # If self's FileSystem (including project if GCS) is already known by TransparentPath, use it
         use_common = False
 
         if self.fs_kind in TransparentPath.fss:
             use_common = True
 
         if use_common:
-            self.fs = TransparentPath.fss[self.fs_kind]
+            # The copy is required for TransparentPath to work in multiprocess
+            self.fs = copy(TransparentPath.fss[self.fs_kind])
             self.nas_dir = TransparentPath.nas_dir
+            check_buckets(self.fs, self.bucket)
         # Else, init a new file system instance and share it with
         # TransparentPath
         else:
-            self.fs = get_fs(self.fs_kind.replace(f"_{self.project}", ""), self.project, self.bucket)
-            TransparentPath.fss[self.fs_kind] = self.fs
-            # If TransparentPath's main fs_kind was not set, set it
-            if TransparentPath.unset:
-                TransparentPath.fs_kind = self.fs_kind
-                TransparentPath.unset = False
-            if TransparentPath.bucket is None:
-                TransparentPath.bucket = self.bucket
-            if TransparentPath.project is None:
-                TransparentPath.project = self.project
-        check_buckets(self.fs, self.bucket)
+            if "gcs" in self.fs_kind:
+                self.fs, _ = get_fs("gcs", self.bucket, self.token)
+            else:
+                self.fs, _ = get_fs("local", self.bucket, self.token)
+
+        if self.fs_kind == "local":
+            self.sep = TransparentPath.LOCAL_SEP
+        else:
+            self.sep = "/"
 
     def _obj_missing(self, obj_name: str, kind: str, *args, **kwargs) -> Any:
         """Method to catch any call to a method/attribute missing from the class.
@@ -1096,8 +1220,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if TransparentPath._do_check:
-            self._check_multiplicity()
         # Append the absolute path to self.path according to whether the object
         # needs it and whether we are in gcs or local
         new_args = self._transform_path(obj_name, *args)
@@ -1124,7 +1246,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         elif kind == "fs":
             the_obj = getattr(self.fs, obj_name)
             if callable(the_obj):
-                to_ret = the_obj(*new_args, **kwargs)
+                if len(signature(the_obj).parameters) == 0:
+                    to_ret = the_obj()
+                else:
+                    to_ret = the_obj(*new_args, **kwargs)
             else:
                 return the_obj
             return to_ret
@@ -1145,14 +1270,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
             to_ret = the_method(str(self), *args, **kwargs)
             return to_ret
         else:
-            raise ValueError(f"Unknown value {kind} for attribute kind")
+            raise TPValueError(f"Unknown value {kind} for attribute kind")
 
     def _transform_path(self, method_name: str, *args: Tuple) -> Tuple:
         """
         File system methods take self.path as first argument, so add its absolute path as first argument of args. 
         Some, like ls or glob, are given a relative path to append to self.path, so we need to change the first 
         element of args from args[0] to self.path / args[0]
-
 
         Parameters
         ----------
@@ -1163,13 +1287,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
         args: Tuple
             The args to pass to the method
 
-
         Returns
         -------
         Tuple
             Either the unchanged args, or args with the first element
             prepended by self, or args with a new first element (self)
-
         """
         new_args = [self]
         if method_name in TransparentPath.method_without_self_path:
@@ -1187,11 +1309,34 @@ class TransparentPath(os.PathLike):  # noqa : F811
             new_args = tuple([str(self.__path)] + list(args))
         return new_args
 
+    def _update_cache(self):
+        """Calls FileSystem's invalidate_cache() to discard the cache then calls a non-disruptive method (fs.info(
+        bucket)) to update it.
+
+        If local, on need to update the chache. Not even sure it needs to be invalidated...
+        """
+
+        if time() - self.last_update < self.update_expire:
+            return
+
+        self.fs.invalidate_cache()
+        if "gcs" in self.fs_kind:
+            try:
+                self.fs.info(self.bucket)
+            except FileNotFoundError:
+                # noinspection PyStatementEffect
+                self.buckets
+        self.last_update = time()
+
     def _check_multiplicity(self) -> None:
         """Checks if several objects correspond to the path.
         Raises MultipleExistenceError if so, does nothing if not.
         """
-        if TransparentPath._do_update_cache:
+
+        if time() - self.last_check < self.check_expire:
+            return
+
+        if not self.notupdatecache:
             self._update_cache()
         if str(self.__path) == self.bucket or str(self.__path) == "/":
             return
@@ -1202,7 +1347,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if len(thels) > 1:
             thels = [Path(apath).name for apath in thels if Path(apath).name == self.name]
             if len(thels) > 1:
-                raise MultipleExistenceError(self, thels)
+                raise TPMultipleExistenceError(self, thels)
+
+        self.last_check = time()
 
     def _do_nothing(self) -> None:
         """ does nothing (you don't say) """
@@ -1223,11 +1370,49 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
         return self
 
+    @property
+    def absolute(self) -> TransparentPath:
+        """Returns self, since all TransparentPaths are absolute
+
+        Returns
+        -------
+        TransparentPath
+            self
+
+        """
+        return self
+
     def mkbucket(self, name: Optional[str] = None) -> None:
         raise NotImplementedError
 
     def rmbucket(self, name: Optional[str] = None) -> None:
         raise NotImplementedError
+
+    def exist(self):
+        """To prevent typo of 'exist()' without an -s"""
+        return self.exists()
+
+    def exists(self):
+        updated = False
+        if self.when_checked["used"] and not self.nocheck:
+            self._check_multiplicity()
+            updated = True
+        elif self.when_updated["used"] and not self.notupdatecache:
+            self._update_cache()
+            updated = True
+        if not self.fs.exists(self.__fspath__()):
+            if not updated:
+                self._update_cache()
+                return self.fs.exists(self.__fspath__())
+            else:
+                return False
+        return True
+
+    def isfile(self):
+        return self.is_file()
+
+    def isdir(self):
+        return self.is_dir()
 
     def is_dir(self, exist: bool = False) -> bool:
         """Check if self is a directory
@@ -1245,8 +1430,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         bool
 
         """
-        if TransparentPath._do_check:
-            self._check_multiplicity()
         if self.fs_kind == "local":
             return self.__path.is_dir()
         else:
@@ -1267,8 +1450,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if TransparentPath._do_check:
-            self._check_multiplicity()
         if not self.exists():
             return False
 
@@ -1299,7 +1480,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         ignore_kind: bool
             If True, will remove anything pointed by self. If False,
             will raise an error if self points to a file and 'recursive' was
-            specified in kwargs, or if self point to a dir and 'recursive'
+            specified in kwargs, or if self points to a dir and 'recursive'
             was not specified (Default value = False)
 
         kwargs
@@ -1312,11 +1493,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if TransparentPath._do_check:
-            self._check_multiplicity()
-
         if absent != "raise" and absent != "ignore":
-            raise ValueError(f"Unexpected value for argument 'absent' : {absent}")
+            raise TPValueError(f"Unexpected value for argument 'absent' : {absent}")
 
         # Asked to remove a directory...
         recursive = kwargs.get("recursive", False)
@@ -1331,37 +1509,50 @@ class TransparentPath(os.PathLike):  # noqa : F811
                         self.rm(absent, **kwargs)
                     # or raise
                     else:
-                        raise NotADirectoryError("The path does not point to a directory!")
+                        raise TPNotADirectoryError("The path does not point to a directory!")
                 # ...but self points to something that does not exist!
                 else:
                     if absent == "raise":
-                        raise NotADirectoryError("There is no directory here!")
+                        raise TPNotADirectoryError("There is no directory here!")
                     else:
                         return
             # ...deletes the directory
             else:
-                self.fs.rm(self.__fspath__(), **kwargs)
-            assert not self.is_dir(exist=True)
+                try:
+                    self.fs.rm(self.__fspath__(), **kwargs)
+                except OSError as e:
+                    if "not found" in str(e).lower():
+                        # It is possible that another parallel program deleted the object, in that case just pass
+                        pass
+                    else:
+                        raise e
         # Asked to remove a file...
         else:
             # ...but self points to a directory!
             if self.is_dir(exist=True):
                 # Delete anyway
                 if ignore_kind:
-                    self.rm(absent=absent, ignore_kind=True, recursive=True, **kwargs)
+                    kwargs["recursive"] = True
+                    self.rm(absent=absent, ignore_kind=True, **kwargs)
                 # or raise
                 else:
-                    raise IsADirectoryError("The path points to a directory")
+                    raise TPIsADirectoryError("The path points to a directory")
             else:
                 # ... but nothing is at self
                 if not self.exists():
                     if absent == "raise":
-                        raise FileNotFoundError(f"Could not find file {self}")
+                        raise TPFileNotFoundError(f"Could not find file {self}")
                     else:
                         return
                 else:
-                    self.fs.rm(self.__fspath__(), **kwargs)
-            assert not self.is_file()
+                    try:
+                        self.fs.rm(self.__fspath__(), **kwargs)
+                    except OSError as e:
+                        if "not found" in str(e).lower():
+                            # It is possible that another parallel program deleted the object, in that case just pass
+                            pass
+                        else:
+                            raise e
 
     def rmdir(self, absent: str = "raise", ignore_kind: bool = False) -> None:
         """Removes the directory corresponding to self if exists
@@ -1384,9 +1575,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.rm(absent=absent, ignore_kind=ignore_kind, recursive=True)
 
     def glob(self, wildcard: str = "*", fast: bool = False) -> Iterator[TransparentPath]:
-        """Returns a list of TransparentPath matching the wildcard pattern
+        """Returns a list of TransparentPath matching the wildcard pattern.
 
         By default, the wildcard is '*'. It means 'thepath/*', so will glob in the directory.
+
+        WARNING : on GCS, directories are not detected by glob.
 
         Parameters
         -----------
@@ -1405,11 +1598,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if TransparentPath._do_check:
-            self._check_multiplicity()
-
         if not self.is_dir(exist=True):
-            raise NotADirectoryError("The path must be a directory if you want to glob in it")
+            raise TPNotADirectoryError("The path must be a directory if you want to glob in it")
 
         if wildcard.startswith("/") or wildcard.startswith("\\"):
             wildcard = wildcard[1:]
@@ -1433,23 +1623,36 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Parameters
         -----------
         suffix: str
-            suffix to use, with the dot ('.pdf', '.py', etc ..)
+            suffix to use, with the dot ('.pdf', '.py', etc ..). Can also use '' to remove the suffix.
 
         Returns
         --------
         TransparentPath
 
         """
+        if not suffix.startswith(".") and not suffix == "":
+            suffix = f".{suffix}"
         return TransparentPath(
-            self.__path.with_suffix(suffix), fs=self.fs_kind, bucket=self.bucket, project=self.project
+            self.__path.with_suffix(suffix),
+            fs=self.fs_kind,
+            bucket=self.bucket,
+            notupdatecache=self.notupdatecache,
+            nocheck=self.nocheck,
+            when_checked=self.when_checked,
+            when_updated=self.when_updated,
+            update_expire=self.update_expire,
+            check_expire=self.check_expire,
+            token=self.token,
         )
 
-    def ls(self, fast: bool = False) -> Iterator[TransparentPath]:
-        """ Equivalent to glob("*")
+    def ls(self, path_to_ls: str = "", fast: bool = False) -> Iterator[TransparentPath]:
+        """ Unlike glob, if on GCS, will also see directories.
 
 
         Parameters
         -----------
+        path_to_ls: str
+            Path to ls, relative to self (default value = "")
         fast: bool
             If True, does not check multiplicity when converting output
             paths to TransparentPath, significantly speeding up the process
@@ -1462,7 +1665,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        return self.glob("*", fast=fast)
+        if not self.is_dir(exist=True):
+            raise TPNotADirectoryError("The path must be a directory if you want to ls in it")
+
+        if fast:
+            to_ret = map(self._cast_fast, self.fs.ls(str(self / path_to_ls)))
+        else:
+            to_ret = map(self._cast_slow, self.fs.ls(str(self / path_to_ls)))
+        return to_ret
 
     def cd(self, path: Optional[str] = None) -> None:
         """cd-like command. Works inplace
@@ -1490,12 +1700,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         # Will collapse any '..'
 
         if not isinstance(path, str) or isinstance(path, TransparentPath):
-            raise TypeError("Can only pass a string")
+            raise TPTypeError("Can only pass a string to TransparentPath's cd method")
 
-        path = path.replace("gs://", "")
+        path = path.replace(remote_prefix, "")
 
-        if TransparentPath._do_update_cache:
-            self._update_cache()
         if "gcs" in self.fs_kind and str(path) == self.bucket or path == "" or path == "/":
             self.__path = Path(self.bucket)
             return
@@ -1505,6 +1713,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.__path = Path()
             return
 
+        # noinspection PyUnresolvedReferences
         self.__path = self.__path / path
 
         if self.fs_kind == "local":
@@ -1517,7 +1726,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 return
             # noinspection PyUnresolvedReferences
             if self.__path.parts[0] == "..":
-                raise ValueError("The first part of a path can not be '..'")
+                raise TPValueError("The first part of a path can not be '..'")
         else:
             # If asked for an absolute path
             if path.startswith("/"):
@@ -1528,696 +1737,15 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 return
             # noinspection PyUnresolvedReferences
             if self.__path.parts[1] == "..":
-                raise ValueError("Trying to access a path before bucket")
+                raise TPValueError("Trying to access a path before bucket")
 
         # noinspection PyUnresolvedReferences
         self.__path = collapse_ddots(self.__path)
 
-    def open(self, *arg, **kwargs) -> IO:
-        """ Uses the file system open method
-
-        Parameters
-        ----------
-        arg
-            Any args valid for the builtin open() method
-
-        kwargs
-            Any kwargs valid for the builtin open() method
-
-
-        Returns
-        -------
-        IO
-            The IO buffer object
-
-        """
-
-        if TransparentPath._do_check:
-            self._check_multiplicity()
-        check_kwargs(self.fs.open, kwargs)
-        return self.fs.open(self.__path, *arg, **kwargs)
-
-    def read(
-        self,
-        *args,
-        get_obj: bool = False,
-        use_pandas: bool = False,
-        update_cache: bool = True,
-        use_dask: bool = False,
-        **kwargs,
-    ) -> Any:
-        """Method used to read the content of the file located at self
-        
-        Will raise FileNotFound error if there is no file. Calls a specific method to read self based on the suffix 
-        of self.path:
-
-            1: .csv : will use pandas's read_csv
-
-            2: .parquet : will use pandas's read_parquet with pyarrow engine
-
-            3: .hdf5 or .h5 : will use h5py.File or pd.HDFStore (if use_pandas = True). Since it does not support
-            remote file systems, the file will be downloaded localy in a tmp file read, then removed.
-
-            4: .json : will use open() method to get file content then json.loads to get a dict
-
-            5: .xlsx : will use pd.read_excel
-
-            6: any other suffix : will return a IO buffer to read from, or the string contained in the file if
-            get_obj is False.
-
-
-        Parameters
-        ----------
-        get_obj: bool
-            Only relevant for files that are not csv, parquet nor HDF5. If True returns the IO Buffer,
-            else the string contained in the IO Buffer (Default value = False)
-
-        use_pandas: bool
-            Must pass it as True if hdf5 file was written using HDFStore and not h5py.File (Default value = False)
-
-        update_cache: bool
-            FileSystem objects do not necessarily follow changes on the system in real time if they were not
-            perfermed by them directly. If update_cache is True, the FileSystem will update its cache before trying
-            to read anything. If False, it won't, potentially saving some time but this might result in a
-            FileNotFoundError. (Default value = True)
-
-        use_dask: bool
-            To return a Dask DataFrame instead of a pandas DataFrame. Only makes sense if file suffix is xlsx, csv,
-            parquet. (Default value = False)
-
-        args:
-            any args to pass to the underlying reading method
-
-        kwargs:
-            any kwargs to pass to the underlying reading method
-
-
-        Returns
-        -------
-        Any
-
-        """
-
-        if TransparentPath._do_check:
-            self._check_multiplicity()
-        if use_dask:
-            if TransparentPath.cli is None:
-                TransparentPath.cli = client.Client(processes=False)
-            if self.suffix != ".csv" and self.suffix != ".parquet" and not self.is_file():
-                raise FileNotFoundError(f"Could not find file {self}")
-            else:
-                # noinspection PyUnresolvedReferences
-                if (
-                    not self.is_file()
-                    and not self.is_dir(exist=True)
-                    and not self.with_suffix("").is_dir(exist=True)
-                    and "*" not in str(self)
-                ):
-                    raise FileNotFoundError(f"Could not find file nor directory {self}")
-        else:
-            if not self.is_file():
-                raise FileNotFoundError(f"Could not find file {self}")
-
-        if self.suffix == ".csv":
-            return self.read_csv(update_cache=update_cache, use_dask=use_dask, **kwargs)
-        elif self.suffix == ".parquet":
-            index_col = None
-            if "index_col" in kwargs:
-                index_col = kwargs["index_col"]
-                del kwargs["index_col"]
-            content = self.read_parquet(update_cache=update_cache, use_dask=use_dask, **kwargs)
-            if index_col:
-                content.set_index(content.columns[index_col])
-            return content
-        elif self.suffix == ".hdf5" or self.suffix == ".h5":
-            return self.read_hdf5(update_cache=update_cache, use_pandas=use_pandas, use_dask=use_dask, **kwargs)
-        elif self.suffix == ".json":
-            jsonified = self.read_text(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
-            return json.loads(jsonified)
-        elif self.suffix in [".xlsx", ".xls", ".xlsm"]:
-            return self.read_excel(update_cache=update_cache, use_dask=use_dask, **kwargs)
-        else:
-            return self.read_text(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
-
-    def read_csv(self, update_cache: bool = True, use_dask: bool = False, **kwargs) -> pd.DataFrame:
-        if update_cache and TransparentPath._do_update_cache:
-            self._update_cache()
-
-        # noinspection PyTypeChecker,PyUnresolvedReferences
-        try:
-            if use_dask:
-                check_dask()
-                if self.is_file():
-                    to_use = self
-                else:
-                    to_use = self.with_suffix("")
-                index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
-                check_kwargs(dd.read_csv, kwargs)
-                return apply_index_and_date(index_col, parse_dates, dd.read_csv(to_use.__fspath__(), **kwargs))
-
-            check_kwargs(pd.read_csv, kwargs)
-            return pd.read_csv(self.__fspath__(), **kwargs)
-
-        except pd.errors.ParserError:
-            # noinspection PyUnresolvedReferences
-            raise pd.errors.ParserError(
-                "Could not read data. Most likely, the file is encrypted."
-                " Ask your cloud manager to remove encryption on it."
-            )
-
-    def read_parquet(
-        self, update_cache: bool = True, use_dask: bool = False, **kwargs
-    ) -> Union[pd.DataFrame, pd.Series]:
-        if update_cache and TransparentPath._do_update_cache:
-            self._update_cache()
-
-        index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
-
-        if use_dask:
-            check_dask()
-            # Dask's read_parquet supports remote files, pandas does not
-            if self.is_file():
-                to_use = self
-            else:
-                to_use = self.with_suffix("")
-            check_kwargs(dd.read_parquet, kwargs)
-            return apply_index_and_date(
-                index_col, parse_dates, dd.read_parquet(to_use.__fspath__(), engine="pyarrow", **kwargs)
-            )
-
-        check_kwargs(pd.read_parquet, kwargs)
-        if self.fs_kind == "local":
-            return apply_index_and_date(index_col, parse_dates, pd.read_parquet(str(self), engine="pyarrow", **kwargs))
-
-        else:
-            return apply_index_and_date(
-                index_col, parse_dates, pd.read_parquet(self.open("rb"), engine="pyarrow", **kwargs)
-            )
-
-    def read_text(self, *args, get_obj: bool = False, update_cache: bool = True, **kwargs) -> Union[str, IO]:
-        if update_cache and TransparentPath._do_update_cache:
-            self._update_cache()
-        byte_mode = True
-        if len(args) == 0:
-            byte_mode = False
-            args = ("rb",)
-        if "b" not in args[0]:
-            byte_mode = False
-            args[0] += "b"
-        if get_obj:
-            return self.open(*args, **kwargs)
-
-        with self.open(*args, **kwargs) as f:
-            to_ret = f.read()
-            if not byte_mode:
-                to_ret = to_ret.decode()
-        return to_ret
-
-    def read_hdf5(
-        self,
-        update_cache: bool = True,
-        use_pandas: bool = False,
-        use_dask: bool = False,
-        set_names: str = "",
-        **kwargs,
-    ) -> Union[h5py.File, pd.HDFStore, dd.DataFrame]:
-        """Reads a HDF5 file. Must have been created by h5py.File or pd.HDFStore (specify use_pandas=True if so)
-
-        Since h5py.File/pd.HDFStore does not support GCS, first copy it in a tmp file.
-
-
-        Parameters
-        ----------
-
-        update_cache: bool
-            FileSystem objects do not necessarily follow changes on the system if they were not perfermed by them
-            directly. If update_cache is True, the FileSystem will update its cache before trying to read anything.
-            If False, it won't, potentially saving some time but this might result in a FileNotFoundError. (Default
-            value = True)
-
-        use_pandas: bool
-            To use HDFStore instead of h5py.File (Default value = False)
-
-        use_dask: bool
-            To indicate that the HDF5 should be opened using dask.dataframe.read_hdf(). (Default value = False)
-            
-        set_names: str
-            See using dask.dataframe.read_hdf()'s 'key' argument. (Default value = "")
-        kwargs
-            The kwargs to pass to h5py.File/pd.HDFStore method, or to dask.dataframe.read_hdf()
-
-
-        Returns
-        -------
-        Union[h5py.File, pd.HDFStore]
-            Opened h5py.File/pd.HDFStore
-
-        """
-
-        mode = "r"
-        if "mode" in kwargs:
-            mode = kwargs["mode"]
-            del kwargs["mode"]
-        if "r" not in mode:
-            raise ValueError("If using read_hdf5, mode must contain 'r'")
-
-        if use_dask:
-            check_dask()
-            if len(set_names) == 0:
-                raise ValueError(
-                    "If using Dask, you must specify the dataset name to extract using set_names='aname'"
-                    "or a wildcard."
-                )
-            check_kwargs(dd.read_hdf, kwargs)
-            if self.fs_kind == "local":
-                return dd.read_hdf(pattern=self, key=set_names, **kwargs)
-            f = tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5")
-            f.close()  # deletes the tmp file, but we can still use its name to download the remote file locally
-            self.get(f.name)
-            data = TransparentPath.cli.submit(dd.read_hdf, f.name, set_names, **kwargs)
-            # Do not delete the tmp file, since dask tasks are delayed
-            return data.result()
-
-        class_to_use = h5py.File
-        if use_pandas:
-            class_to_use = pd.HDFStore
-
-        if update_cache and TransparentPath._do_update_cache:
-            self._update_cache()
-        if self.fs_kind == "local":
-            # Do not check kwargs since HDFStore and h5py both accepct kwargs anyway
-            data = class_to_use(self.__path, mode=mode, **kwargs)
-        else:
-            f = tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5")
-            f.close()  # deletes the tmp file, but we can still use its name
-            self.get(f.name)
-            # Do not check kwargs since HDFStore and h5py both accepct kwargs anyway
-            data = class_to_use(f.name, mode=mode, **kwargs)
-            Path(f.name).unlink()
-        return data
-
-    def read_excel(self, update_cache: bool = True, use_dask: bool = False, **kwargs) -> pd.DataFrame:
-        if update_cache and TransparentPath._do_update_cache:
-            self._update_cache()
-
-        check_kwargs(pd.read_excel, kwargs)
-        # noinspection PyTypeChecker,PyUnresolvedReferences
-        try:
-            if self.fs_kind == "local":
-                if use_dask:
-                    check_dask()
-                    parts = delayed(pd.read_excel)(self, **kwargs)
-                    return dd.from_delayed(parts)
-                return pd.read_excel(self, **kwargs)
-            else:
-                f = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
-                f.close()  # deletes the tmp file, but we can still use its name
-                self.get(f.name)
-                if use_dask:
-                    check_dask()
-                    parts = delayed(pd.read_excel)(f.name, **kwargs)
-                    data = dd.from_delayed(parts)
-                    # We should not delete the tmp file, since dask does its operations lasily.
-                else:
-                    data = pd.read_excel(f.name, **kwargs)
-                    Path(f.name).unlink()
-                return data
-        except pd.errors.ParserError:
-            # noinspection PyUnresolvedReferences
-            raise pd.errors.ParserError(
-                "Could not read data. Most likely, the file is encrypted. Ask your cloud"
-                " manager to remove encryption on it."
-            )
-
-    def write(
-        self,
-        data: Any,
-        *args,
-        set_name: str = "data",
-        use_pandas: bool = False,
-        overwrite: bool = True,
-        present: str = "ignore",
-        update_cache: bool = True,
-        make_parents: bool = False,
-        **kwargs,
-    ) -> Union[None, pd.HDFStore, h5py.File]:
-        """Method used to write the content of the file located at self
-
-        Calls a specific method to write data based on the suffix of self.path:
-
-            1: .csv : will use pandas's to_csv
-
-            2: .parquet : will use pandas's to_parquet with pyarrow engine
-
-            3: .hdf5 or .h5 : will use h5py.File. Since it does not support remote file systems, the file will be
-            created localy in a tmp filen written to, then uploaded and removed localy.
-
-            4: .json : will use jsonencoder.JSONEncoder class. Works with DataFrames and np.ndarrays too.
-
-            5: .xlsx : will use pandas's to_excel
-
-            5: any other suffix : uses self.open to write to an IO Buffer
-
-
-        Parameters
-        ----------
-        data: Any
-            The data to write
-
-        set_name: str
-            Name of the dataset to write. Only relevant if using HDF5 (Default value = 'data')
-
-        use_pandas: bool
-            Must pass it as True if hdf file must be written using HDFStore and not h5py.File
-
-        overwrite: bool
-            If True, any existing file will be overwritten. Only relevant for csv, hdf5 and parquet files,
-            since others use the 'open' method, which args already specify what to do (Default value = True).
-
-        present: str
-            Indicates what to do if overwrite is False and file is present. Here too, only relevant for csv,
-            hsf5 and parquet files.
-
-        update_cache: bool
-            FileSystem objects do not necessarily follow changes on the system if they were not perfermed by them
-            directly. If update_cache is True, the FileSystem will update its cache before trying to read anything.
-            If False, it won't, potentially saving some time but this might result in a FileExistError. (Default
-            value = True)
-
-        make_parents: bool
-            If True and if the parent arborescence does not exist, it is created. (Default value = False)
-
-        args:
-            any args to pass to the underlying writting method
-
-        kwargs:
-            any kwargs to pass to the underlying reading method
-
-
-        Returns
-        -------
-        Union[None, pd.HDFStore, h5py.File]
-
-        """
-
-        if TransparentPath._do_check:
-            self._check_multiplicity()
-        if "dask" in str(type(data)):
-            check_dask()
-
-        if make_parents and not self.parent.is_dir():
-            self.parent.mkdir()
-
-        if self.suffix != ".hdf5" and self.suffix != ".h5" and data is None:
-            data = args[0]
-            args = args[1:]
-
-        if self.suffix == ".csv":
-            ret = self.to_csv(data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,)
-            if ret is not None:
-                # To skip the assert at the end of the function. Indeed if something is returned it means we used
-                # Dask, which will have written files with a different name than self, so the assert would fail.
-                return
-        elif self.suffix == ".parquet":
-            self.to_parquet(
-                data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
-            )
-            if isinstance(data, dd.DataFrame):
-                # noinspection PyUnresolvedReferences
-                assert self.with_suffix("").is_dir(exist=True)
-                return
-        elif self.suffix == ".hdf5" or self.suffix == ".h5":
-            ret = self.to_hdf5(
-                data=data, set_name=set_name, use_pandas=use_pandas, update_cache=update_cache, **kwargs,
-            )
-            if ret is not None:
-                return ret
-        elif self.suffix == ".json":
-            self.to_json(
-                data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
-            )
-        elif self.suffix == ".txt":
-            self.write_stuff(
-                *args, data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
-            )
-        elif self.suffix == ".xlsx":
-            self.to_excel(
-                data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
-            )
-        else:
-            self.write_bytes(
-                *args, data=data, overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
-            )
-        assert self.is_file()
-
-    def write_stuff(
-        self, data: Any, *args, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs
-    ) -> None:
-        if update_cache and TransparentPath._do_update_cache:
-            self._update_cache()
-        if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
-
-        args = list(args)
-        if len(args) == 0:
-            args = ("w",)
-
-        with self.open(*args, **kwargs) as f:
-            f.write(data)
-
-    def write_bytes(
-        self, data: Any, *args, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs,
-    ) -> None:
-
-        args = list(args)
-        if len(args) == 0:
-            args = ("wb",)
-        if "b" not in args[0]:
-            args[0] += "b"
-
-        self.write_stuff(data, *tuple(args), overwrite=overwrite, present=present, update_cache=update_cache, **kwargs)
-
-    def to_csv(
-        self,
-        data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
-        overwrite: bool = True,
-        present: str = "ignore",
-        update_cache: bool = True,
-        **kwargs,
-    ) -> Union[None, List[TransparentPath]]:
-        """
-        Warning : if data is a Dask dataframe, the output might be written in multiple file. one can always specify
-        single_file=True, but that is not supported in GCS. If only one file is produced, then this file will be
-        moved to self.
-        """
-        if update_cache and TransparentPath._do_update_cache:
-            self._update_cache()
-        if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
-
-        if isinstance(data, dd.DataFrame):
-            if TransparentPath.cli is None:
-                TransparentPath.cli = client.Client(processes=False)
-            check_kwargs(dd.to_csv, kwargs)
-            path_to_save = self
-            if not path_to_save.stem.endswith("*"):
-                path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
-            futures = TransparentPath.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
-            outfiles = [
-                TransparentPath(f, fs=self.fs_kind, bucket=self.bucket, project=self.project) for f in futures.result()
-            ]
-            if len(outfiles) == 1:
-                outfiles[0].mv(self)
-            else:
-                return outfiles
-        else:
-            check_kwargs(data.to_csv, kwargs)
-            data.to_csv(self.__fspath__(), **kwargs)
-
-    def to_parquet(
-        self,
-        data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
-        overwrite: bool = True,
-        present: str = "ignore",
-        update_cache: bool = True,
-        columns_to_string: bool = True,
-        to_dataframe: bool = True,
-        **kwargs,
-    ) -> None:
-        """
-        Warning : if data is a Dask dataframe, the output will be written in a directory. For convenience, the directory
-        if self.with_suffix(""). Reading is transparent and one can specify a path with .parquet suffix.
-        """
-        if update_cache and TransparentPath._do_update_cache:
-            self._update_cache()
-        if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
-
-        if to_dataframe and isinstance(data, pd.Series):
-            name = data.name
-            data = pd.DataFrame(data=data)
-            if name is not None:
-                data.columns = [name]
-
-        if columns_to_string and not isinstance(data.columns[0], str):
-            data.columns = data.columns.astype(str)
-
-        # noinspection PyTypeChecker
-        if isinstance(data, dd.DataFrame):
-            if TransparentPath.cli is None:
-                TransparentPath.cli = client.Client(processes=False)
-            check_kwargs(dd.to_parquet, kwargs)
-            dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
-        else:
-            check_kwargs(data.to_parquet, kwargs)
-            data.to_parquet(self.open("wb"), engine="pyarrow", compression="snappy", **kwargs)
-
-    def to_hdf5(
-        self, data: Any = None, set_name: str = None, update_cache: bool = True, use_pandas: bool = False, **kwargs,
-    ) -> Union[None, h5py.File, pd.HDFStore]:
-        """
-
-        Parameters
-        ----------
-        data: Any
-            The data to store. Can be None, in that case an opened file is returned (Default value = None)
-        set_name: str
-            The name of the dataset (Default value = None)
-        update_cache: bool
-            FileSystem objects do not necessarily follow changes on the system if they were not perfermed by them
-            directly. If update_cache is True, the FileSystem will update its cache before trying to read anything.
-            If False, it won't, potentially saving some time but this might result in a FileExistError. (Default
-            value = True)
-        use_pandas: bool
-            To use pd.HDFStore object instead of h5py.File (Default = False)
-        **kwargs
-
-        Returns
-        -------
-        Union[None, pd.HDFStore, h5py.File]
-
-        """
-
-        mode = "w"
-        if "mode" in kwargs:
-            mode = kwargs["mode"]
-            del kwargs["mode"]
-
-        if update_cache and TransparentPath._do_update_cache:
-            self._update_cache()
-
-        # If no data is specified, an HDF5 file is returned, opened in write mode, or any other specified mode.
-        if data is None:
-
-            class_to_use = MyHDFFile
-            if use_pandas:
-                class_to_use = MyHDFStore
-            if self.fs_kind == "local":
-                return class_to_use(self.__path, mode=mode, **kwargs)
-            else:
-                f = tempfile.NamedTemporaryFile(delete=True, suffix=".hdf5")
-                return class_to_use(f, remote=self.__path, mode=mode, **kwargs)
-        else:
-
-            if isinstance(data, dict):
-                sets = data
-            else:
-                if set_name is None:
-                    set_name = "data"
-                sets = {set_name: data}
-
-            class_to_use = h5py.File
-            if use_pandas:
-                class_to_use = pd.HDFStore
-                if isinstance(data, dd.DataFrame):
-                    raise NotImplementedError(
-                        "TransparentPath does not support storing Dask objects in pandas's HDFStore yet."
-                    )
-
-            if isinstance(data, dd.DataFrame):
-
-                # raise NotImplementedError(f"For whatever fucking stupid reason, Dask will not be able to read your "
-                #                           f"dataframe back, and pandas will read bullshit from it. So don't"
-                #                           f"try to write into HDF5 using Dask.")
-
-                if TransparentPath.cli is None:
-                    TransparentPath.cli = client.Client(processes=False)
-                check_kwargs(dd.to_hdf, kwargs)
-                if self.fs_kind == "local":
-                    for aset in sets:
-                        dd.to_hdf(sets[aset], self, aset, mode=mode, **kwargs)
-                else:
-                    with tempfile.NamedTemporaryFile() as f:
-                        futures = TransparentPath.cli.map(
-                            dd.to_hdf, list(sets.values()), [f.name] * len(sets), list(sets.keys()), mode=mode, **kwargs
-                        )
-                        TransparentPath.cli.gather(futures)
-                        TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(
-                            self.__path
-                        )
-                return
-
-            if self.fs_kind == "local":
-                thefile = class_to_use(self.__path, mode=mode, **kwargs)
-                for aset in sets:
-                    thefile[aset] = sets[aset]
-                thefile.close()
-            else:
-                with tempfile.NamedTemporaryFile(delete=True, suffix=".hdf5") as f:
-                    thefile = class_to_use(f.name, mode=mode, **kwargs)
-                    for aset in sets:
-                        thefile[aset] = sets[aset]
-                    thefile.close()
-                    TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.__path)
-
-    def to_json(self, data: Any, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs):
-
-        jsonified = json.dumps(data, cls=JSONEncoder)
-        self.write_stuff(
-            jsonified, "w", overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
-        )
-
-    def to_excel(
-        self,
-        data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
-        overwrite: bool = True,
-        present: str = "ignore",
-        update_cache: bool = True,
-        **kwargs,
-    ) -> None:
-        if update_cache and TransparentPath._do_update_cache:
-            self._update_cache()
-        if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
-
-        # noinspection PyTypeChecker
-
-        if self.fs_kind == "local":
-            if isinstance(data, dd.DataFrame):
-                if TransparentPath.cli is None:
-                    TransparentPath.cli = client.Client(processes=False)
-                check_kwargs(pd.DataFrame.to_excel, kwargs)
-                parts = delayed(pd.DataFrame.to_excel)(data, self.__fspath__(), **kwargs)
-                parts.compute()
-                return
-            data.to_excel(self, **kwargs)
-        else:
-            with tempfile.NamedTemporaryFile(delete=True, suffix=".xlsx") as f:
-                if isinstance(data, dd.DataFrame):
-                    if TransparentPath.cli is None:
-                        TransparentPath.cli = client.Client(processes=False)
-                    check_kwargs(pd.DataFrame.to_excel, kwargs)
-                    parts = delayed(pd.DataFrame.to_excel)(data, f.name, **kwargs)
-                    parts.compute()
-                else:
-                    check_kwargs(data.to_excel, kwargs)
-                    data.to_excel(f.name, **kwargs)
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.__path)
-
-    def touch(self, present: str = "ignore", create_parents: bool = True, **kwargs) -> None:
+    def touch(self, present: str = "ignore", **kwargs) -> None:
         """Creates the file corresponding to self if does not exist.
 
-        Raises FileExistsError if there already is an object that is not a file at self. Default behavior is to
+        Raises TPFileExistsError if there already is an object that is not a file at self. Default behavior is to
         create parent directories of the file if needed. This can be canceled by passing 'create_parents=False', but
         only if not using GCS, since directories are not a thing on GCS.
 
@@ -2226,10 +1754,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         ----------
         present: str
             What to do if there is already something at self. Can be "raise" or "ignore" (Default value = "ignore")
-
-        create_parents: bool
-            If False, raises an error if parent directories are absent. Else, create them. Always True on GCS. (
-            Default value = True)
 
         kwargs
             The kwargs to pass to file system's touch method
@@ -2241,34 +1765,36 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if TransparentPath._do_update_cache:
-            self._update_cache()
         if present != "raise" and present != "ignore":
-            raise ValueError(f"Unexpected value for argument 'present' : {present}")
+            raise TPValueError(f"Unexpected value for argument 'present' : {present}")
 
-        if present == "raise" and self.exists() and not self.is_file():
-            raise FileExistsError(f"There is already an object at {self} which is not a file.")
+        if self.exists():
+            if self.is_file() and present == "raise":
+                raise TPFileExistsError
+            elif not self.is_file():
+                raise TPFileExistsError(f"There is already an object at {self} which is not a file.")
+            else:
+                return
 
-        if not self.exists():
-            for parent in self.parents:
-                p = TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket, project=self.project)
-                if p.is_file():
-                    raise FileExistsError(
-                        f"A parent directory can not be created because there is already a file at {p}"
-                    )
-                # Is True on GCS even if there is no directory, because we
-                # do not specify exist=True
-                if not p.is_dir():
-                    if not create_parents:
-                        raise NotADirectoryError(f"Parent directory {p} not found")
-                    else:
-                        p.mkdir()
-        # No need to specify exist=True here, since we know file exists.
-        elif self.is_dir():
-            raise IsADirectoryError("Can not touch a directory")
+        for parent in self.parents:
+            p = TransparentPath(
+                parent,
+                fs=self.fs_kind,
+                bucket=self.bucket,
+                notupdatecache=self.notupdatecache,
+                nocheck=self.nocheck,
+                when_checked=self.when_checked,
+                when_updated=self.when_updated,
+                update_expire=self.update_expire,
+                check_expire=self.check_expire,
+                token=self.token,
+            )
+            if p.is_file():
+                raise TPFileExistsError(f"A parent directory can not be created because there is already a file at {p}")
+            elif not p.exists():
+                p.mkdir()
 
         self.fs.touch(self.__fspath__(), **kwargs)
-        assert self.is_file()
 
     def mkdir(self, present: str = "ignore", **kwargs) -> None:
         """Creates the directory corresponding to self if does not exist
@@ -2293,18 +1819,31 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
 
         if present != "raise" and present != "ignore":
-            raise ValueError(f"Unexpected value for argument 'present' : {present}")
+            raise TPValueError(f"Unexpected value for argument 'present' : {present}")
 
-        if present == "raise" and self.exists():
-            raise FileExistsError(f"There is already an object at {self}")
+        if self.exists():
+            if self.is_dir() and present == "raise":
+                raise TPFileExistsError(f"There is already a directory at {self}")
+            if not self.is_dir():
+                raise TPFileExistsError(f"There is already an object at {self} and it is not a  directory")
+            return
 
         for parent in self.parents:
-            if TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket, project=self.project).is_file():
-                raise FileExistsError(
-                    "A parent directory can not be "
-                    "created because there is already a"
-                    " file at"
-                    f" {TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket, project=self.project)}"
+            thefile = TransparentPath(
+                parent,
+                fs=self.fs_kind,
+                bucket=self.bucket,
+                notupdatecache=self.notupdatecache,
+                nocheck=self.nocheck,
+                when_checked=self.when_checked,
+                when_updated=self.when_updated,
+                update_expire=self.update_expire,
+                check_expire=self.check_expire,
+                token=self.token,
+            )
+            if thefile.is_file():
+                raise TPFileExistsError(
+                    "A parent directory can not be created because there is already a file at" f" {thefile}"
                 )
 
         if self.fs_kind == "local":
@@ -2316,8 +1855,15 @@ class TransparentPath(os.PathLike):  # noqa : F811
             # Does not mean anything to create a directory on GCS
             pass
 
-    def stat(self):
-        """Calls file system's stat method and translates the key to os.stat_result() keys"""
+    def stat(self) -> dict:
+        """Calls file system's stat method and translates the key to os.stat_result() keys
+
+        Returns empty dict of path does not point to anything
+        """
+
+        if not self.exist():
+            return {}
+
         key_translation = {
             "size": "st_size",
             "timeCreated": "st_ctime",
@@ -2344,160 +1890,455 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if key not in stat:
                 stat[key] = None
 
-        return pd.Series(stat)
+        return stat
 
     def append(self, other: str) -> TransparentPath:
-        return TransparentPath(str(self) + other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
-
-    def put(self, dst: Union[str, Path, TransparentPath]):
-        """used to push a local file to the cloud.
-
-        self must be a local TransparentPath. If dst is a TransparentPath, it must be on GCS. If it is a pathlib.Path
-        or a str, it will be casted into a GCS TransparentPath, so a gcs file system must have been set up before. """
-
-        if "gcs" not in "".join(TransparentPath.fss):
-            raise ValueError("You need to set up a gcs file system before using the put() command.")
-        if not self.fs_kind == "local":
-            raise ValueError(
-                "The calling instance of put() must be local. "
-                "To move on gcs a file already on gcs, use mv("
-                "). To move a file from gcs, to local, use get("
-                "). "
-            )
-        # noinspection PyUnresolvedReferences
-        if type(dst) == TransparentPath and "gcs" not in dst.fs_kind:
-            raise ValueError(
-                "The second argument can not be a local "
-                "TransparentPath. To move a file "
-                "localy, use the mv() method."
-            )
-        if type(dst) != TransparentPath:
-            dst = TransparentPath(dst, fs="gcs")
-        if self.is_dir():
-            for item in self.glob("/*"):
-                # noinspection PyUnresolvedReferences
-                item.put(dst / item.name)
-        else:
-            with open(self, "rb") as f1:
-                with open(dst, "wb") as f2:
-                    data = True
-                    while data:
-                        data = f1.read(self.blocksize)
-                        f2.write(data)
-
-    def get(self, loc: Union[str, Path, TransparentPath]):
-        """used to get a remote file to local.
-
-        self must be a gcs TransparentPath. If loc is a TransparentPath, it must be local. If it is a pathlib.Path or
-        a str, it will be casted into a local TransparentPath. """
-
-        if "gcs" not in self.fs_kind:
-            raise ValueError(
-                "The calling instance of get() must be on GCS. To move a file localy, use the mv() method."
-            )
-        # noinspection PyUnresolvedReferences
-        if type(loc) == TransparentPath and loc.fs_kind != "local":
-            raise ValueError(
-                "The second argument can not be a GCS "
-                "TransparentPath. To move on gcs a file already"
-                "on gcs, use mv(). To move a file from gcs, to"
-                " local, use get()"
-            )
-        if type(loc) != TransparentPath:
-            loc = TransparentPath(loc, fs="local", bucket=self.bucket, project=self.project)
-        self.fs.get(self.__fspath__(), loc.__fspath__())
-
-    def mv(self, other: Union[str, Path, TransparentPath]):
-        """Used to move a file or a directory on the same file system."""
-
-        if not type(other) == TransparentPath:
-            other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
-        if other.fs_kind != self.fs_kind:
-            raise ValueError(
-                "mv() can only move two TransparentPath on the same file system. To get a remote file to "
-                "local, use get(). To push a local file to remote, use put()."
-            )
-
-        # Do not use filesystem's move, for it is coded by apes and is not able to use recursive properly
-        # self.fs.mv(self.__fspath__(), other, **kwargs)
-
-        if self.is_file():
-            self.fs.mv(self.__fspath__(), other)
-            return
-
-        for stuff in list(self.glob("**/*", fast=True)):
-            # noinspection PyUnresolvedReferences
-            if not stuff.is_file():
-                continue
-            # noinspection PyUnresolvedReferences
-            relative = stuff.split(f"/{self.name}/")[-1]
-            newpath = other / relative
-            newpath.parent.mkdir(recursive=True)
-            self.fs.mv(stuff.__fspath__(), newpath)
-
-    def cp(self, other: Union[str, Path, TransparentPath]):
-        """Used to copy a file or a directory on the same filesystem."""
-
-        if not type(other) == TransparentPath:
-            other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket, project=self.project)
-        if other.fs_kind != self.fs_kind:
-            raise ValueError(
-                "mv() can only copy two TransparentPath on the same file system. To get a remote file to "
-                "local, use get(). To push a local file to remote, use put()."
-            )
-
-        # Do not use filesystem's copy, for it is coded by apes and is not able to use recursive properly
-        # self.fs.cp(self.__fspath__(), other, **kwargs)
-
-        if self.is_file():
-            self.fs.cp(self.__fspath__(), other)
-            return
-
-        for stuff in list(self.glob("**/*", fast=True)):
-            # noinspection PyUnresolvedReferences
-            if not stuff.is_file():
-                continue
-            # noinspection PyUnresolvedReferences
-            relative = stuff.split(f"/{self.name}/")[-1]
-            newpath = other / relative
-            newpath.parent.mkdir(recursive=True)
-            self.fs.cp(stuff.__fspath__(), newpath)
+        return TransparentPath(
+            str(self) + other,
+            fs=self.fs_kind,
+            bucket=self.bucket,
+            notupdatecache=self.notupdatecache,
+            nocheck=self.nocheck,
+            when_checked=self.when_checked,
+            when_updated=self.when_updated,
+            update_expire=self.update_expire,
+            check_expire=self.check_expire,
+            token=self.token,
+        )
 
     def walk(self) -> Iterator[Tuple[TransparentPath, List[TransparentPath], List[TransparentPath]]]:
-        """Like os.walk, except all outputs are TransparentPaths (so, absulute paths)
+        """Like os.walk, except all outputs are TransparentPaths (so, absolute paths)
 
         Returns
         -------
         Iterator[Tuple[TransparentPath, List[TransparentPath], List[TransparentPath]]]
             root, dirs and files, like os.walk
         """
+
+        if self.when_checked["used"] and not self.nocheck:
+            self._check_multiplicity()
+        # No need to update cache for walk
+
         outputs = self.fs.walk(self.__fspath__())
         for output in outputs:
-            root = TransparentPath(output[0], fs=self.fs_kind, bucket=self.bucket, project=self.project)
+            root = TransparentPath(
+                output[0],
+                fs=self.fs_kind,
+                bucket=self.bucket,
+                notupdatecache=self.notupdatecache,
+                nocheck=self.nocheck,
+                when_checked=self.when_checked,
+                when_updated=self.when_updated,
+                update_expire=self.update_expire,
+                check_expire=self.check_expire,
+                token=self.token,
+            )
             dirs = [root / p for p in output[1]]
             files = [root / p for p in output[2]]
             yield root, dirs, files
 
-    def exist(self):
-        """To prevent typo of 'exist()' without an -s"""
-        return self.exists()
-
-    def exists(self):
-        if TransparentPath._do_update_cache:
-            self._update_cache()
-        return self.fs.exists(self.__fspath__())
-
     @property
     def buckets(self):
+        if self.fs_kind == "local":
+            return []
         return get_buckets(self.fs)
 
-    def cast_iterable(self, iter_: Iterable):
+    def _cast_iterable(self, iter_: Iterable):
+        """Used by self.walk"""
         if isinstance(iter_, Path) or isinstance(iter_, TransparentPath):
-            return TransparentPath(iter_, fs=self.fs_kind, bucket=self.bucket, project=self.project)
+            return TransparentPath(
+                iter_,
+                fs=self.fs_kind,
+                bucket=self.bucket,
+                notupdatecache=self.notupdatecache,
+                nocheck=self.nocheck,
+                when_checked=self.when_checked,
+                when_updated=self.when_updated,
+                update_expire=self.update_expire,
+                check_expire=self.check_expire,
+                token=self.token,
+            )
         elif isinstance(iter_, str):
             return iter_
         elif not isinstance(iter_, Iterable):
             return iter_
         else:
-            to_ret = [self.cast_iterable(item) for item in iter_]
+            to_ret = [self._cast_iterable(item) for item in iter_]
             return to_ret
+
+    def read(self, *args, get_obj: bool = False, use_pandas: bool = False, use_dask: bool = False, **kwargs,) -> Any:
+        """Method used to read the content of the file located at self
+
+        Will raise FileNotFound error if there is no file. Calls a specific method to read self based on the suffix
+        of self.path:
+            1: .csv : will use pandas's read_csv
+            2: .parquet : will use pandas's read_parquet with pyarrow engine
+            3: .hdf5 or .h5 : will use h5py.File or pd.HDFStore (if use_pandas = True). Since it does not support
+            remote file systems, the file will be downloaded localy in a tmp file read, then removed.
+            4: .json : will use open() method to get file content then json.loads to get a dict
+            5: .xlsx : will use pd.read_excel
+            6: any other suffix : will return a IO buffer to read from, or the string contained in the file if
+            get_obj is False.
+
+        For any of the reading method, the appropriate packages need to have been installed by calling
+        `pip install transparentpath[something]`
+        The possibilities for 'something' are 'pandas-csv', 'pandas-parquet', 'pandas-excel', 'hdf5', 'json', 'dask'.
+        You can install all possible packages by putting 'all' in place of 'something'.
+
+        The default installation of transperantpath is 'vanilla', which will only support read and write of text
+         or binary files, and the use of with open(...).
+
+        Parameters
+        ----------
+        get_obj: bool
+            Only relevant for files that are not csv, parquet nor HDF5. If True returns the IO Buffer,
+            else the string contained in the IO Buffer (Default value = False)
+        use_pandas: bool
+            Must pass it as True if hdf5 file was written using HDFStore and not h5py.File (Default value = False)
+        use_dask: bool
+            To return a Dask DataFrame instead of a pandas DataFrame. Only makes sense if file suffix is xlsx, csv,
+            parquet. (Default value = False)
+        args:
+            any args to pass to the underlying reading method
+        kwargs:
+            any kwargs to pass to the underlying reading method
+
+        Returns
+        -------
+        Any
+        """
+        # Update cache and/or check multiplicity are called inside each specific reading method
+
+        if self.suffix == ".csv":
+            return self.read_csv(use_dask=use_dask, **kwargs)
+        elif self.suffix == ".parquet":
+            index_col = None
+            if "index_col" in kwargs:
+                index_col = kwargs["index_col"]
+                del kwargs["index_col"]
+            # noinspection PyNoneFunctionAssignment
+            content = self.read_parquet(use_dask=use_dask, **kwargs)
+            if index_col:
+                # noinspection PyUnresolvedReferences
+                content.set_index(content.columns[index_col])
+            return content
+        elif self.suffix == ".hdf5" or self.suffix == ".h5":
+            return self.read_hdf5(use_pandas=use_pandas, use_dask=use_dask, **kwargs)
+        elif self.suffix == ".json":
+            return self.read_json(*args, get_obj=get_obj, **kwargs)
+        elif self.suffix in [".xlsx", ".xls", ".xlsm"]:
+            return self.read_excel(use_dask=use_dask, **kwargs)
+        else:
+            return self.read_text(*args, get_obj=get_obj, **kwargs)
+
+    # noinspection PyUnresolvedReferences
+    def write(
+        self,
+        data: Any,
+        *args,
+        set_name: str = "data",
+        use_pandas: bool = False,
+        overwrite: bool = True,
+        present: str = "ignore",
+        make_parents: bool = False,
+        **kwargs,
+    ) -> Union[None, "pd.HDFStore", "h5py.File"]:
+        """Method used to write the content of the file located at self
+        Calls a specific method to write data based on the suffix of self.path:
+            1: .csv : will use pandas's to_csv
+            2: .parquet : will use pandas's to_parquet with pyarrow engine
+            3: .hdf5 or .h5 : will use h5py.File. Since it does not support remote file systems, the file will be
+            created localy in a tmp filen written to, then uploaded and removed localy.
+            4: .json : will use jsonencoder.JSONEncoder class. Works with DataFrames and np.ndarrays too.
+            5: .xlsx : will use pandas's to_excel
+            5: any other suffix : uses self.open to write to an IO Buffer
+        Parameters
+        ----------
+        data: Any
+            The data to write
+        set_name: str
+            Name of the dataset to write. Only relevant if using HDF5 (Default value = 'data')
+        use_pandas: bool
+            Must pass it as True if hdf file must be written using HDFStore and not h5py.File
+        overwrite: bool
+            If True, any existing file will be overwritten. Only relevant for csv, hdf5 and parquet files,
+            since others use the 'open' method, which args already specify what to do (Default value = True).
+        present: str
+            Indicates what to do if overwrite is False and file is present. Here too, only relevant for csv,
+            hsf5 and parquet files.
+        make_parents: bool
+            If True and if the parent arborescence does not exist, it is created. (Default value = False)
+        args:
+            any args to pass to the underlying writting method
+        kwargs:
+            any kwargs to pass to the underlying reading method
+        Returns
+        -------
+        Union[None, pd.HDFStore, h5py.File]
+        """
+        # Update cache and/or check multiplicity are called inside each specific reading method
+
+        if make_parents and not self.parent.is_dir():
+            self.parent.mkdir()
+
+        if self.suffix != ".hdf5" and self.suffix != ".h5" and data is None:
+            data = args[0]
+            args = args[1:]
+
+        if self.suffix == ".csv":
+            ret = self.to_csv(data=data, overwrite=overwrite, present=present, **kwargs,)
+            if ret is not None:
+                # To skip the assert at the end of the function. Indeed if something is returned it means we used
+                # Dask, which will have written files with a different name than self, so the assert would fail.
+                return
+        elif self.suffix == ".parquet":
+            self.to_parquet(
+                data=data, overwrite=overwrite, present=present, **kwargs,
+            )
+            if "dask" in str(type(data)):
+                # noinspection PyUnresolvedReferences
+                assert self.with_suffix("").is_dir(exist=True)
+                return
+        elif self.suffix == ".hdf5" or self.suffix == ".h5":
+            ret = self.to_hdf5(data=data, set_name=set_name, use_pandas=use_pandas, **kwargs,)
+            if ret is not None:
+                return ret
+        elif self.suffix == ".json":
+            self.to_json(
+                data=data, overwrite=overwrite, present=present, **kwargs,
+            )
+        elif self.suffix == ".txt":
+            self.write_stuff(
+                *args, data=data, overwrite=overwrite, present=present, **kwargs,
+            )
+        elif self.suffix in [".xlsx", ".xls", ".xlsm"]:
+            self.to_excel(
+                data=data, overwrite=overwrite, present=present, **kwargs,
+            )
+        else:
+            self.write_bytes(
+                *args, data=data, overwrite=overwrite, present=present, **kwargs,
+            )
+        assert self.is_file()
+
+    # READ CSV
+
+    def read_csv(self, *args, **kwargs):
+        use_dask = False
+        if "use_dask" in kwargs:
+            use_dask = kwargs["use_dask"]
+            del kwargs["use_dask"]
+        if use_dask:
+            return self.read_csv_dask(*args, **kwargs)
+        else:
+            return self.read_csv_classic(*args, **kwargs)
+
+    def read_csv_dask(self, *args, **kwargs):
+        raise TPImportError(errormessage("dask"))
+
+    def read_csv_classic(self, *args, **kwargs):
+        raise TPImportError(errormessage("pandas"))
+
+    # READ HDF5
+
+    def read_hdf5(self, *args, **kwargs):
+        use_dask = False
+        if "use_dask" in kwargs:
+            use_dask = kwargs["use_dask"]
+            del kwargs["use_dask"]
+        if use_dask:
+            return self.read_hdf5_dask(*args, **kwargs)
+        else:
+            return self.read_hdf5_classic(*args, **kwargs)
+
+    def read_hdf5_dask(self, *args, **kwargs):
+        raise TPImportError(errormessage("dask,hdf5"))
+
+    def read_hdf5_classic(self, *args, **kwargs):
+        raise TPImportError(errormessage("hdf5"))
+
+    # READ EXCEL
+
+    def read_excel(self, *args, **kwargs):
+        use_dask = False
+        if "use_dask" in kwargs:
+            use_dask = kwargs["use_dask"]
+            del kwargs["use_dask"]
+        if use_dask:
+            return self.read_excel_dask(*args, **kwargs)
+        else:
+            return self.read_excel_classic(*args, **kwargs)
+
+    def read_excel_dask(self, *args, **kwargs):
+        raise TPImportError(errormessage("dask,excel"))
+
+    def read_excel_classic(self, *args, **kwargs):
+        raise TPImportError(errormessage("excel"))
+
+    # READ PARQUET
+
+    def read_parquet(self, *args, **kwargs):
+        use_dask = False
+        if "use_dask" in kwargs:
+            use_dask = kwargs["use_dask"]
+            del kwargs["use_dask"]
+        if use_dask:
+            return self.read_parquet_dask(*args, **kwargs)
+        else:
+            return self.read_parquet_classic(*args, **kwargs)
+
+    def read_parquet_dask(self, *args, **kwargs):
+        raise TPImportError(errormessage("dask,parquet"))
+
+    def read_parquet_classic(self, *args, **kwargs):
+        raise TPImportError(errormessage("parquet"))
+
+    # READ JSON
+
+    def read_json(self, *args, **kwargs):
+        raise TPImportError(errormessage("json"))
+
+    # WRITE CSV
+
+    def to_csv(self, data, *args, **kwargs):
+        if "dask" in str(type(data)):
+            return self.to_csv_dask(data, *args, **kwargs)
+        else:
+            self.to_csv_classic(data, *args, **kwargs)
+
+    def to_csv_classic(self, *args, **kwargs):
+        raise TPImportError(errormessage("pandas"))
+
+    def to_csv_dask(self, *args, **kwargs):
+        raise TPImportError(errormessage("dask"))
+
+    # WRITE HDF5
+
+    def to_hdf5(self, data, *args, **kwargs):
+        if "dask" in str(type(data)):
+            return self.to_hdf5_dask(data, *args, **kwargs)
+        else:
+            return self.to_hdf5_classic(data, *args, **kwargs)
+
+    def to_hdf5_classic(self, *args, **kwargs):
+        raise TPImportError(errormessage("hdf5"))
+
+    def to_hdf5_dask(self, *args, **kwargs):
+        raise TPImportError(errormessage("dask,hdf5"))
+
+    # WRITE EXCEL
+
+    def to_excel(self, data, *args, **kwargs):
+        if "dask" in str(type(data)):
+            self.to_excel_dask(data, *args, **kwargs)
+        else:
+            self.to_excel_classic(data, *args, **kwargs)
+
+    def to_excel_classic(self, *args, **kwargs):
+        raise TPImportError(errormessage("excel"))
+
+    def to_excel_dask(self, *args, **kwargs):
+        raise TPImportError(errormessage("dask,excel"))
+
+    # WRITE EXCEL
+
+    def to_parquet(self, data, *args, **kwargs):
+        if "dask" in str(type(data)):
+            self.to_parquet_dask(data, *args, **kwargs)
+        else:
+            self.to_parquet_classic(data, *args, **kwargs)
+
+    def to_parquet_classic(self, *args, **kwargs):
+        raise TPImportError(errormessage("parquet"))
+
+    def to_parquet_dask(self, *args, **kwargs):
+        raise TPImportError(errormessage("dask,parquet"))
+
+    def to_json(self, data, *args, **kwargs):
+        raise TPImportError(errormessage("json"))
+
+
+# Do imports from detached files here because some of them import TransparentPath and need it fully declared.
+
+from ..io.io import put, get, mv, cp, overload_open, read_text, write_stuff, write_bytes
+
+# noinspection PyUnresolvedReferences
+from ..io import zipfile
+
+overload_open()
+setattr(TransparentPath, "put", put)
+setattr(TransparentPath, "get", get)
+setattr(TransparentPath, "mv", mv)
+setattr(TransparentPath, "cp", cp)
+setattr(TransparentPath, "read_text", read_text)
+setattr(TransparentPath, "write_stuff", write_stuff)
+setattr(TransparentPath, "write_bytes", write_bytes)
+
+
+try:
+    # noinspection PyUnresolvedReferences
+    from transparentpath.io.json import read, write
+
+    setattr(TransparentPath, "read_json", read)
+    setattr(TransparentPath, "to_json", write)
+except ImportError:
+    pass
+
+try:
+    # noinspection PyUnresolvedReferences
+    from ..io.pandas import read, write
+
+    setattr(TransparentPath, "read_csv_classic", read)
+    setattr(TransparentPath, "to_csv_classic", write)
+except ImportError:
+    pass
+
+try:
+    # noinspection PyUnresolvedReferences
+    from ..io.hdf5 import read, write
+
+    setattr(TransparentPath, "read_hdf5_classic", read)
+    setattr(TransparentPath, "to_hdf5_classic", write)
+except ImportError:
+    pass
+
+try:
+    # noinspection PyUnresolvedReferences
+    from ..io.parquet import read, write
+
+    setattr(TransparentPath, "read_parquet_classic", read)
+    setattr(TransparentPath, "to_parquet_classic", write)
+except ImportError:
+    pass
+
+try:
+    # noinspection PyUnresolvedReferences
+    from ..io.excel import read, write
+
+    setattr(TransparentPath, "read_excel_classic", read)
+    setattr(TransparentPath, "to_excel_classic", write)
+except ImportError:
+    pass
+
+try:
+    from ..io.dask import (
+        read_csv,
+        write_csv,
+        read_hdf5,
+        write_hdf5,
+        read_excel,
+        write_excel,
+        read_parquet,
+        write_parquet,
+    )
+
+    setattr(TransparentPath, "read_csv_dask", read_csv)
+    setattr(TransparentPath, "to_csv_dask", write_csv)
+    setattr(TransparentPath, "read_hdf5_dask", read_hdf5)
+    setattr(TransparentPath, "to_hdf5_dask", write_hdf5)
+    setattr(TransparentPath, "read_excel_dask", read_excel)
+    setattr(TransparentPath, "to_excel_dask", write_excel)
+    setattr(TransparentPath, "read_parquet_dask", read_parquet)
+    setattr(TransparentPath, "to_parquet_dask", write_parquet)
+except ImportError:
+    pass
