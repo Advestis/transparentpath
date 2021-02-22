@@ -779,7 +779,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             # noinspection PyUnresolvedReferences
             self.when_checked = path.when_checked
             # noinspection PyUnresolvedReferences
-            self.when_update = path.when_update
+            self.when_updated = path.when_updated
             return
 
         # In case we initiate a path containing 'gs://'
