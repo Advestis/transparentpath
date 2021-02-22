@@ -37,8 +37,6 @@ try:
 
     def read(self, **kwargs) -> pd.DataFrame:
 
-        if not self.nocheck:
-            self._check_multiplicity()
         if not self.is_file():
             raise TPFileNotFoundError(f"Could not find file {self}")
 
@@ -56,15 +54,8 @@ try:
             )
 
     def write(
-        self,
-        data: Union[pd.DataFrame, pd.Series],
-        overwrite: bool = True,
-        present: str = "ignore",
-        **kwargs,
+        self, data: Union[pd.DataFrame, pd.Series], overwrite: bool = True, present: str = "ignore", **kwargs,
     ):
-
-        if not self.nocheck:
-            self._check_multiplicity()
 
         if not overwrite and self.is_file() and present != "ignore":
             raise TPFileExistsError()

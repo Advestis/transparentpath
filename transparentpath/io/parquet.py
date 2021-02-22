@@ -13,7 +13,6 @@ class TPImportError(ImportError):
 
 
 try:
-    # noinspection PyUnresolvedReferences
     import pandas as pd
     import tempfile
     import sys
@@ -47,8 +46,6 @@ try:
 
     def read(self, **kwargs) -> Union[pd.DataFrame, pd.Series]:
 
-        if not self.nocheck:
-            self._check_multiplicity()
         if not self.is_file():
             raise TPFileNotFoundError(f"Could not find file {self}")
 
@@ -56,7 +53,9 @@ try:
 
         check_kwargs(pd.read_parquet, kwargs)
         if self.fs_kind == "local":
-            return apply_index_and_date(index_col, parse_dates, pd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs))
+            return apply_index_and_date(
+                index_col, parse_dates, pd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs)
+            )
 
         else:
             return apply_index_and_date(
@@ -76,9 +75,6 @@ try:
         Warning : if data is a Dask dataframe, the output will be written in a directory. For convenience, the directory
         if self.with_suffix(""). Reading is transparent and one can specify a path with .parquet suffix.
         """
-
-        if not self.nocheck:
-            self._check_multiplicity()
 
         if not overwrite and self.is_file() and present != "ignore":
             raise TPFileExistsError()

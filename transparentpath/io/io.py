@@ -15,7 +15,7 @@ def myopen(*args, **kwargs) -> IO:
     if type(thefile) == str and "gs://" in thefile:
         thefile = TransparentPath(thefile)
     if isinstance(thefile, TransparentPath):
-        if not thefile.nocheck:
+        if thefile.when_checked["used"] and not thefile.nocheck:
             # noinspection PyProtectedMember
             thefile._check_multiplicity()
         return thefile.open(*args[1:], **kwargs)
@@ -62,8 +62,6 @@ def put(self, dst: Union[str, Path, TransparentPath]):
         dst = TransparentPath(dst, fs="gcs")
 
     # noinspection PyProtectedMember
-    if not self.nocheck:
-        self._check_multiplicity()
     if not self.exist():
         raise TPFileNotFoundError(f"No such file or directory: {self}")
 
@@ -97,11 +95,18 @@ def get(self, loc: Union[str, Path, TransparentPath], recursive: bool = False):
             " local, use get()"
         )
     if type(loc) != TransparentPath:
-        loc = TransparentPath(loc, fs="local", bucket=self.bucket)
+        loc = TransparentPath(
+            loc,
+            fs="local",
+            notupdatecache=self.notupdatecache,
+            nocheck=self.nocheck,
+            when_checked=self.when_checked,
+            when_updated=self.when_updated,
+            update_expire=self.update_expire,
+            check_expire=self.check_expire,
+        )
 
     # noinspection PyProtectedMember
-    if not self.nocheck:
-        self._check_multiplicity()
     if not self.exist():
         raise TPFileNotFoundError(f"No such file or directory: {self}")
 
@@ -112,7 +117,18 @@ def mv(self, other: Union[str, Path, TransparentPath]):
     """Used to move a file or a directory. Works between any filesystems."""
 
     if not type(other) == TransparentPath:
-        other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket)
+        other = TransparentPath(
+            other,
+            fs=self.fs_kind,
+            bucket=self.bucket,
+            notupdatecache=self.notupdatecache,
+            nocheck=self.nocheck,
+            when_checked=self.when_checked,
+            when_updated=self.when_updated,
+            update_expire=self.update_expire,
+            check_expire=self.check_expire,
+            token=self.token,
+        )
 
     if other.fs_kind != self.fs_kind:
         if self.fs_kind == "local":
@@ -127,8 +143,6 @@ def mv(self, other: Union[str, Path, TransparentPath]):
     # self.fs.mv(self.__fspath__(), other, **kwargs)
 
     # noinspection PyProtectedMember
-    if not self.nocheck:
-        self._check_multiplicity()
     if not self.exist():
         raise TPFileNotFoundError(f"No such file or directory: {self}")
 
@@ -151,13 +165,22 @@ def cp(self, other: Union[str, Path, TransparentPath]):
     """Used to copy a file or a directory on the same filesystem."""
 
     # noinspection PyProtectedMember
-    if not self.nocheck:
-        self._check_multiplicity()
     if not self.exist():
         raise TPFileNotFoundError(f"No such file or directory: {self}")
 
     if not type(other) == TransparentPath:
-        other = TransparentPath(other, fs=self.fs_kind, bucket=self.bucket)
+        other = TransparentPath(
+            other,
+            fs=self.fs_kind,
+            bucket=self.bucket,
+            notupdatecache=self.notupdatecache,
+            nocheck=self.nocheck,
+            when_checked=self.when_checked,
+            when_updated=self.when_updated,
+            update_expire=self.update_expire,
+            check_expire=self.check_expire,
+            token=self.token,
+        )
     if other.fs_kind != self.fs_kind:
         if self.fs_kind == "local":
             self.put(other)
@@ -184,9 +207,6 @@ def cp(self, other: Union[str, Path, TransparentPath]):
 
 
 def read_text(self, *args, get_obj: bool = False, **kwargs) -> Union[str, IO]:
-    # noinspection PyProtectedMember
-    if not self.nocheck:
-        self._check_multiplicity()
     if not self.is_file():
         raise TPFileNotFoundError(f"Could not find file {self}")
 
@@ -207,12 +227,7 @@ def read_text(self, *args, get_obj: bool = False, **kwargs) -> Union[str, IO]:
     return to_ret
 
 
-def write_stuff(
-    self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs
-) -> None:
-    # noinspection PyProtectedMember
-    if not self.nocheck:
-        self._check_multiplicity()
+def write_stuff(self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs) -> None:
 
     if not overwrite and self.is_file() and present != "ignore":
         raise TPFileExistsError()
@@ -225,9 +240,7 @@ def write_stuff(
         f.write(data)
 
 
-def write_bytes(
-    self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs,
-) -> None:
+def write_bytes(self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs,) -> None:
 
     args = list(args)
     if len(args) == 0:

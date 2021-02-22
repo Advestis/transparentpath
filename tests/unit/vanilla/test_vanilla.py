@@ -48,12 +48,14 @@ def test_multipleexistenceerror(clean, fs_kind, excep):
 
     # noinspection PyTypeChecker
     with pytest.raises(excep):
-        p1 = TransparentPath("chien", nocheck=True, notupdatecache=True)
+        p1 = TransparentPath("chien")
         p2 = TransparentPath("chien") / "chat"
         p2.touch()
-        p1.touch()
-        TransparentPath._do_update_cache = True
-        TransparentPath("chien")
+        if excep == FileExistsError:
+            p1.touch()
+        else:
+            p1.fs.touch(p1.__fspath__())
+        TransparentPath("chien").read()
 
 
 # noinspection PyUnusedLocal

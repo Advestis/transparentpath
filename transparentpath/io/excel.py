@@ -31,9 +31,6 @@ try:
 
     def read(self, **kwargs) -> pd.DataFrame:
 
-        if not self.nocheck:
-            self._check_multiplicity()
-
         if not self.is_file():
             raise TPFileNotFoundError(f"Could not find file {self}")
 
@@ -57,15 +54,8 @@ try:
             )
 
     def write(
-        self,
-        data: Union[pd.DataFrame, pd.Series],
-        overwrite: bool = True,
-        present: str = "ignore",
-        **kwargs,
+        self, data: Union[pd.DataFrame, pd.Series], overwrite: bool = True, present: str = "ignore", **kwargs,
     ) -> None:
-
-        if not self.nocheck:
-            self._check_multiplicity()
 
         if not overwrite and self.is_file() and present != "ignore":
             raise TPFileExistsError()
@@ -78,7 +68,16 @@ try:
             with tempfile.NamedTemporaryFile(delete=True, suffix=self.suffix) as f:
                 check_kwargs(data.to_excel, kwargs)
                 data.to_excel(f.name, **kwargs)
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
+                TransparentPath(
+                    path=f.name,
+                    fs="local",
+                    notupdatecache=self.notupdatecache,
+                    nocheck=self.nocheck,
+                    when_checked=self.when_checked,
+                    when_updated=self.when_updated,
+                    update_expire=self.update_expire,
+                    check_expire=self.check_expire,
+                ).put(self.path)
 
 
 except ImportError as e:

@@ -1,6 +1,6 @@
 import builtins
 import os
-import json
+from time import time
 from copy import copy
 from datetime import datetime
 from pathlib import Path
@@ -165,6 +165,18 @@ def collapse_ddots(path: Union[Path, TransparentPath, str]) -> TransparentPath:
     thetype = path.fs_kind if type(path) == TransparentPath else None
     # noinspection PyUnresolvedReferences
     thebucket = path.bucket if type(path) == TransparentPath else None
+    # noinspection PyUnresolvedReferences
+    notupdatecache = path.notupdatecache if type(path) == TransparentPath else None
+    # noinspection PyUnresolvedReferences
+    when_checked = path.when_checked if type(path) == TransparentPath else None
+    # noinspection PyUnresolvedReferences
+    when_updated = path.when_updated if type(path) == TransparentPath else None
+    # noinspection PyUnresolvedReferences
+    update_expire = path.update_expire if type(path) == TransparentPath else None
+    # noinspection PyUnresolvedReferences
+    check_expire = path.check_expire if type(path) == TransparentPath else None
+    # noinspection PyUnresolvedReferences
+    token = path.token if type(path) == TransparentPath else None
 
     newpath = Path(path) if type(path) == str else path
 
@@ -184,7 +196,19 @@ def collapse_ddots(path: Union[Path, TransparentPath, str]) -> TransparentPath:
     if str(newpath) == str(path):
         return path
     return (
-        TransparentPath(newpath, collapse=False, nocheck=True, fs=thetype, bucket=thebucket)
+        TransparentPath(
+            newpath,
+            collapse=False,
+            nocheck=True,
+            fs=thetype,
+            bucket=thebucket,
+            notupdatecache=notupdatecache,
+            when_checked=when_checked,
+            when_updated=when_updated,
+            update_expire=update_expire,
+            check_expire=check_expire,
+            token=token,
+        )
         if thetype is not None
         else newpath
     )
@@ -309,9 +333,10 @@ def extract_project(token: str = None) -> str:
         return project
     elif token is None:
         token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    if not Path(token, fs="local").is_file():
+    token = TransparentPath(token, fs="local", nocheck=True, notupdatecache=True)
+    if not token.is_file():
         raise TPFileNotFoundError(f"Crendential file {token} not found")
-    content = json.load(open(token))
+    content = token.read()
     if "project_id" not in content:
         raise TPValueError(f"Credential file {token} does not contain project_id key.")
     return content["project_id"]
@@ -420,8 +445,53 @@ class TransparentPath(os.PathLike):  # noqa : F811
         file/directory. This case can't happen locally. However, it can happen on remote if the cache is not updated
         frequently. Donig this check can significantly increase computation time (if using glob on a directory
         containing a lot of files for example). You can deactivate it either globally (TransparentPath._do_check =
-        False and TransparentPath._do_update_cache = False), for a specific path (pass nockeck=True at path
+        False and TransparentPath._do_update_cache = False), for a specific path (pass notupdatecache=True at path
         creation), or for glob and ls by passing fast=True as additional argument.
+
+    TransparentPath  on GCS is slow because of the verification for multiple existance and the cache updating.
+    However one can tweak those a bit. As mentionned earlier, cache updating and multiple existence check can be
+    deactivated for all paths by doing
+
+    >>> from transparentpath import TransparentPath
+    >>> TransparentPath._do_update_cache = False
+    >>> TransparentPath._do_check = False
+
+    They can also be deactivated for one path only by doing
+
+    >>> p = TransparentPath("somepath", nocheck=True, notupdatecache=True)
+
+    It is also possible to specify when to do those check : at path creation, path usage (read, write, exists...) or
+    both. Here to it can be set on all paths or only some :
+
+    >>> TransparentPath._when_checked = {"created": True, "used": False}  # Default value
+    >>> TransparentPath._when_updated = {"created": True, "used": False}  # Default value
+    >>> p = TransparentPath("somepath", when_checked={"created": False, "used": False},
+    >>>                     notupdatecache={"created": False, "used": False})
+
+    There is also an expiration time in seconds for check and update : the operation is not done if it was done not a
+    long time ago. Those expiration times are of 1 second by default and can be changed through :
+
+    >>> TransparentPath._check_expire = 10
+    >>> TransparentPath._update_expire = 10
+    >>> p = TransparentPath("somepath", check_expire=0, update_expire=0)
+
+    glob() and ls() have their own way to be accelerated :
+
+    >>> p.glob("/*", fast=True)
+    >>> p.ls("", fast=True)
+
+    Basically, fast=True means do not check and do not update the cache for all the items found by the method.
+
+    All paths created from another path will share its parent's attributes :
+     * fs_kind
+     * bucket
+     * notupdatecache
+     * nocheck
+     * when_checked
+     * when_updated
+     * update_expire
+     * check_expire
+     * token
 
     If a method in a package you did not create uses the os.open(), you will have to create a class to override this
     method and anything using its ouput. Indeed os.open returns a file descriptor, not an IO, and I did not find a
@@ -471,6 +541,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         cls.token = None
         cls._do_update_cache = True
         cls._do_check = True
+        cls._check_expire = 1
+        cls._update_expire = 1
+        cls._when_checked = {"used": False, "created": True}
+        cls._when_updated = {"used": False, "created": True}
         cls.LOCAL_SEP = os.path.sep
 
     @classmethod
@@ -484,6 +558,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         print("token: ", cls.token)
         print("_do_update_cache: ", cls._do_update_cache)
         print("_do_check: ", cls._do_check)
+        print("_check_expire: ", cls._check_expire)
+        print("_update_expire: ", cls._update_expire)
+        print("_when_checked: ", cls._when_checked)
+        print("_when_updated: ", cls._when_updated)
         print("LOCAL_SEP: ", cls.LOCAL_SEP)
 
     @classmethod
@@ -498,6 +576,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
             "token": cls.token,
             "_do_update_cache": cls._do_update_cache,
             "_do_check": cls._do_check,
+            "_check_expire": cls._check_expire,
+            "_update_expire": cls._update_expire,
+            "_when_checked": cls._when_checked,
+            "_when_updated": cls._when_updated,
             "LOCAL_SEP": cls.LOCAL_SEP,
         }
         return state
@@ -511,6 +593,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
     token = None
     _do_update_cache = True
     _do_check = True
+    _check_expire = 1
+    _update_expire = 1
+    _when_checked = {"used": False, "created": True}
+    _when_updated = {"used": False, "created": True}
     LOCAL_SEP = os.path.sep
 
     _attributes = ["fs", "path", "fs_kind", "bucket", "token", "sep", "nas_dir"]
@@ -586,12 +672,16 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def __init__(
         self,
         path: Union[Path, TransparentPath, str] = ".",
-        nocheck: Optional[bool] = None,
-        notupdatecache: Optional[bool] = None,
         collapse: bool = True,
         fs: Optional[str] = None,
         bucket: Optional[str] = None,
         token: Optional[Union[dict, str]] = None,
+        nocheck: Optional[bool] = None,
+        notupdatecache: Optional[bool] = None,
+        update_expire: Optional[int] = None,
+        check_expire: Optional[int] = None,
+        when_checked: Optional[dict] = None,
+        when_updated: Optional[dict] = None,
         **kwargs,
     ):
         """Creator of the TranparentPath object
@@ -600,13 +690,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         ----------
         path: Union[pathlib.Path, TransparentPath, str]
             The path of the object (Default value = '.')
-
-        nocheck: bool
-            If True, will not call check_multiplicity (quicker but less secure). (Default value = False)
-
-        notupdatecache: bool
-            If True, will not call _invalidate_cache when doing operations on this path (quicker but less secure). (
-            Default value = False)
 
         collapse: bool
             If True, will collapse any double dots ('..') in path. (Default value = True)
@@ -620,6 +703,29 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         token: Optional[Union[dict, str]]
             The path to google application credentials json file to use. See GCSFileSystem initialisation.
+
+        nocheck: bool
+            If True, will not call check_multiplicity (quicker but less secure). Takes the value of
+            not Transparentpath._do_check if None (Default value = None)
+
+        notupdatecache: bool
+            If True, will not call _invalidate_cache when doing operations on this path (quicker but less secure).
+            Takes the value of not Transparentpath._do_update_cache if None (Default value = None)
+
+        update_expire: Optional[int]
+            Time in second after which the cache is considered obsolete and must be updated. Takes the value of
+            Transparentpath._update_expire if None (Default value = None)
+
+        check_expire: Optional[int]
+            Time in second after which the check for multiple existence is considered obsolete and must be updated.
+            Takes the value of Transparentpath._check_expire if None (Default value = None)
+
+        when_checked: Optional[dict]
+            Dict of the form {"used: True, "created": True}, that indicates when to check multiplicity of the path.
+            Takes the value of Transparentpath._when_checked if None (Default value = None)
+
+        when_updated: Optional[dict]
+            Same as when_checked but for cache update.
 
         kwargs:
             Any optional kwargs valid in pathlib.Path
@@ -662,6 +768,18 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.nocheck = path.nocheck
             # noinspection PyUnresolvedReferences
             self.notupdatecache = path.notupdatecache
+            # noinspection PyUnresolvedReferences
+            self.last_check = path.last_check
+            # noinspection PyUnresolvedReferences
+            self.last_update = path.last_update
+            # noinspection PyUnresolvedReferences
+            self.update_expire = path.update_expire
+            # noinspection PyUnresolvedReferences
+            self.check_expire = path.check_expire
+            # noinspection PyUnresolvedReferences
+            self.when_checked = path.when_checked
+            # noinspection PyUnresolvedReferences
+            self.when_update = path.when_update
             return
 
         # In case we initiate a path containing 'gs://'
@@ -712,6 +830,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.nas_dir = TransparentPath.nas_dir
         self.nocheck = nocheck if nocheck is not None else not TransparentPath._do_check
         self.notupdatecache = notupdatecache if notupdatecache is not None else not TransparentPath._do_update_cache
+        self.last_check = 0
+        self.last_update = 0
+        self.update_expire = update_expire if update_expire is not None else TransparentPath._update_expire
+        self.check_expire = check_expire if check_expire is not None else TransparentPath._check_expire
+        self.when_checked = when_checked if when_checked is not None else TransparentPath._when_checked
+        self.when_updated = when_updated if when_updated is not None else TransparentPath._when_updated
 
         if "gcs" in self.fs_kind and not prefix_processed:
             project = extract_project(self.token)
@@ -765,6 +889,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 self.__path = Path(self.bucket) / self.__path
             if len(self.__path.parts) > 1 and self.bucket in self.__path.parts[1:]:
                 raise TPValueError("You should never use your bucket name as a directory or file name.")
+
+        if self.when_checked["created"] and not self.nocheck:
+            self._check_multiplicity()
+        elif self.when_updated["created"] and not self.notupdatecache:  # Else, because called by check_multiplicity
+            self._update_cache()
 
     @property
     def path(self):
@@ -856,7 +985,18 @@ class TransparentPath(os.PathLike):  # noqa : F811
             other = other[1:]
 
         if type(other) == str:
-            return TransparentPath(self.__path / other, fs=self.fs_kind, bucket=self.bucket)
+            return TransparentPath(
+                self.__path / other,
+                fs=self.fs_kind,
+                bucket=self.bucket,
+                notupdatecache=self.notupdatecache,
+                nocheck=self.nocheck,
+                when_checked=self.when_checked,
+                when_updated=self.when_updated,
+                update_expire=self.update_expire,
+                check_expire=self.check_expire,
+                token=self.token,
+            )
         else:
             raise TPTypeError(f"Can not divide a TransparentPath by a {type(other)}, only by a string.")
 
@@ -945,8 +1085,20 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if not callable(obj):
                 # Fetch the self.path's attributes to set it to self
                 if type(obj) == type(self.__path):  # noqa: E721
-                    setattr(self, obj_name, TransparentPath(obj, fs=self.fs_kind, bucket=self.bucket))
-                    return TransparentPath(obj, fs=self.fs_kind, bucket=self.bucket)
+                    newpath = TransparentPath(
+                        obj,
+                        fs=self.fs_kind,
+                        bucket=self.bucket,
+                        notupdatecache=self.notupdatecache,
+                        nocheck=self.nocheck,
+                        when_checked=self.when_checked,
+                        when_updated=self.when_updated,
+                        update_expire=self.update_expire,
+                        check_expire=self.check_expire,
+                        token=self.token,
+                    )
+                    setattr(self, obj_name, newpath)
+                    return newpath
                 elif isinstance(obj, Iterable):
                     obj = self._cast_iterable(obj)
                     setattr(self, obj_name, obj)
@@ -984,25 +1136,33 @@ class TransparentPath(os.PathLike):  # noqa : F811
             else:
                 obj.nas_dir = nas_dir
 
-    def _update_cache(self):
-        """Calls FileSystem's invalidate_cache() to discard the cache then calls a non-disruptive method (fs.info(
-        bucket)) to update it.
-
-        If local, on need to update the chache. Not even sure it needs to be invalidated...
-        """
-        self.fs.invalidate_cache()
-        if "gcs" in self.fs_kind:
-            try:
-                self.fs.info(self.bucket)
-            except FileNotFoundError:
-                # noinspection PyStatementEffect
-                self.buckets
-
     def _cast_fast(self, path: str) -> TransparentPath:
-        return TransparentPath(path, fs=self.fs_kind, nocheck=True, notupdatecache=True, bucket=self.bucket)
+        return TransparentPath(
+            path,
+            fs=self.fs_kind,
+            nocheck=True,
+            notupdatecache=True,
+            bucket=self.bucket,
+            when_checked=self.when_checked,
+            when_updated=self.when_updated,
+            update_expire=self.update_expire,
+            check_expire=self.check_expire,
+            token=self.token,
+        )
 
     def _cast_slow(self, path: str) -> TransparentPath:
-        return TransparentPath(path, fs=self.fs_kind, nocheck=False, notupdatecache=False, bucket=self.bucket)
+        return TransparentPath(
+            path,
+            fs=self.fs_kind,
+            nocheck=False,
+            notupdatecache=False,
+            bucket=self.bucket,
+            when_checked={"created": False, "used": False},
+            when_updated={"created": False, "used": False},
+            update_expire=self.update_expire,
+            check_expire=self.check_expire,
+            token=self.token,
+        )
 
     def _set_fs(self) -> None:
         """ Create a new filesystem objet from self, or get the existing one
@@ -1149,10 +1309,34 @@ class TransparentPath(os.PathLike):  # noqa : F811
             new_args = tuple([str(self.__path)] + list(args))
         return new_args
 
+    def _update_cache(self):
+        """Calls FileSystem's invalidate_cache() to discard the cache then calls a non-disruptive method (fs.info(
+        bucket)) to update it.
+
+        If local, on need to update the chache. Not even sure it needs to be invalidated...
+        """
+
+        if time() - self.last_update < self.update_expire:
+            return
+
+        self.fs.invalidate_cache()
+        if "gcs" in self.fs_kind:
+            try:
+                self.fs.info(self.bucket)
+            except FileNotFoundError:
+                # noinspection PyStatementEffect
+                self.buckets
+        self.last_update = time()
+
     def _check_multiplicity(self) -> None:
         """Checks if several objects correspond to the path.
         Raises MultipleExistenceError if so, does nothing if not.
         """
+
+        print("coucou", time() - self.last_check, self.check_expire)
+        if time() - self.last_check < self.check_expire:
+            return
+
         if not self.notupdatecache:
             self._update_cache()
         if str(self.__path) == self.bucket or str(self.__path) == "/":
@@ -1165,6 +1349,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
             thels = [Path(apath).name for apath in thels if Path(apath).name == self.name]
             if len(thels) > 1:
                 raise TPMultipleExistenceError(self, thels)
+
+        self.last_check = time()
 
     def _do_nothing(self) -> None:
         """ does nothing (you don't say) """
@@ -1208,10 +1394,15 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return self.exists()
 
     def exists(self):
-        if not self.notupdatecache:
+        updated = False
+        if self.when_checked["used"] and not self.nocheck:
+            self._check_multiplicity()
+            updated = True
+        elif self.when_updated["used"] and not self.notupdatecache:
             self._update_cache()
+            updated = True
         if not self.fs.exists(self.__fspath__()):
-            if self.notupdatecache:
+            if not updated:
                 self._update_cache()
                 return self.fs.exists(self.__fspath__())
             else:
@@ -1240,8 +1431,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         bool
 
         """
-        if not self.nocheck:
-            self._check_multiplicity()
         if self.fs_kind == "local":
             return self.__path.is_dir()
         else:
@@ -1262,8 +1451,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if not self.nocheck:
-            self._check_multiplicity()
         if not self.exists():
             return False
 
@@ -1306,9 +1493,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         None
 
         """
-
-        if not self.nocheck:
-            self._check_multiplicity()
 
         if absent != "raise" and absent != "ignore":
             raise TPValueError(f"Unexpected value for argument 'absent' : {absent}")
@@ -1415,9 +1599,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if not self.nocheck:
-            self._check_multiplicity()
-
         if not self.is_dir(exist=True):
             raise TPNotADirectoryError("The path must be a directory if you want to glob in it")
 
@@ -1452,7 +1633,18 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
         if not suffix.startswith(".") and not suffix == "":
             suffix = f".{suffix}"
-        return TransparentPath(self.__path.with_suffix(suffix), fs=self.fs_kind, bucket=self.bucket)
+        return TransparentPath(
+            self.__path.with_suffix(suffix),
+            fs=self.fs_kind,
+            bucket=self.bucket,
+            notupdatecache=self.notupdatecache,
+            nocheck=self.nocheck,
+            when_checked=self.when_checked,
+            when_updated=self.when_updated,
+            update_expire=self.update_expire,
+            check_expire=self.check_expire,
+            token=self.token,
+        )
 
     def ls(self, path_to_ls: str = "", fast: bool = False) -> Iterator[TransparentPath]:
         """ Unlike glob, if on GCS, will also see directories.
@@ -1473,9 +1665,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Iterator[TransparentPath]
 
         """
-
-        if not self.nocheck:
-            self._check_multiplicity()
 
         if not self.is_dir(exist=True):
             raise TPNotADirectoryError("The path must be a directory if you want to ls in it")
@@ -1515,9 +1704,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
             raise TPTypeError("Can only pass a string to TransparentPath's cd method")
 
         path = path.replace(remote_prefix, "")
-
-        if not self.nocheck:
-            self._check_multiplicity()
 
         if "gcs" in self.fs_kind and str(path) == self.bucket or path == "" or path == "/":
             self.__path = Path(self.bucket)
@@ -1580,9 +1766,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if not self.nocheck:
-            self._check_multiplicity()
-
         if present != "raise" and present != "ignore":
             raise TPValueError(f"Unexpected value for argument 'present' : {present}")
 
@@ -1595,7 +1778,18 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 return
 
         for parent in self.parents:
-            p = TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket)
+            p = TransparentPath(
+                parent,
+                fs=self.fs_kind,
+                bucket=self.bucket,
+                notupdatecache=self.notupdatecache,
+                nocheck=self.nocheck,
+                when_checked=self.when_checked,
+                when_updated=self.when_updated,
+                update_expire=self.update_expire,
+                check_expire=self.check_expire,
+                token=self.token,
+            )
             if p.is_file():
                 raise TPFileExistsError(f"A parent directory can not be created because there is already a file at {p}")
             elif not p.exists():
@@ -1636,7 +1830,18 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return
 
         for parent in self.parents:
-            thefile = TransparentPath(parent, fs=self.fs_kind, bucket=self.bucket)
+            thefile = TransparentPath(
+                parent,
+                fs=self.fs_kind,
+                bucket=self.bucket,
+                notupdatecache=self.notupdatecache,
+                nocheck=self.nocheck,
+                when_checked=self.when_checked,
+                when_updated=self.when_updated,
+                update_expire=self.update_expire,
+                check_expire=self.check_expire,
+                token=self.token,
+            )
             if thefile.is_file():
                 raise TPFileExistsError(
                     "A parent directory can not be created because there is already a file at" f" {thefile}"
@@ -1652,10 +1857,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
             pass
 
     def stat(self) -> dict:
-        """Calls file system's stat method and translates the key to os.stat_result() keys"""
+        """Calls file system's stat method and translates the key to os.stat_result() keys
 
-        if not self.nocheck:
-            self._check_multiplicity()
+        Returns empty dict of path does not point to anything
+        """
+
+        if not self.exist():
+            return {}
 
         key_translation = {
             "size": "st_size",
@@ -1686,7 +1894,18 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return stat
 
     def append(self, other: str) -> TransparentPath:
-        return TransparentPath(str(self) + other, fs=self.fs_kind, bucket=self.bucket)
+        return TransparentPath(
+            str(self) + other,
+            fs=self.fs_kind,
+            bucket=self.bucket,
+            notupdatecache=self.notupdatecache,
+            nocheck=self.nocheck,
+            when_checked=self.when_checked,
+            when_updated=self.when_updated,
+            update_expire=self.update_expire,
+            check_expire=self.check_expire,
+            token=self.token,
+        )
 
     def walk(self) -> Iterator[Tuple[TransparentPath, List[TransparentPath], List[TransparentPath]]]:
         """Like os.walk, except all outputs are TransparentPaths (so, absolute paths)
@@ -1697,12 +1916,24 @@ class TransparentPath(os.PathLike):  # noqa : F811
             root, dirs and files, like os.walk
         """
 
-        if not self.nocheck:
+        if self.when_checked["used"] and not self.nocheck:
             self._check_multiplicity()
+        # No need to update cache for walk
 
         outputs = self.fs.walk(self.__fspath__())
         for output in outputs:
-            root = TransparentPath(output[0], fs=self.fs_kind, bucket=self.bucket)
+            root = TransparentPath(
+                output[0],
+                fs=self.fs_kind,
+                bucket=self.bucket,
+                notupdatecache=self.notupdatecache,
+                nocheck=self.nocheck,
+                when_checked=self.when_checked,
+                when_updated=self.when_updated,
+                update_expire=self.update_expire,
+                check_expire=self.check_expire,
+                token=self.token,
+            )
             dirs = [root / p for p in output[1]]
             files = [root / p for p in output[2]]
             yield root, dirs, files
@@ -1716,7 +1947,18 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def _cast_iterable(self, iter_: Iterable):
         """Used by self.walk"""
         if isinstance(iter_, Path) or isinstance(iter_, TransparentPath):
-            return TransparentPath(iter_, fs=self.fs_kind, bucket=self.bucket)
+            return TransparentPath(
+                iter_,
+                fs=self.fs_kind,
+                bucket=self.bucket,
+                notupdatecache=self.notupdatecache,
+                nocheck=self.nocheck,
+                when_checked=self.when_checked,
+                when_updated=self.when_updated,
+                update_expire=self.update_expire,
+                check_expire=self.check_expire,
+                token=self.token,
+            )
         elif isinstance(iter_, str):
             return iter_
         elif not isinstance(iter_, Iterable):
@@ -1725,14 +1967,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             to_ret = [self._cast_iterable(item) for item in iter_]
             return to_ret
 
-    def read(
-        self,
-        *args,
-        get_obj: bool = False,
-        use_pandas: bool = False,
-        use_dask: bool = False,
-        **kwargs,
-    ) -> Any:
+    def read(self, *args, get_obj: bool = False, use_pandas: bool = False, use_dask: bool = False, **kwargs,) -> Any:
         """Method used to read the content of the file located at self
 
         Will raise FileNotFound error if there is no file. Calls a specific method to read self based on the suffix
@@ -1773,6 +2008,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         -------
         Any
         """
+        # Update cache and/or check multiplicity are called inside each specific reading method
 
         if self.suffix == ".csv":
             return self.read_csv(use_dask=use_dask, **kwargs)
@@ -1841,6 +2077,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         -------
         Union[None, pd.HDFStore, h5py.File]
         """
+        # Update cache and/or check multiplicity are called inside each specific reading method
 
         if make_parents and not self.parent.is_dir():
             self.parent.mkdir()
@@ -1864,9 +2101,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 assert self.with_suffix("").is_dir(exist=True)
                 return
         elif self.suffix == ".hdf5" or self.suffix == ".h5":
-            ret = self.to_hdf5(
-                data=data, set_name=set_name, use_pandas=use_pandas, **kwargs,
-            )
+            ret = self.to_hdf5(data=data, set_name=set_name, use_pandas=use_pandas, **kwargs,)
             if ret is not None:
                 return ret
         elif self.suffix == ".json":

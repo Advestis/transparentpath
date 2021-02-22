@@ -86,9 +86,7 @@ try:
                 # noinspection PyUnresolvedReferences
                 self.local_path.close()
 
-    def read(
-        self: TransparentPath, use_pandas: bool = False, **kwargs,
-    ) -> Union[h5py.File, MyHDFStore]:
+    def read(self: TransparentPath, use_pandas: bool = False, **kwargs,) -> Union[h5py.File, MyHDFStore]:
         """Reads a HDF5 file. Must have been created by h5py.File or pd.HDFStore (specify use_pandas=True if so)
 
         Since h5py.File/pd.HDFStore does not support GCS, first copy it in a tmp file.
@@ -123,8 +121,6 @@ try:
         if use_pandas:
             class_to_use = MyHDFStore
 
-        if not self.nocheck:
-            self._check_multiplicity()
         if not self.is_file():
             raise TPFileNotFoundError(f"Could not find file {self}")
 
@@ -141,11 +137,7 @@ try:
         return data
 
     def write(
-        self: TransparentPath,
-        data: Any = None,
-        set_name: str = None,
-        use_pandas: bool = False,
-        **kwargs,
+        self: TransparentPath, data: Any = None, set_name: str = None, use_pandas: bool = False, **kwargs,
     ) -> Union[None, h5py.File, MyHDFStore]:
         """
 
@@ -171,7 +163,7 @@ try:
             mode = kwargs["mode"]
             del kwargs["mode"]
 
-        if not self.nocheck:
+        if self.when_checked["used"] and not self.nocheck:
             self._check_multiplicity()
 
         # If no data is specified, an HDF5 file is returned, opened in write mode, or any other specified mode.
@@ -210,11 +202,21 @@ try:
                     for aset in sets:
                         thefile[aset] = sets[aset]
                     thefile.close()
-                    TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
+                    TransparentPath(
+                        path=f.name,
+                        fs="local",
+                        notupdatecache=self.notupdatecache,
+                        nocheck=self.nocheck,
+                        when_checked=self.when_checked,
+                        when_updated=self.when_updated,
+                        update_expire=self.update_expire,
+                        check_expire=self.check_expire,
+                    ).put(self.path)
 
     try:
         # noinspection PyUnresolvedReferences
         from .pandas import MyHDFStore as Hs
+
         MyHDFStore = Hs
     except ImportError:
         pass

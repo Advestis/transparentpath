@@ -117,6 +117,9 @@ mypath.is_file()
 files = mypath.parent.glob("*.csv")  # Returns a Iterator[TransparentPath], can be casted to list
 ```
 
+As you can see from the previous example, all methods returning a path from a TransparentPath return a 
+TransparentPath.
+
 ### Dask
 
 TransparentPath supports writing and reading Dask dataframes from and to csv, excel, parquet and HDF5, both locally and
@@ -184,12 +187,14 @@ include "gs://" in front of it. You should never create a path with a directory 
 bucket.
 
 If your directories architecture on GCS is the same than localy up to some root directory, you can do:
+
 ```python
 from transparentpath import TransparentPath as Path
 Path.nas_dir = "/media/SERVEUR" # Example root path that differs between local and GCS architecture
 Path.set_global_fs("gcs", bucket="my_bucket")
 p = Path("/media/SERVEUR") / "chien" / "chat"  # Will be gs://my_bucket/chien/chat
 ```
+
 If the line *Path.set_global_fs(...* is not commented out, the resulting path will be *gs://my_bucket/chien/chat*.
 If the line *Path.set_global_fs(...* is commented out, the resulting path will be */media/SERVEUR/chien/chat*.
 
@@ -228,6 +233,65 @@ if you use GCS:
   containing a lot of files for example). You can deactivate it either globally (TransparentPath._do_check =
   False and TransparentPath._do_update_cache = False), for a specific path (pass nockeck=True at path
   creation), or for glob and ls by passing fast=True as additional argument.
+
+
+### Speed
+
+TransparentPath on GCS is slow because of the verification for multiple existance and the cache updating.
+However one can tweak those a bit. As mentionned earlier, cache updating and multiple existence check can be
+deactivated for all paths by doing
+
+```python
+from transparentpath import TransparentPath
+TransparentPath._do_update_cache = False
+TransparentPath._do_check = False
+```
+
+They can also be deactivated for one path only by doing
+
+```python
+p = TransparentPath("somepath", nocheck=True, notupdatecache=True)
+```
+
+It is also possible to specify when to do those check : at path creation, path usage (read, write, exists...) or 
+both. Here to it can be set on all paths or only some : 
+
+```python
+TransparentPath._when_checked = {"created": True, "used": False}  # Default value
+TransparentPath._when_updated = {"created": True, "used": False}  # Default value
+p = TransparentPath("somepath", when_checked={"created": False, "used": False},
+                    notupdatecache={"created": False, "used": False})
+```
+
+There is also an expiration time in seconds for check and update : the operation is not done if it was done not a
+long time ago. Those expiration times are of 1 second by default and can be changed through :
+
+```python
+TransparentPath._check_expire = 10
+TransparentPath._update_expire = 10
+p = TransparentPath("somepath", check_expire=0, update_expire=0)
+```
+
+glob() and ls() have their own way to be accelerated : 
+
+```python
+p.glob("/*", fast=True)
+p.ls("", fast=True)
+```
+
+Basically, fast=True means do not check and do not update the cache for all the items found by the method.
+
+All paths created from another path will share its parent's attributes : 
+ * fs_kind
+ * bucket
+ * notupdatecache
+ * nocheck
+ * when_checked
+ * when_updated
+ * update_expire
+ * check_expire
+ * token
+
 
 ### os.open
 

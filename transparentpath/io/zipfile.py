@@ -13,7 +13,7 @@ class TpZipFile(zipfileclass):
 
     def __init__(self, path, *args, **kwargs):
         if type(path) == TransparentPath and path.fs_kind != "local":
-            if not path.nocheck:
+            if path.when_checked["used"] and not path.nocheck:
                 # noinspection PyProtectedMember
                 path._check_multiplicity()
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
