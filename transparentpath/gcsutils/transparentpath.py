@@ -1,5 +1,6 @@
 import builtins
 import os
+import json
 from time import time
 from copy import copy
 from datetime import datetime
@@ -333,10 +334,9 @@ def extract_project(token: str = None) -> str:
         return project
     elif token is None:
         token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    token = TransparentPath(token, fs="local", nocheck=True, notupdatecache=True)
-    if not token.is_file():
+    if not TransparentPath(token, fs="local", nocheck=True, notupdatecache=True).is_file():
         raise TPFileNotFoundError(f"Crendential file {token} not found")
-    content = token.read()
+    content = json.load(open(token))
     if "project_id" not in content:
         raise TPValueError(f"Credential file {token} does not contain project_id key.")
     return content["project_id"]
