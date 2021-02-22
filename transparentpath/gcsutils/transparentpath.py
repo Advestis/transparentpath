@@ -1333,7 +1333,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Raises MultipleExistenceError if so, does nothing if not.
         """
 
-        print("coucou", time() - self.last_check, self.check_expire)
         if time() - self.last_check < self.check_expire:
             return
 
