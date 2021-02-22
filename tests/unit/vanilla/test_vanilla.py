@@ -48,8 +48,7 @@ def test_multipleexistenceerror(clean, fs_kind, excep):
 
     # noinspection PyTypeChecker
     with pytest.raises(excep):
-        TransparentPath._do_update_cache = False
-        p1 = TransparentPath("chien")
+        p1 = TransparentPath("chien", nocheck=True, notupdatecache=True)
         p2 = TransparentPath("chien") / "chat"
         p2.touch()
         p1.touch()

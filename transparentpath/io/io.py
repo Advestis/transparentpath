@@ -13,19 +13,11 @@ def myopen(*args, **kwargs) -> IO:
         raise TPValueError("open method needs arguments.")
     thefile = args[0]
     if type(thefile) == str and "gs://" in thefile:
-        # if "fs" not in kwargs:
-        #     found = False
-        #     for fs in TransparentPath.fss:
-        #         if "gcs" in fs:
-        #             found = True
-        #             thefile = TransparentPath(thefile.replace(f"gs://{TransparentPath.bucket}", ""), fs=fs)
-        #             break
-        #     if not found:
-        #         raise OSError("You are trying to access a file on GCS without
-        #         having set a proper GCSFileSystem first.")
-        # else:
         thefile = TransparentPath(thefile)
     if isinstance(thefile, TransparentPath):
+        if not thefile.nocheck:
+            # noinspection PyProtectedMember
+            thefile._check_multiplicity()
         return thefile.open(*args[1:], **kwargs)
     elif (
         isinstance(thefile, str) or isinstance(thefile, Path) or isinstance(thefile, int) or isinstance(thefile, bytes)
@@ -68,6 +60,13 @@ def put(self, dst: Union[str, Path, TransparentPath]):
         )
     if type(dst) != TransparentPath:
         dst = TransparentPath(dst, fs="gcs")
+
+    # noinspection PyProtectedMember
+    if not self.nocheck:
+        self._check_multiplicity()
+    if not self.exist():
+        raise TPFileNotFoundError(f"No such file or directory: {self}")
+
     if self.is_dir():
         for item in self.glob("/*"):
             # noinspection PyUnresolvedReferences
@@ -99,6 +98,13 @@ def get(self, loc: Union[str, Path, TransparentPath], recursive: bool = False):
         )
     if type(loc) != TransparentPath:
         loc = TransparentPath(loc, fs="local", bucket=self.bucket)
+
+    # noinspection PyProtectedMember
+    if not self.nocheck:
+        self._check_multiplicity()
+    if not self.exist():
+        raise TPFileNotFoundError(f"No such file or directory: {self}")
+
     self.fs.get(self.__fspath__(), loc.__fspath__(), recursive=recursive)
 
 
@@ -120,6 +126,12 @@ def mv(self, other: Union[str, Path, TransparentPath]):
     # Do not use filesystem's move, for it is coded by apes and is not able to use recursive properly
     # self.fs.mv(self.__fspath__(), other, **kwargs)
 
+    # noinspection PyProtectedMember
+    if not self.nocheck:
+        self._check_multiplicity()
+    if not self.exist():
+        raise TPFileNotFoundError(f"No such file or directory: {self}")
+
     if self.is_file():
         self.fs.mv(self.__fspath__(), other)
         return
@@ -138,6 +150,9 @@ def mv(self, other: Union[str, Path, TransparentPath]):
 def cp(self, other: Union[str, Path, TransparentPath]):
     """Used to copy a file or a directory on the same filesystem."""
 
+    # noinspection PyProtectedMember
+    if not self.nocheck:
+        self._check_multiplicity()
     if not self.exist():
         raise TPFileNotFoundError(f"No such file or directory: {self}")
 
@@ -168,10 +183,12 @@ def cp(self, other: Union[str, Path, TransparentPath]):
         self.fs.cp(stuff.__fspath__(), newpath)
 
 
-def read_text(self, *args, get_obj: bool = False, update_cache: bool = True, **kwargs) -> Union[str, IO]:
+def read_text(self, *args, get_obj: bool = False, **kwargs) -> Union[str, IO]:
     # noinspection PyProtectedMember
-    if update_cache and self.__class__._do_update_cache:
-        self._update_cache()
+    if not self.nocheck:
+        self._check_multiplicity()
+    if not self.is_file():
+        raise TPFileNotFoundError(f"Could not find file {self}")
 
     byte_mode = True
     if len(args) == 0:
@@ -191,11 +208,12 @@ def read_text(self, *args, get_obj: bool = False, update_cache: bool = True, **k
 
 
 def write_stuff(
-    self, data: Any, *args, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs
+    self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs
 ) -> None:
     # noinspection PyProtectedMember
-    if update_cache and self.__class__._do_update_cache:
-        self._update_cache()
+    if not self.nocheck:
+        self._check_multiplicity()
+
     if not overwrite and self.is_file() and present != "ignore":
         raise TPFileExistsError()
 
@@ -208,7 +226,7 @@ def write_stuff(
 
 
 def write_bytes(
-    self, data: Any, *args, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs,
+    self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs,
 ) -> None:
 
     args = list(args)
@@ -217,4 +235,4 @@ def write_bytes(
     if "b" not in args[0]:
         args[0] += "b"
 
-    self.write_stuff(data, *tuple(args), overwrite=overwrite, present=present, update_cache=update_cache, **kwargs)
+    self.write_stuff(data, *tuple(args), overwrite=overwrite, present=present, **kwargs)

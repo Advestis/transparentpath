@@ -30,7 +30,7 @@ try:
     import tempfile
     from typing import Union, Any
     from pathlib import Path
-    from ..gcsutils.transparentpath import TransparentPath, TPValueError
+    from ..gcsutils.transparentpath import TransparentPath, TPValueError, TPFileNotFoundError
     from .pandas import MyHDFStore
     import sys
     import importlib.util
@@ -87,7 +87,7 @@ try:
                 self.local_path.close()
 
     def read(
-        self: TransparentPath, update_cache: bool = True, use_pandas: bool = False, **kwargs,
+        self: TransparentPath, use_pandas: bool = False, **kwargs,
     ) -> Union[h5py.File, MyHDFStore]:
         """Reads a HDF5 file. Must have been created by h5py.File or pd.HDFStore (specify use_pandas=True if so)
 
@@ -97,11 +97,6 @@ try:
         Parameters
         ----------
         self: TransparentPath
-        update_cache: bool
-            FileSystem objects do not necessarily follow changes on the system if they were not perfermed by them
-            directly. If update_cache is True, the FileSystem will update its cache before trying to read anything.
-            If False, it won't, potentially saving some time but this might result in a FileNotFoundError. (Default
-            value = True)
 
         use_pandas: bool
             To use HDFStore instead of h5py.File (Default value = False)
@@ -128,9 +123,11 @@ try:
         if use_pandas:
             class_to_use = MyHDFStore
 
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+        if not self.nocheck:
+            self._check_multiplicity()
+        if not self.is_file():
+            raise TPFileNotFoundError(f"Could not find file {self}")
+
         if self.fs_kind == "local":
             # Do not check kwargs since HDFStore and h5py both accepct kwargs anyway
             data = class_to_use(self.path, mode=mode, **kwargs)
@@ -147,7 +144,6 @@ try:
         self: TransparentPath,
         data: Any = None,
         set_name: str = None,
-        update_cache: bool = True,
         use_pandas: bool = False,
         **kwargs,
     ) -> Union[None, h5py.File, MyHDFStore]:
@@ -160,11 +156,6 @@ try:
             The data to store. Can be None, in that case an opened file is returned (Default value = None)
         set_name: str
             The name of the dataset (Default value = None)
-        update_cache: bool
-            FileSystem objects do not necessarily follow changes on the system if they were not perfermed by them
-            directly. If update_cache is True, the FileSystem will update its cache before trying to read anything.
-            If False, it won't, potentially saving some time but this might result in a FileExistError. (Default
-            value = True)
         use_pandas: bool
             To use pd.HDFStore object instead of h5py.File (Default = False)
         **kwargs
@@ -180,9 +171,8 @@ try:
             mode = kwargs["mode"]
             del kwargs["mode"]
 
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+        if not self.nocheck:
+            self._check_multiplicity()
 
         # If no data is specified, an HDF5 file is returned, opened in write mode, or any other specified mode.
         if data is None:

@@ -19,7 +19,7 @@ try:
     import sys
     from typing import Union, List, Tuple
     import importlib.util
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError
+    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError, TPFileNotFoundError
 
     if importlib.util.find_spec("pyarrow") is None:
         raise TPImportError("Need the 'pyarrow' package")
@@ -45,10 +45,12 @@ try:
             df.index = pd.to_datetime(df.index)
         return df
 
-    def read(self, update_cache: bool = True, **kwargs) -> Union[pd.DataFrame, pd.Series]:
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+    def read(self, **kwargs) -> Union[pd.DataFrame, pd.Series]:
+
+        if not self.nocheck:
+            self._check_multiplicity()
+        if not self.is_file():
+            raise TPFileNotFoundError(f"Could not find file {self}")
 
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
 
@@ -66,7 +68,6 @@ try:
         data: Union[pd.DataFrame, pd.Series],
         overwrite: bool = True,
         present: str = "ignore",
-        update_cache: bool = True,
         columns_to_string: bool = True,
         to_dataframe: bool = True,
         **kwargs,
@@ -75,9 +76,10 @@ try:
         Warning : if data is a Dask dataframe, the output will be written in a directory. For convenience, the directory
         if self.with_suffix(""). Reading is transparent and one can specify a path with .parquet suffix.
         """
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+
+        if not self.nocheck:
+            self._check_multiplicity()
+
         if not overwrite and self.is_file() and present != "ignore":
             raise TPFileExistsError()
 

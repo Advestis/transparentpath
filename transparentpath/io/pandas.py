@@ -15,7 +15,7 @@ try:
     import pandas as pd
     import tempfile
     from typing import Union, List
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError
+    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError, TPFileNotFoundError
 
     class MyHDFStore(pd.HDFStore):
         """Same as MyHDFFile but for pd.HDFStore objects"""
@@ -35,10 +35,12 @@ try:
                 TransparentPath(self.local_path.name, fs="local").put(self.remote_file)
                 self.local_path.close()
 
-    def read(self, update_cache: bool = True, **kwargs) -> pd.DataFrame:
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+    def read(self, **kwargs) -> pd.DataFrame:
+
+        if not self.nocheck:
+            self._check_multiplicity()
+        if not self.is_file():
+            raise TPFileNotFoundError(f"Could not find file {self}")
 
         # noinspection PyTypeChecker,PyUnresolvedReferences
         try:
@@ -58,11 +60,12 @@ try:
         data: Union[pd.DataFrame, pd.Series],
         overwrite: bool = True,
         present: str = "ignore",
-        update_cache: bool = True,
         **kwargs,
     ):
-        if update_cache and self._do_update_cache:
-            self._update_cache()
+
+        if not self.nocheck:
+            self._check_multiplicity()
+
         if not overwrite and self.is_file() and present != "ignore":
             raise TPFileExistsError()
 

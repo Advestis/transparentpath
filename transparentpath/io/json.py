@@ -41,8 +41,8 @@ try:
             else:
                 return json.JSONEncoder.default(self, obj)
 
-    def read(self, *args, get_obj, update_cache, **kwargs):
-        stringified = self.read_text(*args, get_obj=get_obj, update_cache=update_cache, **kwargs)
+    def read(self, *args, get_obj, **kwargs):
+        stringified = self.read_text(*args, get_obj=get_obj, **kwargs)
         dictified = json.loads(stringified)
         if isinstance(dictified, str):
             try:
@@ -51,11 +51,11 @@ try:
                 pass
         return dictified
 
-    def write(self, data: Any, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs):
+    def write(self, data: Any, overwrite: bool = True, present: str = "ignore", **kwargs):
 
         jsonified = json.dumps(data, cls=JSONEncoder)
         self.write_stuff(
-            jsonified, "w", overwrite=overwrite, present=present, update_cache=update_cache, **kwargs,
+            jsonified, "w", overwrite=overwrite, present=present, **kwargs,
         )
 
 
