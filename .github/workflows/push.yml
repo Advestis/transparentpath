@@ -19,14 +19,18 @@ jobs:
         env:
           ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
         if: github.event_name != 'pull_request'
-        run: echo "::set-env name=BRANCH_NAME::$(echo ${GITHUB_REF#refs/heads/})"
+        run: |
+          echo "::set-env name=BRANCH_NAME::$(echo ${GITHUB_REF#refs/heads/})"
+          echo $BRANCH_NAME
 
       # extract branch name on pull request
       - name: Extract branch name PR
         env:
           ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
         if: github.event_name == 'pull_request'
-        run: echo "::set-env name=BRANCH_NAME::$(echo ${GITHUB_HEAD_REF})"
+        run: |
+          echo "::set-env name=BRANCH_NAME::$(echo ${GITHUB_HEAD_REF})"
+          echo $BRANCH_NAME
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -83,6 +87,7 @@ jobs:
           force: true
 
       - name: topypi
+        if: ${{ matrix.python-version == 3.8 }}
         uses: pypa/gh-action-pypi-publish@master
         with:
           user: ${{ secrets.pypi_login }}
@@ -91,7 +96,7 @@ jobs:
           verbose: true
 
       - name: todocker sidebranch
-        if: "!contains(github.ref, 'master')"
+        if: ${{ env.BRANCH_NAME != 'master' && matrix.python-version == 3.8 }}
         uses: docker/build-push-action@v1
         with:
           username: ${{ secrets.docker_login }}
@@ -99,7 +104,7 @@ jobs:
           repository: advestisrepositories/transparentpath-${{ env.BRANCH_NAME }}
           tag_with_ref: true
       - name: todocker master
-        if: "contains(github.ref, 'master')"
+        if: ${{ env.BRANCH_NAME == 'master' && matrix.python-version == 3.8 }}
         uses: docker/build-push-action@v1
         with:
           username: ${{ secrets.docker_login }}

@@ -87,7 +87,7 @@ optional_requirements["all"] = all_reqs
 
 if __name__ == "__main__":
     setup(
-        name="transparentpath_nightly",
+        name="transparentpath",
         version=version,
         author="Philippe COTTE",
         author_email="pcotte@advestis.com",
