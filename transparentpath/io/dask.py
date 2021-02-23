@@ -3,6 +3,13 @@ errormessage = (
     "TransparentPath.\nYou can change that by running 'pip install transparentpath[dask]'."
 )
 
+
+class TPImportError(ImportError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
 try:
     # noinspection PyUnresolvedReferences,PyPackageRequirements
     import dask.dataframe as dd
@@ -18,7 +25,8 @@ try:
     # noinspection PyPackageRequirements
     import pandas as pd
 
-    from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs
+    from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs, \
+        TPFileNotFoundError, TPValueError, TPFileExistsError
     from .hdf5 import hdf5_ok
     from .hdf5 import errormessage as errormessage_hdf5
     from .excel import excel_ok
@@ -34,16 +42,15 @@ try:
         if self.__class__.cli is None:
             self.__class__.cli = client.Client(processes=False)
         if self.suffix != ".csv" and self.suffix != ".parquet" and not self.is_file():
-            raise FileNotFoundError(f"Could not find file {self}")
+            raise TPFileNotFoundError(f"Could not find file {self}")
         else:
-            # noinspection PyUnresolvedReferences
             if (
                 not self.is_file()
                 and not self.is_dir(exist=True)
                 and not self.with_suffix("").is_dir(exist=True)
                 and "*" not in str(self)
             ):
-                raise FileNotFoundError(f"Could not find file nor directory {self}")
+                raise TPFileNotFoundError(f"Could not find file nor directory {self} nor {self.with_suffix('')}")
 
     def apply_index_and_date_dd(index_col: int, parse_dates: bool, df: dd.DataFrame) -> dd.DataFrame:
         if index_col is not None:
@@ -54,33 +61,34 @@ try:
             df.index = dd.to_datetime(df.index)
         return df
 
-    def read_csv(self, update_cache: bool = True, **kwargs) -> dd.DataFrame:
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+    def read_csv(self, **kwargs) -> dd.DataFrame:
+
+        if not self.nocheck:
+            self._check_multiplicity()
 
         check_dask(self)
-        # noinspection PyTypeChecker,PyUnresolvedReferences
+
         if self.is_file():
             to_use = self
         else:
             to_use = self.with_suffix("")
+
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
         check_kwargs(dd.read_csv, kwargs)
         return apply_index_and_date_dd(index_col, parse_dates, dd.read_csv(to_use.__fspath__(), **kwargs))
 
-    def read_parquet(self, update_cache: bool = True, **kwargs) -> Union[dd.DataFrame, dd.Series]:
+    def read_parquet(self, **kwargs) -> Union[dd.DataFrame, dd.Series]:
 
         if not parquet_ok:
-            raise ImportError(errormessage_parquet)
-
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+            raise TPImportError(errormessage_parquet)
 
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
 
+        if not self.nocheck:
+            self._check_multiplicity()
+
         check_dask(self)
+
         if self.is_file():
             to_use = self
         else:
@@ -90,11 +98,10 @@ try:
             index_col, parse_dates, dd.read_parquet(to_use.__fspath__(), engine="pyarrow", **kwargs)
         )
 
-    def read_hdf5(self, update_cache: bool = True, set_names: str = "", use_pandas: bool = False, **kwargs) -> \
-            dd.DataFrame:
+    def read_hdf5(self, set_names: str = "", use_pandas: bool = False, **kwargs) -> dd.DataFrame:
 
         if not hdf5_ok:
-            raise ImportError(errormessage_hdf5)
+            raise TPImportError(errormessage_hdf5)
 
         if use_pandas:
             raise NotImplementedError("Using dask in transparentpath does not support pandas's HDFStore")
@@ -104,17 +111,17 @@ try:
             mode = kwargs["mode"]
             del kwargs["mode"]
         if "r" not in mode:
-            raise ValueError("If using read_hdf5, mode must contain 'r'")
+            raise TPValueError("If using read_hdf5, mode must contain 'r'")
+
+        if not self.nocheck:
+            self._check_multiplicity()
 
         check_dask(self)
+
         if len(set_names) == 0:
-            raise ValueError(
+            raise TPValueError(
                 "If using Dask, you must specify the dataset name to extract using set_names='aname' or a wildcard."
             )
-
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
 
         check_kwargs(dd.read_hdf, kwargs)
         if self.fs_kind == "local":
@@ -126,16 +133,17 @@ try:
         # Do not delete the tmp file, since dask tasks are delayed
         return data.result()
 
-    def read_excel(self, update_cache: bool = True, **kwargs) -> pd.DataFrame:
+    def read_excel(self, **kwargs) -> pd.DataFrame:
 
         if not excel_ok:
-            raise ImportError(errormessage_excel)
+            raise TPImportError(errormessage_excel)
 
         # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+        if not self.nocheck:
+            self._check_multiplicity()
 
         check_dask(self)
+
         check_kwargs(pd.read_excel, kwargs)
         # noinspection PyTypeChecker,PyUnresolvedReferences
         try:
@@ -158,14 +166,14 @@ try:
             )
 
     def write_csv(
-        self, data: dd.DataFrame, overwrite: bool = True, present: str = "ignore", update_cache: bool = True, **kwargs,
+        self, data: dd.DataFrame, overwrite: bool = True, present: str = "ignore", **kwargs,
     ) -> Union[None, List[TransparentPath]]:
 
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+        if not self.nocheck:
+            self._check_multiplicity()
+
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         if self.__class__.cli is None:
             self.__class__.cli = client.Client(processes=False)
@@ -175,7 +183,7 @@ try:
             path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
         futures = self.__class__.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
         outfiles = [
-            TransparentPath(f, fs=self.fs_kind, bucket=self.bucket, project=self.project) for f in futures.result()
+            TransparentPath(f, fs=self.fs_kind, bucket=self.bucket) for f in futures.result()
         ]
         if len(outfiles) == 1:
             outfiles[0].mv(self)
@@ -187,19 +195,18 @@ try:
         data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
         overwrite: bool = True,
         present: str = "ignore",
-        update_cache: bool = True,
         columns_to_string: bool = True,
         **kwargs,
     ) -> None:
 
         if not hdf5_ok:
-            raise ImportError(errormessage_hdf5)
+            raise TPImportError(errormessage_hdf5)
 
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+        if not self.nocheck:
+            self._check_multiplicity()
+
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         if columns_to_string and not isinstance(data.columns[0], str):
             data.columns = data.columns.astype(str)
@@ -212,14 +219,17 @@ try:
     # noinspection PyUnresolvedReferences
 
     def write_hdf5(
-        self, data: Any = None, set_name: str = None, update_cache: bool = True, use_pandas: bool = False, **kwargs,
+        self, data: Any = None, set_name: str = None, use_pandas: bool = False, **kwargs,
     ) -> Union[None, "h5py.File"]:
 
         if not hdf5_ok:
-            raise ImportError(errormessage_hdf5)
+            raise TPImportError(errormessage_hdf5)
 
         if use_pandas:
             raise NotImplementedError("TransparentPath does not support storing Dask objects in pandas's HDFStore yet.")
+
+        if not self.nocheck:
+            self._check_multiplicity()
 
         if self.__class__.cli is None:
             self.__class__.cli = client.Client(processes=False)
@@ -229,10 +239,6 @@ try:
         if "mode" in kwargs:
             mode = kwargs["mode"]
             del kwargs["mode"]
-
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
 
         if isinstance(data, dict):
             sets = data
@@ -250,7 +256,7 @@ try:
                     dd.to_hdf, list(sets.values()), [f.name] * len(sets), list(sets.keys()), mode=mode, **kwargs
                 )
                 self.__class__.cli.gather(futures)
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
         return
 
     def write_excel(
@@ -258,18 +264,17 @@ try:
         data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
         overwrite: bool = True,
         present: str = "ignore",
-        update_cache: bool = True,
         **kwargs,
     ) -> None:
 
         if not excel_ok:
-            raise ImportError(errormessage_excel)
+            raise TPImportError(errormessage_excel)
 
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+        if not self.nocheck:
+            self._check_multiplicity()
+
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         if self.fs_kind == "local":
             if self.__class__.cli is None:
@@ -285,10 +290,8 @@ try:
                 check_kwargs(pd.DataFrame.to_excel, kwargs)
                 parts = delayed(pd.DataFrame.to_excel)(data, f.name, **kwargs)
                 parts.compute()
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
 
 
 except ImportError as e:
-    # import warnings
-    # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
-    raise e
+    raise TPImportError(str(e))

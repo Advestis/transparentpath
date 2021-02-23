@@ -5,14 +5,20 @@ errormessage = (
 hdf5_ok = False
 
 
+class TPImportError(ImportError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
 class MyHDFFile:
     def __init__(self):
-        raise ImportError(errormessage)
+        raise TPImportError(errormessage)
 
 
 class MyHDFStore:
     def __init__(self):
-        raise ImportError(
+        raise TPImportError(
             "pandas does not seem to be installed. You will not be able to use pandas objects through "
             "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'."
         )
@@ -24,7 +30,7 @@ try:
     import tempfile
     from typing import Union, Any
     from pathlib import Path
-    from ..gcsutils.transparentpath import TransparentPath
+    from ..gcsutils.transparentpath import TransparentPath, TPValueError, TPFileNotFoundError
     from .pandas import MyHDFStore
     import sys
     import importlib.util
@@ -32,7 +38,7 @@ try:
     hdf5_ok = True
 
     if importlib.util.find_spec("tables") is None:
-        raise ImportError("Need the 'tables' package")
+        raise TPImportError("Need the 'tables' package")
 
     class MyHDFFile(h5py.File):
         """Class to override h5py.File to handle files on GCS.
@@ -40,7 +46,7 @@ try:
         This allows to do :
         >>> from transparentpath import TransparentPath  # doctest: +SKIP
         >>> import numpy as np  # doctest: +SKIP
-        >>> TransparentPath.set_global_fs("gcs", bucket="bucket_name", project="project_name")  # doctest: +SKIP
+        >>> TransparentPath.set_global_fs("gcs", bucket="bucket_name")  # doctest: +SKIP
         >>> path = TransparentPath("chien.hdf5"  # doctest: +SKIP
         >>>
         >>> with path.write() as ifile:  # doctest: +SKIP
@@ -80,9 +86,7 @@ try:
                 # noinspection PyUnresolvedReferences
                 self.local_path.close()
 
-    def read(
-        self: TransparentPath, update_cache: bool = True, use_pandas: bool = False, **kwargs,
-    ) -> Union[h5py.File, MyHDFStore]:
+    def read(self: TransparentPath, use_pandas: bool = False, **kwargs,) -> Union[h5py.File, MyHDFStore]:
         """Reads a HDF5 file. Must have been created by h5py.File or pd.HDFStore (specify use_pandas=True if so)
 
         Since h5py.File/pd.HDFStore does not support GCS, first copy it in a tmp file.
@@ -91,11 +95,6 @@ try:
         Parameters
         ----------
         self: TransparentPath
-        update_cache: bool
-            FileSystem objects do not necessarily follow changes on the system if they were not perfermed by them
-            directly. If update_cache is True, the FileSystem will update its cache before trying to read anything.
-            If False, it won't, potentially saving some time but this might result in a FileNotFoundError. (Default
-            value = True)
 
         use_pandas: bool
             To use HDFStore instead of h5py.File (Default value = False)
@@ -116,15 +115,15 @@ try:
             mode = kwargs["mode"]
             del kwargs["mode"]
         if "r" not in mode:
-            raise ValueError("If using read_hdf5, mode must contain 'r'")
+            raise TPValueError("If using read_hdf5, mode must contain 'r'")
 
         class_to_use = h5py.File
         if use_pandas:
             class_to_use = MyHDFStore
 
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+        if not self.is_file():
+            raise TPFileNotFoundError(f"Could not find file {self}")
+
         if self.fs_kind == "local":
             # Do not check kwargs since HDFStore and h5py both accepct kwargs anyway
             data = class_to_use(self.path, mode=mode, **kwargs)
@@ -138,12 +137,7 @@ try:
         return data
 
     def write(
-        self: TransparentPath,
-        data: Any = None,
-        set_name: str = None,
-        update_cache: bool = True,
-        use_pandas: bool = False,
-        **kwargs,
+        self: TransparentPath, data: Any = None, set_name: str = None, use_pandas: bool = False, **kwargs,
     ) -> Union[None, h5py.File, MyHDFStore]:
         """
 
@@ -154,11 +148,6 @@ try:
             The data to store. Can be None, in that case an opened file is returned (Default value = None)
         set_name: str
             The name of the dataset (Default value = None)
-        update_cache: bool
-            FileSystem objects do not necessarily follow changes on the system if they were not perfermed by them
-            directly. If update_cache is True, the FileSystem will update its cache before trying to read anything.
-            If False, it won't, potentially saving some time but this might result in a FileExistError. (Default
-            value = True)
         use_pandas: bool
             To use pd.HDFStore object instead of h5py.File (Default = False)
         **kwargs
@@ -174,9 +163,8 @@ try:
             mode = kwargs["mode"]
             del kwargs["mode"]
 
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+        if self.when_checked["used"] and not self.nocheck:
+            self._check_multiplicity()
 
         # If no data is specified, an HDF5 file is returned, opened in write mode, or any other specified mode.
         if data is None:
@@ -214,16 +202,24 @@ try:
                     for aset in sets:
                         thefile[aset] = sets[aset]
                     thefile.close()
-                    TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
+                    TransparentPath(
+                        path=f.name,
+                        fs="local",
+                        notupdatecache=self.notupdatecache,
+                        nocheck=self.nocheck,
+                        when_checked=self.when_checked,
+                        when_updated=self.when_updated,
+                        update_expire=self.update_expire,
+                        check_expire=self.check_expire,
+                    ).put(self.path)
 
     try:
         # noinspection PyUnresolvedReferences
         from .pandas import MyHDFStore as Hs
+
         MyHDFStore = Hs
     except ImportError:
         pass
 
 except ImportError as e:
-    # import warnings
-    # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
-    raise e
+    raise TPImportError(str(e))

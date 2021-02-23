@@ -5,17 +5,23 @@ errormessage = (
 
 parquet_ok = False
 
+
+class TPImportError(ImportError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
 try:
-    # noinspection PyUnresolvedReferences
     import pandas as pd
     import tempfile
     import sys
     from typing import Union, List, Tuple
     import importlib.util
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs
+    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError, TPFileNotFoundError
 
     if importlib.util.find_spec("pyarrow") is None:
-        raise ImportError("Need the 'pyarrow' package")
+        raise TPImportError("Need the 'pyarrow' package")
 
     parquet_ok = True
 
@@ -38,16 +44,18 @@ try:
             df.index = pd.to_datetime(df.index)
         return df
 
-    def read(self, update_cache: bool = True, **kwargs) -> Union[pd.DataFrame, pd.Series]:
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+    def read(self, **kwargs) -> Union[pd.DataFrame, pd.Series]:
+
+        if not self.is_file():
+            raise TPFileNotFoundError(f"Could not find file {self}")
 
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
 
         check_kwargs(pd.read_parquet, kwargs)
         if self.fs_kind == "local":
-            return apply_index_and_date(index_col, parse_dates, pd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs))
+            return apply_index_and_date(
+                index_col, parse_dates, pd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs)
+            )
 
         else:
             return apply_index_and_date(
@@ -59,7 +67,6 @@ try:
         data: Union[pd.DataFrame, pd.Series],
         overwrite: bool = True,
         present: str = "ignore",
-        update_cache: bool = True,
         columns_to_string: bool = True,
         to_dataframe: bool = True,
         **kwargs,
@@ -68,11 +75,9 @@ try:
         Warning : if data is a Dask dataframe, the output will be written in a directory. For convenience, the directory
         if self.with_suffix(""). Reading is transparent and one can specify a path with .parquet suffix.
         """
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         if to_dataframe and isinstance(data, pd.Series):
             name = data.name
@@ -90,6 +95,4 @@ try:
 
 
 except ImportError as e:
-    # import warnings
-    # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
-    raise e
+    raise TPImportError(str(e))
