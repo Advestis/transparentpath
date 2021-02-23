@@ -78,7 +78,7 @@ def put(self, dst: Union[str, Path, TransparentPath]):
                     f2.write(data)
 
 
-def get(self, loc: Union[str, Path, TransparentPath], recursive: bool = False):
+def get(self, loc: Union[str, Path, TransparentPath]):
     """used to get a remote file to local. Does not remove the remote file.
 
     self must be a remote TransparentPath. If loc is a TransparentPath, it must be local. If it is a pathlib.Path or
@@ -110,7 +110,10 @@ def get(self, loc: Union[str, Path, TransparentPath], recursive: bool = False):
     if not self.exist():
         raise TPFileNotFoundError(f"No such file or directory: {self}")
 
-    self.fs.get(self.__fspath__(), loc.__fspath__(), recursive=recursive)
+    if self.is_dir(exist=True):
+        self.fs.get(self.__fspath__(), loc.__fspath__(), recursive=True)
+    else:
+        self.fs.get(self.__fspath__(), loc.__fspath__())
 
 
 def mv(self, other: Union[str, Path, TransparentPath]):

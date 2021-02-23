@@ -49,8 +49,14 @@ def test(clean, fs_kind, suffix, kwargs):
         # noinspection PyUnresolvedReferences
         import pandas as pd
         import dask.dataframe as dd
-        df_dask = dd.from_pandas(pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]]),
-                                 npartitions=1)
+        df_dask = dd.from_pandas(
+            pd.DataFrame(
+                columns=["foo", "bar"],
+                index=["a", "b"],
+                data=[[1, 2], [3, 4]]
+            ),
+            npartitions=1
+        )
         # noinspection PyTypeChecker
         pfile = get_path(fs_kind, suffix)
         if pfile == "skipped":
