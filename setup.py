@@ -4,8 +4,10 @@ from typing import List
 
 from setuptools import find_packages, setup
 
+name = "transparentpath"
 
-def run_cmd(cmd):
+
+def run_cmd(cmd) -> List[str]:
     if isinstance(cmd, str):
         cmd = cmd.split(" ")
     return subprocess.check_output(cmd).decode(encoding="UTF-8").split("\n")
@@ -51,6 +53,18 @@ def get_version() -> str:
     return f"{'.'.join(last_tag.split('.'))}.{get_nb_commits_until(last_tag)}"
 
 
+def get_branch_name() -> str:
+    branches = run_cmd("git branch")
+    for branch in branches:
+        if "*" in branch:
+            return branch.replace("*", "").replace(" ", "")
+    return ""
+
+
+branch_name = get_branch_name()
+if branch_name == "nightly":
+    name = "_".join([name, "nightly"])
+
 try:
     long_description = Path("README.md").read_text()
 except UnicodeDecodeError:
@@ -87,7 +101,7 @@ optional_requirements["all"] = all_reqs
 
 if __name__ == "__main__":
     setup(
-        name="transparentpath",
+        name=name,
         version=version,
         author="Philippe COTTE",
         author_email="pcotte@advestis.com",
