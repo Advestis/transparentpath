@@ -353,10 +353,6 @@ def extract_project(token: str = None) -> str:
     return content["project_id"]
 
 
-def cahcing_warnings(message):
-    warnings.warn("Caching Warning : ", )
-
-
 # noinspection PyRedeclaration
 class TransparentPath(os.PathLike):  # noqa : F811
     # noinspection PyUnresolvedReferences,PyRedeclaration
@@ -1996,16 +1992,16 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
         filesize = sys.getsizeof(data)
         if filesize > TransparentPath.caching_max_memory * 1000000:
-            Warning(f"You are trying to add in cach a file of {filesize / 1000000} MB, but the max memory "
-                    f"for caching is {TransparentPath.caching_max_memory} MB\nCaching canceled", TPCachingWarning)
+            warnings.warn(f"You are trying to add in cach a file of {filesize / 1000000} MB, but the max memory "
+                          f"for caching is {TransparentPath.caching_max_memory} MB\nCaching canceled", TPCachingWarning)
         else:
             while TransparentPath.used_memory + filesize > TransparentPath.caching_max_memory * 1000000:
                 # Drop oldest file
                 byename, byefile = TransparentPath.cached_data_dict.popitem(last=False)
                 TransparentPath.used_memory -= sys.getsizeof(byefile)
-                Warning(f"You have exceeded the max memory for caching of {TransparentPath.caching_max_memory} MB"
-                        f"(old files {TransparentPath.used_memory / 1000000} MB, new file {filesize / 1000000})"
-                        f"removing from cach : {byename}", TPCachingWarning)
+                warnings.warn(f"You have exceeded the max memory for caching of {TransparentPath.caching_max_memory} MB"
+                              f"(old files {TransparentPath.used_memory / 1000000} MB, new file {filesize / 1000000})"
+                              f"removing from cach : {byename}", TPCachingWarning)
             # Adding file to dict and filesize to total used memory
             TransparentPath.used_memory += filesize
             TransparentPath.cached_data_dict[self.__hash__()] = {"data": data, "args": args, "kwargs": kwargs}
@@ -2018,19 +2014,20 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.get(temp_file.name)
         tempfilesize = temp_file.file.tell()
         if tempfilesize > TransparentPath.caching_max_memory * 1000000:
-            Warning(f"You are trying to add in cach a file of {tempfilesize / 1000000} MB, but the max memory "
-                    f"for caching is {TransparentPath.caching_max_memory} MB\nCaching canceled", TPCachingWarning)
+            warnings.warn(f"You are trying to add in cach a file of {tempfilesize / 1000000} MB, but the max memory "
+                          f"for caching is {TransparentPath.caching_max_memory} MB\nCaching canceled", TPCachingWarning)
         else:
             while TransparentPath.used_memory + tempfilesize > TransparentPath.caching_max_memory * 1000000:
                 byename, byefile = TransparentPath.cached_data_dict.popitem(last=False)
                 byefile["file"].close()
                 TransparentPath.used_memory -= byefile["memory"]
-                Warning(f"You have exceeded the max memory for caching of {TransparentPath.caching_max_memory} MB"
-                        f"(old files {TransparentPath.used_memory / 1000000} MB, new file {tempfilesize / 1000000})"
-                        f"removing from cach : {byename}", TPCachingWarning)
+                warnings.warn(f"You have exceeded the max memory for caching of {TransparentPath.caching_max_memory} MB"
+                              f"(old files {TransparentPath.used_memory / 1000000} MB, new file {tempfilesize / 1000000})"
+                              f"removing from cach : {byename}", TPCachingWarning)
                 del byefile
             TransparentPath.used_memory += tempfilesize
-            TransparentPath.cached_data_dict[self.__hash__()] = {"file": temp_file, "memory": tempfilesize, "args": args, "kwargs": kwargs}
+            TransparentPath.cached_data_dict[self.__hash__()] = {"file": temp_file, "memory": tempfilesize,
+                                                                 "args": args, "kwargs": kwargs}
 
     def caching_saver(self, data, *args, **kwargs):
         """
