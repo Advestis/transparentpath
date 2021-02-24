@@ -10,7 +10,7 @@ def test_caching_ram(clean, suffix, data, kwargs):
     Path.caching = "ram"
     path = Path(f"tests/data/chien{suffix}", enable_caching=True, fs="local")
     path.read(**kwargs)
-    assert all(Path.cached_data_dict[path] == data)
+    assert all(Path.cached_data_dict[path.__hash__()]["data"] == data)
     assert all(Path(f"tests/data/chien{suffix}", enable_caching=True, fs="local").read() == data)
 
 
@@ -26,5 +26,5 @@ def test_max_size(clean):
     ret = list(Path.cached_data_dict.keys())
     retdata = list(Path.cached_data_dict.values())
     assert len(ret) == 1
-    assert ret[0] == path
-    assert retdata[0] == "grostest"
+    assert ret[0] == path.__hash__()
+    assert retdata[0]["data"] == "grostest"
