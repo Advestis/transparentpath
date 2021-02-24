@@ -559,6 +559,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         cls.LOCAL_SEP = os.path.sep
         cls.cached_data_dict = collections.OrderedDict()
         cls.used_memory = 0
+        cls.caching_max_memory = 100
 
     @classmethod
     def show_state(cls):
@@ -2219,6 +2220,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Union[None, pd.HDFStore, h5py.File]
         """
         # Update cache and/or check multiplicity are called inside each specific reading method
+        if self.enable_caching:
+            if self.caching == "ram":
+                if self.__hash__() in TransparentPath.cached_data_dict.keys():
+                    TransparentPath.cached_data_dict[self.__hash__()]["data"] = data
+            elif self.caching == "tmpfile" and self.fs_kind != "local":
+                if self.__hash__() in TransparentPath.cached_data_dict.keys():
+                    TransparentPath(TransparentPath.cached_data_dict[self.__hash__()]["file"].name,
+                                           fs="local").write(data)
 
         if make_parents and not self.parent.is_dir():
             self.parent.mkdir()
