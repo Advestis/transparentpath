@@ -1986,7 +1986,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             to_ret = [self._cast_iterable(item) for item in iter_]
             return to_ret
 
-    def caching_ram(self, data, *args, **kwargs):
+    def caching_ram(self, data, args, kwargs):
         """
         caching for ram
         """
@@ -2006,7 +2006,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             TransparentPath.used_memory += filesize
             TransparentPath.cached_data_dict[self.__hash__()] = {"data": data, "args": args, "kwargs": kwargs}
 
-    def caching_tmpfile(self, *args, **kwargs):
+    def caching_tmpfile(self, args, kwargs):
         """
         caching for tmpfile
         """
@@ -2029,7 +2029,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             TransparentPath.cached_data_dict[self.__hash__()] = {"file": temp_file, "memory": tempfilesize,
                                                                  "args": args, "kwargs": kwargs}
 
-    def caching_saver(self, data, *args, **kwargs):
+    def caching_saver(self, data, args, kwargs):
         """
         Save fetched data from read in tmp file or dict,
          if total of cach does not exceed caching_max_memory else remove oldest data
