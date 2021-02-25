@@ -92,7 +92,6 @@ class TPMultipleExistenceError(Exception):
 
 
 class TPCachingWarning(Warning):
-
     def __init__(self, message: str = ""):
         self.message = message
         super().__init__(self.message)
@@ -227,7 +226,7 @@ def collapse_ddots(path: Union[Path, TransparentPath, str]) -> TransparentPath:
 
 
 def get_fs(
-        fs_kind: str, bucket: str, token: Optional[Union[str, dict]] = None
+    fs_kind: str, bucket: str, token: Optional[Union[str, dict]] = None
 ) -> Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem], Union[None, str]]:
     """Gets the FileSystem object of either gcs or local (Default)
 
@@ -277,7 +276,7 @@ def get_buckets(fs: gcsfs.GCSFileSystem) -> List[str]:
         next_page_token = page.get("nextPageToken", None)
 
         while next_page_token is not None:
-            page = fs.call("GET", "b/", project=fs.project, pageToken=next_page_token, json_out=True, )
+            page = fs.call("GET", "b/", project=fs.project, pageToken=next_page_token, json_out=True,)
 
             assert page["kind"] == "storage#buckets"
             items.extend(page.get("items", []))
@@ -559,6 +558,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         cls.LOCAL_SEP = os.path.sep
         cls.cached_data_dict = collections.OrderedDict()
         cls.used_memory = 0
+        cls.caching = "None"
         cls.caching_max_memory = 100
 
     @classmethod
@@ -577,6 +577,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         print("_when_checked: ", cls._when_checked)
         print("_when_updated: ", cls._when_updated)
         print("LOCAL_SEP: ", cls.LOCAL_SEP)
+        print("cached_data_dict: ", cls.cached_data_dict)
+        print("used_memory: ", cls.used_memory)
+        print("caching: ", cls.caching)
+        print("caching_max_memory: ", cls.caching_max_memory)
 
     @classmethod
     def get_state(cls):
@@ -595,6 +599,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
             "_when_checked": cls._when_checked,
             "_when_updated": cls._when_updated,
             "LOCAL_SEP": cls.LOCAL_SEP,
+            "cached_data_dict: ": cls.cached_data_dict,
+            "used_memory: ": cls.used_memory,
+            "caching: ": cls.caching,
+            "caching_max_memory: ": cls.caching_max_memory
         }
         return state
 
@@ -617,7 +625,23 @@ class TransparentPath(os.PathLike):  # noqa : F811
     used_memory = 0
     # caching memory as MB :
     cached_data_dict = collections.OrderedDict()
-    _attributes = ["fs", "path", "fs_kind", "bucket", "token", "sep", "nas_dir"]
+    _attributes = [
+        "bucket",
+        "fs_kind",
+        "fs",
+        "nas_dir",
+        "path",
+        "sep",
+        "token",
+        "nocheck",
+        "notupdatecache",
+        "last_check",
+        "last_update",
+        "update_expire",
+        "check_expire",
+        "when_checked",
+        "when_updated"
+    ]
 
     method_without_self_path = [
         "end_transaction",
@@ -638,11 +662,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     @classmethod
     def set_global_fs(
-            cls,
-            fs: str,
-            bucket: Optional[str] = None,
-            nas_dir: Optional[Union[TransparentPath, Path, str]] = None,
-            token: Optional[Union[dict, str]] = None,
+        cls,
+        fs: str,
+        bucket: Optional[str] = None,
+        nas_dir: Optional[Union[TransparentPath, Path, str]] = None,
+        token: Optional[Union[dict, str]] = None,
     ) -> None:
         """To call before creating any instance to set the file system.
 
@@ -688,20 +712,20 @@ class TransparentPath(os.PathLike):  # noqa : F811
         TransparentPath.unset = False
 
     def __init__(
-            self,
-            path: Union[Path, TransparentPath, str] = ".",
-            collapse: bool = True,
-            fs: Optional[str] = None,
-            bucket: Optional[str] = None,
-            token: Optional[Union[dict, str]] = None,
-            nocheck: Optional[bool] = None,
-            notupdatecache: Optional[bool] = None,
-            update_expire: Optional[int] = None,
-            check_expire: Optional[int] = None,
-            when_checked: Optional[dict] = None,
-            when_updated: Optional[dict] = None,
-            enable_caching: bool = False,
-            **kwargs,
+        self,
+        path: Union[Path, TransparentPath, str] = ".",
+        collapse: bool = True,
+        fs: Optional[str] = None,
+        bucket: Optional[str] = None,
+        token: Optional[Union[dict, str]] = None,
+        nocheck: Optional[bool] = None,
+        notupdatecache: Optional[bool] = None,
+        update_expire: Optional[int] = None,
+        check_expire: Optional[int] = None,
+        when_checked: Optional[dict] = None,
+        when_updated: Optional[dict] = None,
+        enable_caching: bool = False,
+        **kwargs,
     ):
         """Creator of the TranparentPath object
 
@@ -756,9 +780,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
             path = "."
 
         if (
-                not (type(path) == type(Path("dummy")))  # noqa: E721
-                and not (type(path) == str)
-                and not (type(path) == TransparentPath)
+            not (type(path) == type(Path("dummy")))  # noqa: E721
+            and not (type(path) == str)
+            and not (type(path) == TransparentPath)
         ):
             raise TPTypeError(f"Unsupported type {type(path)} for path")
 
@@ -891,8 +915,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
             # Remove occurences of nas_dir at beginning of path, if any
             if self.nas_dir is not None and (
-                    str(self.__path).startswith(os.path.abspath(self.nas_dir) + os.sep) or str(
-                self.__path) == self.nas_dir
+                str(self.__path).startswith(os.path.abspath(self.nas_dir) + os.sep) or str(self.__path) == self.nas_dir
             ):
                 self.__path = self.__path.relative_to(self.nas_dir)
 
@@ -1993,16 +2016,22 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
         filesize = sys.getsizeof(data)
         if filesize > TransparentPath.caching_max_memory * 1000000:
-            warnings.warn(f"You are trying to add in cach a file of {filesize / 1000000} MB, but the max memory "
-                          f"for caching is {TransparentPath.caching_max_memory} MB\nCaching canceled", TPCachingWarning)
+            warnings.warn(
+                f"You are trying to add in cache a file of {filesize / 1000000} MB, but the max memory "
+                f"for caching is {TransparentPath.caching_max_memory} MB\nCaching canceled",
+                TPCachingWarning,
+            )
         else:
             while TransparentPath.used_memory + filesize > TransparentPath.caching_max_memory * 1000000:
                 # Drop oldest file
                 byename, byefile = TransparentPath.cached_data_dict.popitem(last=False)
                 TransparentPath.used_memory -= sys.getsizeof(byefile)
-                warnings.warn(f"You have exceeded the max memory for caching of {TransparentPath.caching_max_memory} MB"
-                              f"(old files {TransparentPath.used_memory / 1000000} MB, new file {filesize / 1000000})"
-                              f"removing from cach : {byename}", TPCachingWarning)
+                warnings.warn(
+                    f"You have exceeded the max memory for caching of {TransparentPath.caching_max_memory} MB"
+                    f"(old files {TransparentPath.used_memory / 1000000} MB, new file {filesize / 1000000})"
+                    f"removing from cach : {byename}",
+                    TPCachingWarning,
+                )
             # Adding file to dict and filesize to total used memory
             TransparentPath.used_memory += filesize
             TransparentPath.cached_data_dict[self.__hash__()] = {"data": data, "args": args, "kwargs": kwargs}
@@ -2013,22 +2042,33 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
         temp_file = tempfile.NamedTemporaryFile(delete=True, suffix=self.suffix)
         self.get(temp_file.name)
+        # noinspection PyUnresolvedReferences
         tempfilesize = temp_file.file.tell()
         if tempfilesize > TransparentPath.caching_max_memory * 1000000:
-            warnings.warn(f"You are trying to add in cach a file of {tempfilesize / 1000000} MB, but the max memory "
-                          f"for caching is {TransparentPath.caching_max_memory} MB\nCaching canceled", TPCachingWarning)
+            warnings.warn(
+                f"You are trying to add in cache a file of {tempfilesize / 1000000} MB, but the max memory "
+                f"for caching is {TransparentPath.caching_max_memory} MB\nCaching canceled",
+                TPCachingWarning,
+            )
         else:
             while TransparentPath.used_memory + tempfilesize > TransparentPath.caching_max_memory * 1000000:
                 byename, byefile = TransparentPath.cached_data_dict.popitem(last=False)
                 byefile["file"].close()
                 TransparentPath.used_memory -= byefile["memory"]
-                warnings.warn(f"You have exceeded the max memory for caching of {TransparentPath.caching_max_memory} MB"
-                              f"(old files {TransparentPath.used_memory / 1000000} MB, new file {tempfilesize / 1000000})"
-                              f"removing from cach : {byename}", TPCachingWarning)
+                warnings.warn(
+                    f"You have exceeded the max memory for caching of {TransparentPath.caching_max_memory} MB"
+                    f"(old files {TransparentPath.used_memory / 1000000} MB, new file {tempfilesize / 1000000})"
+                    f"removing from cach : {byename}",
+                    TPCachingWarning,
+                )
                 del byefile
             TransparentPath.used_memory += tempfilesize
-            TransparentPath.cached_data_dict[self.__hash__()] = {"file": temp_file, "memory": tempfilesize,
-                                                                 "args": args, "kwargs": kwargs}
+            TransparentPath.cached_data_dict[self.__hash__()] = {
+                "file": temp_file,
+                "memory": tempfilesize,
+                "args": args,
+                "kwargs": kwargs,
+            }
 
     def caching_saver(self, data, args, kwargs):
         """
@@ -2056,7 +2096,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if self.__hash__() in TransparentPath.cached_data_dict.keys():
                 TransparentPath.cached_data_dict.pop(self.__hash__())
             else:
-                Warning(f"{self} is not in cache")
+                warnings.warn(f"{self} is not in cache", TPCachingWarning)
 
     def refresh_cache(self):
         """
@@ -2069,16 +2109,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 self.uncache()
                 self.read(*arg, **kwarg)
             else:
-                Warning(f"{self.__hash__()} is not in cache")
+                warnings.warn(f"{self.__hash__()} is not in cache", TPCachingWarning)
 
-    def read(
-            self,
-            *args,
-            get_obj: bool = False,
-            use_pandas: bool = False,
-            use_dask: bool = False,
-            **kwargs,
-    ) -> Any:
+    def read(self, *args, get_obj: bool = False, use_pandas: bool = False, use_dask: bool = False, **kwargs,) -> Any:
         """Method used to read the content of the file located at self
 
         Will raise FileNotFound error if there is no file. Calls a specific method to read self based on the suffix
@@ -2129,16 +2162,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     return TransparentPath.cached_data_dict[self.__hash__()]["data"]
             elif self.caching == "tmpfile" and self.fs_kind != "local":
                 if self.__hash__() in TransparentPath.cached_data_dict.keys():
-                    return TransparentPath(TransparentPath.cached_data_dict[self.__hash__()]["file"].name,
-                                           fs="local").read(*args,
-                                                            get_obj,
-                                                            use_pandas,
-                                                            use_dask,
-                                                            **kwargs)
+                    return TransparentPath(
+                        TransparentPath.cached_data_dict[self.__hash__()]["file"].name, fs="local"
+                    ).read(*args, get_obj, use_pandas, use_dask, **kwargs)
         if self.suffix == ".csv":
             ret = self.read_csv(use_dask=use_dask, **kwargs)
-            self.caching_saver(ret, args,
-                               kwargs.update({"use_pandas": use_pandas, "use_dask": use_dask, "get_obj": get_obj}))
+            self.caching_saver(
+                ret, args, kwargs.update({"use_pandas": use_pandas, "use_dask": use_dask, "get_obj": get_obj})
+            )
             return ret
         elif self.suffix == ".parquet":
             index_col = None
@@ -2150,41 +2181,46 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if index_col:
                 # noinspection PyUnresolvedReferences
                 content.set_index(content.columns[index_col])
-            self.caching_saver(content, args,
-                               kwargs.update({"use_pandas": use_pandas, "use_dask": use_dask, "get_obj": get_obj}))
+            self.caching_saver(
+                content, args, kwargs.update({"use_pandas": use_pandas, "use_dask": use_dask, "get_obj": get_obj})
+            )
             return content
         elif self.suffix == ".hdf5" or self.suffix == ".h5":
             ret = self.read_hdf5(use_pandas=use_pandas, use_dask=use_dask, **kwargs)
-            self.caching_saver(ret, args,
-                               kwargs.update({"use_pandas": use_pandas, "use_dask": use_dask, "get_obj": get_obj}))
+            self.caching_saver(
+                ret, args, kwargs.update({"use_pandas": use_pandas, "use_dask": use_dask, "get_obj": get_obj})
+            )
             return ret
         elif self.suffix == ".json":
             ret = self.read_json(*args, get_obj=get_obj, **kwargs)
-            self.caching_saver(ret, args,
-                               kwargs.update({"use_pandas": use_pandas, "use_dask": use_dask, "get_obj": get_obj}))
+            self.caching_saver(
+                ret, args, kwargs.update({"use_pandas": use_pandas, "use_dask": use_dask, "get_obj": get_obj})
+            )
             return ret
         elif self.suffix in [".xlsx", ".xls", ".xlsm"]:
             ret = self.read_excel(use_dask=use_dask, **kwargs)
-            self.caching_saver(ret, args,
-                               kwargs.update({"use_pandas": use_pandas, "use_dask": use_dask, "get_obj": get_obj}))
+            self.caching_saver(
+                ret, args, kwargs.update({"use_pandas": use_pandas, "use_dask": use_dask, "get_obj": get_obj})
+            )
             return ret
         else:
             ret = self.read_text(*args, get_obj=get_obj, **kwargs)
-            self.caching_saver(ret, args,
-                               kwargs.update({"use_pandas": use_pandas, "use_dask": use_dask, "get_obj": get_obj}))
+            self.caching_saver(
+                ret, args, kwargs.update({"use_pandas": use_pandas, "use_dask": use_dask, "get_obj": get_obj})
+            )
             return ret
 
     # noinspection PyUnresolvedReferences
     def write(
-            self,
-            data: Any,
-            *args,
-            set_name: str = "data",
-            use_pandas: bool = False,
-            overwrite: bool = True,
-            present: str = "ignore",
-            make_parents: bool = False,
-            **kwargs,
+        self,
+        data: Any,
+        *args,
+        set_name: str = "data",
+        use_pandas: bool = False,
+        overwrite: bool = True,
+        present: str = "ignore",
+        make_parents: bool = False,
+        **kwargs,
     ) -> Union[None, "pd.HDFStore", "h5py.File"]:
         """Method used to write the content of the file located at self
         Calls a specific method to write data based on the suffix of self.path:
@@ -2220,14 +2256,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         Union[None, pd.HDFStore, h5py.File]
         """
         # Update cache and/or check multiplicity are called inside each specific reading method
-        if self.enable_caching:
-            if self.caching == "ram":
-                if self.__hash__() in TransparentPath.cached_data_dict.keys():
-                    TransparentPath.cached_data_dict[self.__hash__()]["data"] = data
-            elif self.caching == "tmpfile" and self.fs_kind != "local":
-                if self.__hash__() in TransparentPath.cached_data_dict.keys():
-                    TransparentPath(TransparentPath.cached_data_dict[self.__hash__()]["file"].name,
-                                           fs="local").write(data)
 
         if make_parents and not self.parent.is_dir():
             self.parent.mkdir()
@@ -2237,7 +2265,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             args = args[1:]
 
         if self.suffix == ".csv":
-            ret = self.to_csv(data=data, overwrite=overwrite, present=present, **kwargs, )
+            ret = self.to_csv(data=data, overwrite=overwrite, present=present, **kwargs,)
             if ret is not None:
                 # To skip the assert at the end of the function. Indeed if something is returned it means we used
                 # Dask, which will have written files with a different name than self, so the assert would fail.
@@ -2251,8 +2279,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 assert self.with_suffix("").is_dir(exist=True)
                 return
         elif self.suffix == ".hdf5" or self.suffix == ".h5":
-            ret = self.to_hdf5(data=data, set_name=set_name, use_pandas=use_pandas, **kwargs, )
+            ret = self.to_hdf5(data=data, set_name=set_name, use_pandas=use_pandas, **kwargs,)
             if ret is not None:
+                # will not cache the changes for they will happen outside TransparentPath
                 return ret
         elif self.suffix == ".json":
             self.to_json(
@@ -2270,7 +2299,19 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.write_bytes(
                 *args, data=data, overwrite=overwrite, present=present, **kwargs,
             )
+        self.update_tpchache(data)
         assert self.is_file()
+
+    def update_tpchache(self, data):
+        if self.enable_caching:
+            if self.caching == "ram":
+                if self.__hash__() in TransparentPath.cached_data_dict.keys():
+                    TransparentPath.cached_data_dict[self.__hash__()]["data"] = data
+            elif self.caching == "tmpfile" and self.fs_kind != "local":
+                if self.__hash__() in TransparentPath.cached_data_dict.keys():
+                    TransparentPath(TransparentPath.cached_data_dict[self.__hash__()]["file"].name, fs="local").write(
+                        data
+                    )
 
     # READ CSV
 
