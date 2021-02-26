@@ -44,7 +44,7 @@ def test(clean, fs_kind, suffix, kwargs):
     if reqs_ok is False:
         pfile = get_path(fs_kind, suffix)
         with pytest.raises(ImportError):
-            pfile.read()
+            pfile.read(use_dask=True)
     else:
         # noinspection PyUnresolvedReferences
         import pandas as pd
