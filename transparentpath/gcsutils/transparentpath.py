@@ -16,8 +16,6 @@ from fsspec.implementations.local import LocalFileSystem
 from inspect import signature
 import collections
 
-remote_prefix = "gs://"
-
 
 class TPValueError(ValueError):
     def __init__(self, message: str = ""):
@@ -542,6 +540,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     @classmethod
     def reinit(cls):
+        cls.remote_prefix = "gs://"
         cls.fss = {}
         cls.fs_kind = None
         cls.bucket = None
@@ -563,6 +562,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     @classmethod
     def show_state(cls):
+        print("remote_prefix: ", cls.remote_prefix)
         print("fss: ", cls.fss)
         print("fs_kind: ", cls.fs_kind)
         print("bucket: ", cls.bucket)
@@ -585,6 +585,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     @classmethod
     def get_state(cls):
         state = {
+            "remote_prefix": cls.remote_prefix,
             "fss": cls.fss,
             "fs_kind": cls.fs_kind,
             "bucket": cls.bucket,
@@ -606,6 +607,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         }
         return state
 
+    remote_prefix = "gs://"
     fss = {}
     fs_kind = None
     bucket = None
@@ -828,7 +830,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         # In case we initiate a path containing 'gs://'
         prefix_processed = False
-        if remote_prefix in str(path):
+        if TransparentPath.remote_prefix in str(path):
             prefix_processed = True
             project = extract_project(token)
 
@@ -837,7 +839,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     "You specified a path starting with 'gs://' but ask for it to be local. This is not possible."
                 )
             fs = f"gcs_{project}"
-            splitted = str(path).split(remote_prefix)
+            splitted = str(path).split(TransparentPath.remote_prefix)
             if len(splitted) == 0:
                 if bucket is None and TransparentPath.bucket is None:
                     raise TPValueError(
@@ -845,7 +847,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                         "is specified with bucket= or if TransparentPath already has been set to use a specified bucket"
                         "with set_global_fs"
                     )
-                path = str(path).replace(remote_prefix, "")
+                path = str(path).replace(TransparentPath.remote_prefix, "")
 
             else:
                 bucket_from_path = splitted[1].split("/")[0]
@@ -859,7 +861,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     bucket = bucket_from_path
                 # if TransparentPath.bucket is None:
                 #     TransparentPath.bucket = bucket_from_path
-                path = str(path).replace(remote_prefix, "").replace(bucket_from_path, "")
+                path = str(path).replace(TransparentPath.remote_prefix, "").replace(bucket_from_path, "")
                 if path.startswith("/"):
                     path = path[1:]
 
@@ -1072,7 +1074,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if self.fs_kind == "local":
             return str(self.__path)
         else:
-            return remote_prefix + str(self.__path)
+            return "".join([TransparentPath.remote_prefix, str(self.__path)])
 
     def __hash__(self) -> int:
         """Uniaue hash number.
@@ -1749,7 +1751,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if not isinstance(path, str) or isinstance(path, TransparentPath):
             raise TPTypeError("Can only pass a string to TransparentPath's cd method")
 
-        path = path.replace(remote_prefix, "")
+        path = path.replace(TransparentPath.remote_prefix, "")
 
         if "gcs" in self.fs_kind and str(path) == self.bucket or path == "" or path == "/":
             self.__path = Path(self.bucket)
