@@ -4,9 +4,10 @@ import pandas as pd
 
 
 # noinspection PyUnusedLocal,PyShadowingNames
-@pytest.mark.parametrize("suffix,data,kwargs", [
-    (".csv", pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]]), {"index_col": 0}),
-])
+@pytest.mark.parametrize(
+    "suffix,data,kwargs",
+    [(".csv", pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]]), {"index_col": 0}),],
+)
 def test_caching_ram(clean, suffix, data, kwargs):
     Path.caching = "ram"
     path = Path(f"tests/data/chien{suffix}", enable_caching=True, fs="local")
@@ -21,6 +22,7 @@ def test_max_size(clean):
     testing behavior when reatching maximum size
     """
     Path.caching_max_memory = 0.000070
+    Path.caching = "ram"
     Path("tests/data/chat.txt", enable_caching=True, fs="local").read()
     path = Path("tests/data/groschat.txt", enable_caching=True, fs="local")
     path.read()
@@ -32,10 +34,15 @@ def test_max_size(clean):
 
 
 # noinspection PyUnusedLocal,PyShadowingNames
-@pytest.mark.parametrize("TP,mod", [(Path("tests/data/chat.csv", enable_caching=True, fs="local"), "ram"),
-                                    (Path("chat.csv", enable_caching=True, fs="gcs", bucket="code_tests_sand"), "tmpfile"),
-                                    (Path("chat.csv", enable_caching=True, fs="gcs", bucket="code_tests_sand"), "ram")])
-def test_reload_from_write(clean, TP,mod):
+@pytest.mark.parametrize(
+    "TP,mod",
+    [
+        (Path("tests/data/chat.csv", enable_caching=True, fs="local"), "ram"),
+        (Path("chat.csv", enable_caching=True, fs="gcs", bucket="code_tests_sand"), "tmpfile"),
+        (Path("chat.csv", enable_caching=True, fs="gcs", bucket="code_tests_sand"), "ram"),
+    ],
+)
+def test_reload_from_write(clean, TP, mod):
     """
     testing unload and read with args/kwargs
     """

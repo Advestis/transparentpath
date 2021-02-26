@@ -1709,6 +1709,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
+        if isinstance(path_to_ls, TransparentPath):
+            raise TypeError("Can not use a TransparentPath as a argument of ls() : TransparentPath are all absolute")
+
         if not self.is_dir(exist=True):
             raise TPNotADirectoryError("The path must be a directory if you want to ls in it")
 
