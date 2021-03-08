@@ -15,6 +15,7 @@ class TPImportError(ImportError):
 try:
     import pandas as pd
     import tempfile
+    import warnings
     import sys
     from typing import Union, List, Tuple
     import importlib.util
@@ -69,12 +70,17 @@ try:
         present: str = "ignore",
         columns_to_string: bool = True,
         to_dataframe: bool = True,
+        compression: str = None,
         **kwargs,
     ) -> None:
         """
         Warning : if data is a Dask dataframe, the output will be written in a directory. For convenience, the directory
         if self.with_suffix(""). Reading is transparent and one can specify a path with .parquet suffix.
         """
+
+        if compression is not None and compression != "snappy":
+            warnings.warn("TransparentPath can not write parquet files with a compression that is not snappy. You "
+                          f"specified '{compression}', it will be replaced by 'snappy'.")
 
         if not overwrite and self.is_file() and present != "ignore":
             raise TPFileExistsError()
