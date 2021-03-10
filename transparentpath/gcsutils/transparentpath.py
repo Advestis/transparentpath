@@ -1625,8 +1625,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         By default, the wildcard is '*'. It means 'thepath/*', so will glob in the directory.
 
-        WARNING : on GCS, directories are not detected by glob.
-
         Parameters
         -----------
         wildcard: str

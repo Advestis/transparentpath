@@ -271,8 +271,8 @@ def test_rm(clean, fs_kind, path1, path2, kwargs, expected):
     [
         ("local", "chien/*", ["chat", "cheval"]),
         ("local", "chien/**", ["chat", "cheval", "cheval/chouette"]),
-        ("gcs", "chien/*", ["chat"]),
-        ("gcs", "chien/**", ["chat", "cheval/chouette"]),
+        ("gcs", "chien/*", ["chat", "cheval"]),
+        ("gcs", "chien/**", ["chat", "cheval", "cheval/chouette"]),
     ],
 )
 def test_glob(clean, fs_kind, pattern, expected):
