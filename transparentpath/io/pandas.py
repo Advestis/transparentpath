@@ -11,9 +11,9 @@ class TPImportError(ImportError):
 
 
 try:
-    # noinspection PyUnresolvedReferences
     import pandas as pd
     import tempfile
+    import warnings
     from typing import Union, List
     from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError, TPFileNotFoundError
 
@@ -56,6 +56,11 @@ try:
     def write(
         self, data: Union[pd.DataFrame, pd.Series], overwrite: bool = True, present: str = "ignore", **kwargs,
     ):
+
+        if self.suffix != ".csv":
+            warnings.warn(f"path {self} does not have '.csv' as suffix while using to_csv. The path will be "
+                          f"changed to a path with '.csv' as suffix")
+            self.change_suffix(".csv")
 
         if not overwrite and self.is_file() and present != "ignore":
             raise TPFileExistsError()

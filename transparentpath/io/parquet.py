@@ -78,6 +78,11 @@ try:
         if self.with_suffix(""). Reading is transparent and one can specify a path with .parquet suffix.
         """
 
+        if self.suffix != ".parquet":
+            warnings.warn(f"path {self} does not have '.parquet' as suffix while using to_parquet. The path will be "
+                          f"changed to a path with '.parquet' as suffix")
+            self.change_suffix(".parquet")
+
         if compression is not None and compression != "snappy":
             warnings.warn("TransparentPath can not write parquet files with a compression that is not snappy. You "
                           f"specified '{compression}', it will be replaced by 'snappy'.")
