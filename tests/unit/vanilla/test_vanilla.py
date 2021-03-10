@@ -285,6 +285,9 @@ def test_glob(clean, fs_kind, pattern, expected):
     root = TransparentPath()
     for word in dic:
         p = root / word
+        p.rm(absent="ignore", ignore_kind=True)
+    for word in dic:
+        p = root / word
         if dic[word] == "file":
             p.touch()
         else:
@@ -292,6 +295,9 @@ def test_glob(clean, fs_kind, pattern, expected):
     print(list(TransparentPath("chien").ls()))
     content = [str(p).split("chien/")[1] for p in TransparentPath().glob(pattern)]
     assert content == expected
+    for word in dic:
+        p = root / word
+        p.rm(absent="ignore", ignore_kind=True)
 
 
 # noinspection PyUnusedLocal
