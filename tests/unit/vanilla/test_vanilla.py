@@ -365,6 +365,8 @@ def test_touch(clean, fs_kind, path):
     init(fs_kind)
 
     p = TransparentPath(path)
+    if p.exists():
+        p.rm(ignore_kind=True)
     p.touch()
     assert p.is_file()
 
