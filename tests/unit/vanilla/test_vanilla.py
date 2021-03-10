@@ -417,12 +417,18 @@ def test_walk(clean, fs_kind):
     root = TransparentPath()
     for word in dic:
         p = root / word
+        p.rm(absent="ignore", ignore_kind=True)
+    for word in dic:
+        p = root / word
         if dic[word] == "file":
             p.touch()
         else:
             p.mkdir()
 
     assert list((root / "chien").walk()) == expected
+    for word in dic:
+        p = root / word
+        p.rm(absent="ignore", ignore_kind=True)
 
 
 # noinspection PyUnusedLocal
