@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         opt: [vanilla, pandas, excel, json, parquet, hdf5, dask, all]
-        python-version: [ 3.7, 3.8 ]
+        python-version: [ 3.8 ]
     steps:
       - uses: actions/setup-python@v2
         with:

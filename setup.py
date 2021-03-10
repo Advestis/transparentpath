@@ -121,7 +121,7 @@ if __name__ == "__main__":
             "Operating System :: OS Independent",
             "Development Status :: 5 - Production/Stable"
         ],
-        python_requires='>=3.7',
+        python_requires='>=3.8',
     )
 
     if Path("apt-requirements.txt").is_file():
