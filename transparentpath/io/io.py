@@ -56,7 +56,7 @@ def put(self, dst: Union[str, Path, TransparentPath]):
             "The second argument can not be a local TransparentPath. To move a file localy, use the mv() method."
         )
     if type(dst) != TransparentPath:
-        if TransparentPath.remote_prefix not in dst:
+        if TransparentPath.remote_prefix not in str(dst):
             if "gcs" not in "".join(TransparentPath.fss):
                 raise TPValueError("You need to set up a gcs file system before using the put() command.")
             dst = TransparentPath(dst, fs="gcs")
