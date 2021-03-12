@@ -36,7 +36,7 @@ def test_csv(clean, fs_kind):
 
 # noinspection PyUnusedLocal,PyShadowingNames
 @pytest.mark.parametrize(
-    "suffix,kwargs", [(".csv", {"index_col": 0}),],
+    "suffix,kwargs", [(".csv", {"index_col": 0})],
 )
 def test_caching_ram(clean, suffix, kwargs):
     if reqs_ok:
@@ -69,19 +69,21 @@ def test_max_size(clean):
 
 # noinspection PyUnusedLocal,PyShadowingNames
 @pytest.mark.parametrize(
-    "tp,mod",
+    "path,enable_caching,fs,bucket,mod",
     [
-        (TransparentPath("tests/data/chat.csv", enable_caching=True, fs="local"), "ram"),
-        (TransparentPath("chat.csv", enable_caching=True, fs="gcs", bucket="code_tests_sand"), "tmpfile"),
-        (TransparentPath("chat.csv", enable_caching=True, fs="gcs", bucket="code_tests_sand"), "ram"),
+        ("tests/data/chat.csv", True, "local", None, "ram"),
+        ("chat.csv", True, "gcs", "code_tests_sand", "tmpfile"),
+        ("chat.csv", True, "gcs", "code_tests_sand", "ram"),
     ],
 )
-def test_reload_from_write(clean, tp, mod):
+def test_reload_from_write(clean, path, enable_caching, fs, bucket, mod):
     """
     testing unload and read with args/kwargs
     """
     if reqs_ok:
         import pandas as pd
+
+        tp = TransparentPath(path, enable_caching=enable_caching, fs=fs, bucket=bucket)
 
         chat = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]])
         TransparentPath.caching = mod
