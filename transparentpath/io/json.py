@@ -12,8 +12,7 @@ class TPImportError(ImportError):
 
 try:
     import json
-
-    # noinspection PyPackageRequirements
+    import warnings
     import numpy as np
     from typing import Any
     from datetime import date, datetime
@@ -53,6 +52,10 @@ try:
 
     def write(self, data: Any, overwrite: bool = True, present: str = "ignore", **kwargs):
 
+        if self.suffix != ".json":
+            warnings.warn(f"path {self} does not have '.json' as suffix while using to_json. The path will be "
+                          f"changed to a path with '.json' as suffix")
+            self.change_suffix(".json")
         jsonified = json.dumps(data, cls=JSONEncoder)
         self.write_stuff(
             jsonified, "w", overwrite=overwrite, present=present, **kwargs,

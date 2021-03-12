@@ -271,8 +271,8 @@ def test_rm(clean, fs_kind, path1, path2, kwargs, expected):
     [
         ("local", "chien/*", ["chat", "cheval"]),
         ("local", "chien/**", ["chat", "cheval", "cheval/chouette"]),
-        ("gcs", "chien/*", ["chat"]),
-        ("gcs", "chien/**", ["chat", "cheval/chouette"]),
+        ("gcs", "chien/*", ["chat", "cheval"]),
+        ("gcs", "chien/**", ["chat", "cheval", "cheval/chouette"]),
     ],
 )
 def test_glob(clean, fs_kind, pattern, expected):
@@ -285,6 +285,9 @@ def test_glob(clean, fs_kind, pattern, expected):
     root = TransparentPath()
     for word in dic:
         p = root / word
+        p.rm(absent="ignore", ignore_kind=True)
+    for word in dic:
+        p = root / word
         if dic[word] == "file":
             p.touch()
         else:
@@ -292,6 +295,9 @@ def test_glob(clean, fs_kind, pattern, expected):
     print(list(TransparentPath("chien").ls()))
     content = [str(p).split("chien/")[1] for p in TransparentPath().glob(pattern)]
     assert content == expected
+    for word in dic:
+        p = root / word
+        p.rm(absent="ignore", ignore_kind=True)
 
 
 # noinspection PyUnusedLocal
@@ -359,6 +365,8 @@ def test_touch(clean, fs_kind, path):
     init(fs_kind)
 
     p = TransparentPath(path)
+    if p.exists():
+        p.rm(ignore_kind=True)
     p.touch()
     assert p.is_file()
 
@@ -409,12 +417,18 @@ def test_walk(clean, fs_kind):
     root = TransparentPath()
     for word in dic:
         p = root / word
+        p.rm(absent="ignore", ignore_kind=True)
+    for word in dic:
+        p = root / word
         if dic[word] == "file":
             p.touch()
         else:
             p.mkdir()
 
     assert list((root / "chien").walk()) == expected
+    for word in dic:
+        p = root / word
+        p.rm(absent="ignore", ignore_kind=True)
 
 
 # noinspection PyUnusedLocal

@@ -21,6 +21,7 @@ try:
     from dask.distributed import client
     from typing import Union, List, Any
     import tempfile
+    import warnings
 
     # noinspection PyPackageRequirements
     import pandas as pd
@@ -169,6 +170,11 @@ try:
         self, data: dd.DataFrame, overwrite: bool = True, present: str = "ignore", **kwargs,
     ) -> Union[None, List[TransparentPath]]:
 
+        if self.suffix != ".csv":
+            warnings.warn(f"path {self} does not have '.csv' as suffix while using to_csv. The path will be "
+                          f"changed to a path with '.csv' as suffix")
+            self.change_suffix(".csv")
+
         if not self.nocheck:
             self._check_multiplicity()
 
@@ -199,8 +205,19 @@ try:
         **kwargs,
     ) -> None:
 
-        if not hdf5_ok:
+        if not parquet_ok:
             raise TPImportError(errormessage_hdf5)
+
+        if self.suffix != ".parquet":
+            warnings.warn(f"path {self} does not have '.parquet' as suffix while using to_parquet. The path will be "
+                          f"changed to a path with '.parquet' as suffix")
+            self.change_suffix(".parquet")
+
+        compression = kwargs.get("compression", None)
+
+        if compression is not None and compression != "snappy":
+            warnings.warn("TransparentPath can not write parquet files with a compression that is not snappy. You "
+                          f"specified '{compression}', it will be replaced by 'snappy'.")
 
         if not self.nocheck:
             self._check_multiplicity()
@@ -227,6 +244,11 @@ try:
 
         if use_pandas:
             raise NotImplementedError("TransparentPath does not support storing Dask objects in pandas's HDFStore yet.")
+
+        if self.suffix != ".hdf5" and self.suffix != "h5":
+            warnings.warn(f"path {self} does not have '.h(df)5' as suffix while using to_hdf5. The path will be "
+                          f"changed to a path with '.hdf5' as suffix")
+            self.change_suffix(".hdf5")
 
         if not self.nocheck:
             self._check_multiplicity()
@@ -269,6 +291,11 @@ try:
 
         if not excel_ok:
             raise TPImportError(errormessage_excel)
+
+        if self.suffix != ".xlsx" and self.suffix != ".xls" and self.suffix != ".xlsm":
+            warnings.warn(f"path {self} does not have '.xls(x,m)' as suffix while using to_excel. The path will be "
+                          f"changed to a path with '.xlsx' as suffix")
+            self.change_suffix(".xlsx")
 
         if not self.nocheck:
             self._check_multiplicity()

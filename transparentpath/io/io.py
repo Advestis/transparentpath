@@ -43,9 +43,6 @@ def put(self, dst: Union[str, Path, TransparentPath]):
 
     self must be a local TransparentPath. If dst is a TransparentPath, it must be on GCS. If it is a pathlib.Path
     or a str, it will be casted into a GCS TransparentPath, so a gcs file system must have been set up before. """
-
-    if "gcs" not in "".join(TransparentPath.fss):
-        raise TPValueError("You need to set up a gcs file system before using the put() command.")
     if not self.fs_kind == "local":
         raise TPValueError(
             "The calling instance of put() must be local. "
@@ -59,7 +56,12 @@ def put(self, dst: Union[str, Path, TransparentPath]):
             "The second argument can not be a local TransparentPath. To move a file localy, use the mv() method."
         )
     if type(dst) != TransparentPath:
-        dst = TransparentPath(dst, fs="gcs")
+        if TransparentPath.remote_prefix not in str(dst):
+            if "gcs" not in "".join(TransparentPath.fss):
+                raise TPValueError("You need to set up a gcs file system before using the put() command.")
+            dst = TransparentPath(dst, fs="gcs")
+        else:
+            dst = TransparentPath(dst)
 
     # noinspection PyProtectedMember
     if not self.exist():

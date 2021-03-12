@@ -25,7 +25,7 @@ class MyHDFStore:
 
 
 try:
-    # noinspection PyUnresolvedReferences
+    import warnings
     import h5py
     import tempfile
     from typing import Union, Any
@@ -157,6 +157,11 @@ try:
         Union[None, pd.HDFStore, h5py.File]
 
         """
+
+        if self.suffix != ".hdf5" and self.suffix != "h5":
+            warnings.warn(f"path {self} does not have '.h(df)5' as suffix while using to_hdf5. The path will be "
+                          f"changed to a path with '.hdf5' as suffix")
+            self.change_suffix(".hdf5")
 
         mode = "w"
         if "mode" in kwargs:

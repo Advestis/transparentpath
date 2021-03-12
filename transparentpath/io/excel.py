@@ -16,6 +16,7 @@ try:
     # noinspection PyUnresolvedReferences
     import pandas as pd
     import tempfile
+    import warnings
     from pathlib import Path
     import sys
     import importlib.util
@@ -56,6 +57,11 @@ try:
     def write(
         self, data: Union[pd.DataFrame, pd.Series], overwrite: bool = True, present: str = "ignore", **kwargs,
     ) -> None:
+
+        if self.suffix != ".xlsx" and self.suffix != ".xls" and self.suffix != ".xlsm":
+            warnings.warn(f"path {self} does not have '.xls(x,m)' as suffix while using to_excel. The path will be "
+                          f"changed to a path with '.xlsx' as suffix")
+            self.change_suffix(".xlsx")
 
         if not overwrite and self.is_file() and present != "ignore":
             raise TPFileExistsError()

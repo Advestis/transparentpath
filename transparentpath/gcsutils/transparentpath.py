@@ -1625,8 +1625,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         By default, the wildcard is '*'. It means 'thepath/*', so will glob in the directory.
 
-        WARNING : on GCS, directories are not detected by glob.
-
         Parameters
         -----------
         wildcard: str
@@ -2115,6 +2113,16 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 self.read(*arg, **kwarg)
             else:
                 warnings.warn(f"{self.__hash__()} is not in cache", TPCachingWarning)
+
+    def change_suffix(self, suffix: str):
+        if not suffix.startswith("."):
+            suffix = f".{suffix}"
+
+        self.path = self.path.with_suffix(suffix)
+        if self.when_checked["created"] and not self.nocheck:
+            self._check_multiplicity()
+        elif self.when_updated["created"] and not self.notupdatecache:  # Else, because called by check_multiplicity
+            self._update_cache()
 
     def read(self, *args, get_obj: bool = False, use_pandas: bool = False, use_dask: bool = False, **kwargs,) -> Any:
         """Method used to read the content of the file located at self
