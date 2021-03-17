@@ -1,6 +1,5 @@
 import gcsfs
 import pytest
-import os
 from fsspec.implementations.local import LocalFileSystem
 from transparentpath import TransparentPath, TPNotADirectoryError
 from ..functions import init, skip_gcs, reinit
@@ -19,8 +18,6 @@ def test_init(clean, fs_kind, bucket, expected_fs_name, expected_fs_kind, expect
     if skip_gcs[fs_kind]:
         print("skipped")
         return
-    print("GOOGLE_APPLICATION_CREDENTIALS", os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"))
-    print("GOOGLE_APPLICATION_CREDENTIALS_2", os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_2"))
     init(fs_kind, bucket_=bucket)
     assert not TransparentPath.unset
     if expected_fs_kind == "local":
