@@ -60,7 +60,7 @@ jobs:
         with:
           timeout_minutes: 60
 #          max_attempts: 3
-          retry_on: error
+#          retry_on: error
           command: |
             pytest -s -v tests/unit/vanilla/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS" --token2 "$GOOGLE_APPLICATION_CREDENTIALS_2"
 #
