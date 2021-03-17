@@ -882,11 +882,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
             raise TPTypeError(f"Unsupported type {type(path)} for path")
 
         # I never remember whether I should use fs='local' or fs_kind='local'. That way I don't need to.
-        if "fs_kind" in kwargs and fs is None:
-            fs = kwargs["fs_kind"]
-            del kwargs["fs_kind"]
         if fs is None:
             fs = ""
+        if "fs_kind" in kwargs and fs == "" and kwargs["fs_kind"] is not None and kwargs["fs_kind"] != "":
+            fs = kwargs["fs_kind"]
+            del kwargs["fs_kind"]
         if bucket == "":
             bucket = None
 
