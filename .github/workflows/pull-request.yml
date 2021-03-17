@@ -55,7 +55,7 @@ jobs:
       - name: test-vanilla
         uses: nick-invision/retry@v2
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CICD }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CRED }}
           GOOGLE_APPLICATION_CREDENTIALS_2: ${{ secrets.ORG_DEV_CRED }}
         with:
           timeout_minutes: 60
@@ -70,7 +70,7 @@ jobs:
 #      - name: test-json
 #        uses: nick-invision/retry@v2
 #        env:
-#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CICD }}
+#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CRED }}
 #        with:
 #          timeout_minutes: 60
 #          max_attempts: 3
@@ -84,7 +84,7 @@ jobs:
 #      - name: test-pandas
 #        uses: nick-invision/retry@v2
 #        env:
-#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CICD }}
+#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CRED }}
 #        with:
 #          timeout_minutes: 60
 #          max_attempts: 3
@@ -98,7 +98,7 @@ jobs:
 #      - name: test-parquet
 #        uses: nick-invision/retry@v2
 #        env:
-#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CICD }}
+#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CRED }}
 #        with:
 #          timeout_minutes: 60
 #          max_attempts: 3
@@ -112,7 +112,7 @@ jobs:
 #      - name: test-excel
 #        uses: nick-invision/retry@v2
 #        env:
-#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CICD }}
+#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CRED }}
 #        with:
 #          timeout_minutes: 60
 #          max_attempts: 3
@@ -126,7 +126,7 @@ jobs:
 #      - name: test-hdf5
 #        uses: nick-invision/retry@v2
 #        env:
-#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CICD }}
+#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CRED }}
 #        with:
 #          timeout_minutes: 60
 #          max_attempts: 3
@@ -140,7 +140,7 @@ jobs:
 #      - name: test-dask
 #        uses: nick-invision/retry@v2
 #        env:
-#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CICD }}
+#          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CRED }}
 #        with:
 #          timeout_minutes: 60
 #          max_attempts: 3
