@@ -444,7 +444,6 @@ def extract_fs_name(token: str = None) -> Tuple[str, str]:
 
     fs_name = f"gcs_{content['project_id']}_{content['client_email']}"
     TransparentPath.tokens[fs_name] = token
-    TransparentPath.show_state()
     return fs_name, content["project_id"]
 
 
