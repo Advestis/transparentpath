@@ -11,7 +11,7 @@ def test_put(clean):
         print("skipped")
         return
     init("gcs")
-
+    TransparentPath.show_state()
     localpath = TransparentPath("chien.txt", fs_kind="local")
     remotepath = TransparentPath("chien.txt")
     localpath.touch()
