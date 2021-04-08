@@ -1074,7 +1074,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if self.fs_kind == "local":
             return str(self.__path)
         else:
-            return "".join([TransparentPath.remote_prefix, str(self.__path)])
+            s = "".join([TransparentPath.remote_prefix, str(self.__path)])
+            if self.sep != "/":
+                s = s.replace(self.sep, "/")
+            return s
 
     def __hash__(self) -> int:
         """Uniaue hash number.
