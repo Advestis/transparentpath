@@ -62,11 +62,25 @@ def get_branch_name() -> str:
 
 
 git_installed = subprocess.call('command -v git >> /dev/null', shell=True)
-branch_name = "master"
+
+branch_name = None
 if git_installed == 0:
-    branch_name = get_branch_name()
-if branch_name == "nightly":
-    name = "_".join([name, "nightly"])
+    try:
+        branch_name = get_branch_name()
+        with open("BRANCH.txt", "w") as bfile:
+            bfile.write(branch_name)
+    except FileNotFoundError as e:
+        pass
+if branch_name is None:
+    # noinspection PyBroadException
+    try:
+        with open("BRANCH.txt", "r") as bfile:
+            branch_name = bfile.readline()
+    except:
+        branch_name = "master"
+
+if branch_name != "master":
+    name = "_".join([name, branch_name])
 
 try:
     long_description = Path("README.md").read_text()
