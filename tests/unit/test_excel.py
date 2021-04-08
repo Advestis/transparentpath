@@ -21,7 +21,7 @@ for req in requirements:
 )
 def test_csv(clean, fs_kind):
     if reqs_ok is False:
-        pcsv = get_path(fs_kind, ".csv")
+        pcsv = get_path(fs_kind, ".xlsx")
         with pytest.raises(ImportError):
             pcsv.read()
     else:

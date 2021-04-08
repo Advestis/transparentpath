@@ -3,29 +3,37 @@ errormessage = (
     "through TransparentPath.\nYou can change that by running 'pip install transparentpath[excel]'."
 )
 
+
+class TPImportError(ImportError):
+    def __init__(self, message: str = ""):
+        self.message = f"Error in TransparentPath: {message}"
+        super().__init__(self.message)
+
+
 excel_ok = False
 
 try:
     # noinspection PyUnresolvedReferences
     import pandas as pd
     import tempfile
+    import warnings
     from pathlib import Path
     import sys
     import importlib.util
     from typing import Union, List, Tuple
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs
+    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError, TPFileNotFoundError
 
     if importlib.util.find_spec("xlrd") is None:
-        raise ImportError("Need the 'xlrd' package")
+        raise TPImportError("Need the 'xlrd' package")
     if importlib.util.find_spec("openpyxl") is None:
-        raise ImportError("Need the 'openpyxl' package")
+        raise TPImportError("Need the 'openpyxl' package")
 
     excel_ok = True
 
-    def read(self, update_cache: bool = True, **kwargs) -> pd.DataFrame:
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+    def read(self, **kwargs) -> pd.DataFrame:
+
+        if not self.is_file():
+            raise TPFileNotFoundError(f"Could not find file {self}")
 
         check_kwargs(pd.read_excel, kwargs)
         # noinspection PyTypeChecker,PyUnresolvedReferences
@@ -47,18 +55,16 @@ try:
             )
 
     def write(
-        self,
-        data: Union[pd.DataFrame, pd.Series],
-        overwrite: bool = True,
-        present: str = "ignore",
-        update_cache: bool = True,
-        **kwargs,
+        self, data: Union[pd.DataFrame, pd.Series], overwrite: bool = True, present: str = "ignore", **kwargs,
     ) -> None:
-        # noinspection PyProtectedMember
-        if update_cache and self.__class__._do_update_cache:
-            self._update_cache()
+
+        if self.suffix != ".xlsx" and self.suffix != ".xls" and self.suffix != ".xlsm":
+            warnings.warn(f"path {self} does not have '.xls(x,m)' as suffix while using to_excel. The path will be "
+                          f"changed to a path with '.xlsx' as suffix")
+            self.change_suffix(".xlsx")
+
         if not overwrite and self.is_file() and present != "ignore":
-            raise FileExistsError()
+            raise TPFileExistsError()
 
         # noinspection PyTypeChecker
 
@@ -68,10 +74,17 @@ try:
             with tempfile.NamedTemporaryFile(delete=True, suffix=self.suffix) as f:
                 check_kwargs(data.to_excel, kwargs)
                 data.to_excel(f.name, **kwargs)
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket, project=self.project).put(self.path)
+                TransparentPath(
+                    path=f.name,
+                    fs="local",
+                    notupdatecache=self.notupdatecache,
+                    nocheck=self.nocheck,
+                    when_checked=self.when_checked,
+                    when_updated=self.when_updated,
+                    update_expire=self.update_expire,
+                    check_expire=self.check_expire,
+                ).put(self.path)
 
 
 except ImportError as e:
-    # import warnings
-    # warnings.warn(f"{errormessage}. Full ImportError message was:\n{e}")
-    raise e
+    raise TPImportError(str(e))

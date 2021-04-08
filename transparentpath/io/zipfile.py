@@ -1,4 +1,3 @@
-# noinspection PyUnresolvedReferences
 import zipfile
 import tempfile
 from pathlib import Path
@@ -14,6 +13,9 @@ class TpZipFile(zipfileclass):
 
     def __init__(self, path, *args, **kwargs):
         if type(path) == TransparentPath and path.fs_kind != "local":
+            if path.when_checked["used"] and not path.nocheck:
+                # noinspection PyProtectedMember
+                path._check_multiplicity()
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
             f.close()  # deletes tmp file, but we can still use its name
             path.get(f.name)

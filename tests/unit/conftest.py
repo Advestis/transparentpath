@@ -7,8 +7,6 @@ from transparentpath import TransparentPath
 
 @pytest.fixture
 def clean(pytestconfig):
-    # print("\nExecuting before init...\n")
-
     token_file = Path("cred.json")
     token = pytestconfig.getoption("token")
     if token is not None:
@@ -21,17 +19,18 @@ def clean(pytestconfig):
     TransparentPath._do_check = True
     before_init()
     yield
-    # print("\n...executing clean ...\n")
     TransparentPath._do_update_cache = False
     TransparentPath._do_check = False
-    path = TransparentPath("chien")
+    path1 = TransparentPath("chien")
+    path2 = TransparentPath("chien2")
     suffixes = ["", ".zip", ".txt", ".json", ".csv", ".parquet", ".hdf5", ".xlsx"]
     for suffix in suffixes:
-        path.with_suffix(suffix).rm(recursive=True, ignore_kind=True, absent="ignore")
-        path.with_suffix(suffix).rm(recursive=True, ignore_kind=True, absent="ignore")
+        path1.with_suffix(suffix).rm(recursive=True, ignore_kind=True, absent="ignore")
+        path1.with_suffix(suffix).rm(recursive=True, ignore_kind=True, absent="ignore")
+        path2.with_suffix(suffix).rm(recursive=True, ignore_kind=True, absent="ignore")
+        path2.with_suffix(suffix).rm(recursive=True, ignore_kind=True, absent="ignore")
     TransparentPath._do_update_cache = True
     TransparentPath._do_check = True
-    # print("\n...executing reinit\n")
     reinit()
 
 

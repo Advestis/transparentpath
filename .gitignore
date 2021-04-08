@@ -151,3 +151,4 @@ docsbuild/source/*.rst
 !docsbuild/source/index.rst
 
 *_ignore.py
+/TDS article/

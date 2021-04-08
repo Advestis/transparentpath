@@ -1,1 +1,2 @@
-dask[dataframe,distributed]
+dask==2020.12.0
+distributed==2020.12.0

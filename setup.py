@@ -4,8 +4,10 @@ from typing import List
 
 from setuptools import find_packages, setup
 
+name = "transparentpath"
 
-def run_cmd(cmd):
+
+def run_cmd(cmd) -> List[str]:
     if isinstance(cmd, str):
         cmd = cmd.split(" ")
     return subprocess.check_output(cmd).decode(encoding="UTF-8").split("\n")
@@ -51,6 +53,35 @@ def get_version() -> str:
     return f"{'.'.join(last_tag.split('.'))}.{get_nb_commits_until(last_tag)}"
 
 
+def get_branch_name() -> str:
+    branches = run_cmd("git branch")
+    for branch in branches:
+        if "*" in branch:
+            return branch.replace("*", "").replace(" ", "")
+    return ""
+
+
+git_installed = subprocess.call('command -v git >> /dev/null', shell=True)
+
+branch_name = None
+if git_installed == 0:
+    try:
+        branch_name = get_branch_name()
+        with open("BRANCH.txt", "w") as bfile:
+            bfile.write(branch_name)
+    except FileNotFoundError as e:
+        pass
+if branch_name is None:
+    # noinspection PyBroadException
+    try:
+        with open("BRANCH.txt", "r") as bfile:
+            branch_name = bfile.readline()
+    except:
+        branch_name = "master"
+
+if branch_name != "master":
+    name = "_".join([name, branch_name])
+
 try:
     long_description = Path("README.md").read_text()
 except UnicodeDecodeError:
@@ -71,23 +102,28 @@ for afile in Path("").glob("*requirements.txt"):
         optional_requirements[option] = afile.read_text().splitlines()
         all_reqs = list(set(all_reqs) | set(optional_requirements[option]))
 
-try:
-    version = get_version()
-    with open("VERSION.txt", "w") as vfile:
-        vfile.write(version)
-except FileNotFoundError as e:
+
+version = None
+if git_installed == 0:
+    try:
+        version = get_version()
+        with open("VERSION.txt", "w") as vfile:
+            vfile.write(version)
+    except FileNotFoundError as e:
+        pass
+if version is None:
     # noinspection PyBroadException
     try:
         with open("VERSION.txt", "r") as vfile:
             version = vfile.readline()
-    except Exception:
-        version = None
+    except:
+        pass
 
 optional_requirements["all"] = all_reqs
 
 if __name__ == "__main__":
     setup(
-        name="transparentpath_nightly",
+        name=name,
         version=version,
         author="Philippe COTTE",
         author_email="pcotte@advestis.com",
@@ -107,7 +143,7 @@ if __name__ == "__main__":
             "Operating System :: OS Independent",
             "Development Status :: 5 - Production/Stable"
         ],
-        python_requires='>=3.7',
+        python_requires='>=3.8',
     )
 
     if Path("apt-requirements.txt").is_file():
