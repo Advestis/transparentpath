@@ -56,13 +56,12 @@ jobs:
         uses: nick-invision/retry@v2
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.ORG_SANDBOX_CRED }}
-          GOOGLE_APPLICATION_CREDENTIALS_2: ${{ secrets.ORG_DEV_CRED }}
         with:
           timeout_minutes: 60
           max_attempts: 3
           retry_on: error
           command: |
-            pytest -s -v tests/unit/vanilla/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS" --token2 "$GOOGLE_APPLICATION_CREDENTIALS_2"
+            pytest -s -v tests/unit/vanilla/test_fs_initialisation.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
 
       - name: Install dependencies json
         run: |
