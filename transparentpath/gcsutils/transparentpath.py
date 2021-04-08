@@ -1132,7 +1132,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if self.fs_kind == "local":
             return str(self.__path)
         else:
-            return "".join([TransparentPath.remote_prefix, str(self.__path)])
+            s = "".join([TransparentPath.remote_prefix, str(self.__path)])
+            if TransparentPath.LOCAL_SEP != "/":
+                s = s.replace(TransparentPath.LOCAL_SEP, "/")
+            return s
 
     def __hash__(self) -> int:
         """Uniaue hash number.
@@ -1373,13 +1376,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
             # Assumes first given arg in args must be concatenated with
             # absolute self.path
             if len(args) > 0:
-                new_args = [str(self.__path / str(args[0]))]
+                new_args = [str(self / str(args[0]))]
                 if len(args) > 1:
                     new_args.append(args[1:])
             new_args = tuple(new_args)
         else:
             # noinspection PyTypeChecker
-            new_args = tuple([str(self.__path)] + list(args))
+            new_args = tuple([str(self)] + list(args))
         return new_args
 
     def _update_cache(self):
@@ -1484,10 +1487,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def isfile(self):
         return self.is_file()
 
-    def isdir(self):
-        return self.is_dir()
+    def isdir(self, *args, **kwargs):
+        return self.is_dir(*args, **kwargs)
 
-    def is_dir(self, exist: bool = False) -> bool:
+    def is_dir(self, exist: bool = False, **kwargs) -> bool:
         """Check if self is a directory
 
 
