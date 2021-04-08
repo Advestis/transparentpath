@@ -61,7 +61,10 @@ def get_branch_name() -> str:
     return ""
 
 
-branch_name = get_branch_name()
+git_installed = subprocess.call('command -v git >> /dev/null', shell=True)
+branch_name = "master"
+if git_installed == 0:
+    branch_name = get_branch_name()
 if branch_name == "nightly":
     name = "_".join([name, "nightly"])
 
@@ -86,7 +89,6 @@ for afile in Path("").glob("*requirements.txt"):
         all_reqs = list(set(all_reqs) | set(optional_requirements[option]))
 
 
-git_installed = subprocess.call('command -v git >> /dev/null', shell=True)
 version = None
 if git_installed == 0:
     try:
