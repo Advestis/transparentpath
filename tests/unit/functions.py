@@ -22,8 +22,10 @@ def before_init():
     assert TransparentPath.nas_dir == "/media/SERVEUR"
 
 
-def init(fs_kind):
-    TransparentPath.set_global_fs(fs_kind, bucket=bucket)
+def init(fs_kind, bucket_=""):
+    if bucket_ == "":
+        bucket_ = bucket
+    TransparentPath.set_global_fs(fs_kind, bucket=bucket_)
 
 
 def reinit():
