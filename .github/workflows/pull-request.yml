@@ -27,11 +27,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
           if [ "${{ matrix.opt }}" = "vanilla" ] ; then
-              echo "running pip install ."
-              pip install .
+              echo "installing requirements"
+              pip install -r requirements.txt
           else
-              echo "running pip install .[${{ matrix.opt }}]"
-              pip install .[${{ matrix.opt }}]
+              echo "installing ${{ matrix.opt }}"
+              pip install -r ${{ matrix.opt }}]-requirements.txt
           fi
           pytest -s -v tests/dependencies/dep.py --name ${{ matrix.opt }}
 
