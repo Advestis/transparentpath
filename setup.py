@@ -85,17 +85,23 @@ for afile in Path("").glob("*requirements.txt"):
         optional_requirements[option] = afile.read_text().splitlines()
         all_reqs = list(set(all_reqs) | set(optional_requirements[option]))
 
-try:
-    version = get_version()
-    with open("VERSION.txt", "w") as vfile:
-        vfile.write(version)
-except FileNotFoundError as e:
+
+git_installed = subprocess.call('command -v git >> /dev/null', shell=True)
+version = None
+if git_installed == 0:
+    try:
+        version = get_version()
+        with open("VERSION.txt", "w") as vfile:
+            vfile.write(version)
+    except FileNotFoundError as e:
+        pass
+if version is None:
     # noinspection PyBroadException
     try:
         with open("VERSION.txt", "r") as vfile:
             version = vfile.readline()
-    except Exception:
-        version = None
+    except:
+        pass
 
 optional_requirements["all"] = all_reqs
 
