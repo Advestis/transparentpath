@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        opt: [vanilla, pandas, excel, json, parquet, hdf5, dask, all]
+        opt: [vanilla, pandas, excel, json, parquet, hdf5, dask]
         python-version: [ 3.8 ]
     steps:
       - uses: actions/setup-python@v2
@@ -31,7 +31,7 @@ jobs:
               pip install -r requirements.txt
           else
               echo "installing ${{ matrix.opt }}"
-              pip install -r ${{ matrix.opt }}]-requirements.txt
+              pip install -r ${{ matrix.opt }}-requirements.txt
           fi
           pytest -s -v tests/dependencies/dep.py --name ${{ matrix.opt }}
 
