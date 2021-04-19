@@ -2,7 +2,7 @@ import gcsfs
 import pytest
 import os
 from fsspec.implementations.local import LocalFileSystem
-from transparentpath import TransparentPath
+from transparentpath import TransparentPath, TPValueError, TPNotADirectoryError
 from ..functions import init, reinit, skip_gcs, get_prefixes, bucket
 
 
@@ -36,13 +36,13 @@ def test_set_global_fs_then_path_with_gs_failed(clean):
         return
 
     init("gcs")
-    with pytest.raises(ValueError):
+    with pytest.raises(TPValueError):
         TransparentPath(f"gs://{bucket + 'chat'}/chien", bucket=bucket)
 
-    with pytest.raises(NotADirectoryError):
-        p = TransparentPath(f"gs://{bucket + 'chat'}/chien")
+    with pytest.raises(TPNotADirectoryError):
+        TransparentPath(f"gs://{bucket + 'chat'}/chien")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TPValueError):
         TransparentPath(f"gs://{bucket}/chien", fs="local")
 
 
@@ -84,11 +84,18 @@ def test_path_success(clean, fs_kind, global_init, expected_fs_kind, expected_fs
 
     assert fs_kind in p.fs_kind
     if global_init:
+        for fs_name in TransparentPath.fss:
+            if expected_fs_kind in fs_name:
+                expected_fs_kind = fs_name
+                break
         assert p.fs == TransparentPath.fss[expected_fs_kind]
         assert not TransparentPath.unset
-        assert len(TransparentPath.fss) == 1
-        assert TransparentPath.fs_kind == expected_fs_kind
-        assert list(TransparentPath.fss.keys())[0] == expected_fs_kind
+        if expected_fs_kind == "local":
+            assert len(TransparentPath.fss) == 1
+        else:
+            assert len(TransparentPath.fss) == 2
+        assert TransparentPath.fs_kind == fs_kind
+        assert list(TransparentPath.fss.keys())[-1] == expected_fs_kind
         assert isinstance(TransparentPath.fss[expected_fs_kind], expected_fs_type)
     else:
         assert TransparentPath.unset
@@ -106,7 +113,7 @@ def test_gcs_path_without_set_global_fs_fail(clean, args, kwargs):
         print("skipped")
         return
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TPNotADirectoryError):
         TransparentPath(*args, **kwargs)
 
 
