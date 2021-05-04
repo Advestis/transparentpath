@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from pathlib import Path
 from typing import List
 
@@ -122,6 +123,10 @@ if version is None:
 optional_requirements["all"] = all_reqs
 
 if __name__ == "__main__":
+
+    if sys.argv[1] == "version":
+        exit(0)
+
     setup(
         name=name,
         version=version,
@@ -145,24 +150,3 @@ if __name__ == "__main__":
         ],
         python_requires='>=3.7',
     )
-
-    if Path("apt-requirements.txt").is_file():
-        apt_requirements = Path("apt-requirements.txt").read_text().splitlines()
-        print("WARNING: Found apt-requirements.txt. You will have to install by hand its content :")
-        for line in apt_requirements:
-            print(" - ", line)
-        print("If you are using Linux, you can use apt-get install or equivalent to install those packages. Else,"
-              "download and install them according to your OS.")
-        print("If you are using Linux and used install.sh to install this package, you can ignore this message,"
-              "the requirements have been installed.")
-
-    if Path("gspip-requirements.txt").is_file():
-        gspip_requirements = Path("gspip-requirements.txt").read_text().splitlines()
-        print("WARNING: Found gspip-requirements.txt. You will have to install from gcs its content :")
-        for line in gspip_requirements:
-            print(" - ", line)
-        print("If you are using Linux, install and use gspip from https://github.com/Advestis/gspip. On windows,"
-              "you will have to download by hand the latest version of the required packages on"
-              " gs://pypi_server_sand/package_name")
-        print("If you are using Linux and used install.sh to install this package, you can ignore this message,"
-              "the requirements have been installed.")
