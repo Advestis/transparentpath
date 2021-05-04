@@ -1683,10 +1683,16 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         path_to_glob = (self.__path / wildcard).__fspath__()
 
-        if fast:
-            to_ret = map(self._cast_fast, self.fs.glob(path_to_glob))
-        else:
-            to_ret = map(self._cast_slow, self.fs.glob(path_to_glob))
+        try:
+            if fast:
+                to_ret = map(self._cast_fast, self.fs.glob(path_to_glob))
+            else:
+                to_ret = map(self._cast_slow, self.fs.glob(path_to_glob))
+        except TypeError as e:
+            if "list indices must be integers or slices, not str" in str(e):
+                to_ret = []
+            else:
+                raise e
         return to_ret
 
     def with_suffix(self, suffix: str) -> TransparentPath:
