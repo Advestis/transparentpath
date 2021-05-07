@@ -995,8 +995,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     self.__path = Path(self.bucket) / self.__path
             else:
                 self.__path = Path(self.bucket) / self.__path
-            if len(self.__path.parts) > 1 and self.bucket in self.__path.parts[1:]:
-                raise TPValueError("You should never use your bucket name as a directory or file name.")
+            # if len(self.__path.parts) > 1 and self.bucket in self.__path.parts[1:]:
+            #     raise TPValueError("You should never use your bucket name as a directory or file name.")
 
         if self.when_checked["created"] and not self.nocheck:
             self._check_multiplicity()
@@ -1490,18 +1490,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def isfile(self):
         return self.is_file()
 
-    def isdir(self, *args, **kwargs):
-        return self.is_dir(*args, **kwargs)
+    def isdir(self, *args):
+        return self.is_dir()
 
-    def is_dir(self, exist: bool = False, **kwargs) -> bool:
-        """Check if self is a directory
-
-
-        Parameters
-        ----------
-        exist: bool
-            If False and if using GCS, is_dir() returns True if the directory does not exist and no file with
-            the same path exist. Otherwise, only returns True if the directory really exists (Default value = False).
+    def is_dir(self, *args) -> bool:
+        """Check if self is a directory.
 
 
         Returns
@@ -1512,7 +1505,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if self.fs_kind == "local":
             return self.__path.is_dir()
         else:
-            if exist and not self.exists():
+            if not self.exists():
                 return False
             if self.is_file():
                 return False
@@ -1579,7 +1572,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         recursive = kwargs.get("recursive", False)
 
         if recursive:
-            if not self.is_dir(exist=True):
+            if not self.is_dir():
                 # ...but self points to something that is not a directory!
                 if self.exists():
                     # Delete anyway
@@ -1608,7 +1601,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         # Asked to remove a file...
         else:
             # ...but self points to a directory!
-            if self.is_dir(exist=True):
+            if self.is_dir():
                 # Delete anyway
                 if ignore_kind:
                     kwargs["recursive"] = True
@@ -1675,7 +1668,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if not self.is_dir(exist=True):
+        if not self.is_dir():
             raise TPNotADirectoryError("The path must be a directory if you want to glob in it")
 
         if wildcard.startswith("/") or wildcard.startswith("\\"):
@@ -1750,7 +1743,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if isinstance(path_to_ls, TransparentPath):
             raise TypeError("Can not use a TransparentPath as a argument of ls() : TransparentPath are all absolute")
 
-        if not self.is_dir(exist=True):
+        if not self.is_dir():
             raise TPNotADirectoryError("The path must be a directory if you want to ls in it")
 
         if fast:
