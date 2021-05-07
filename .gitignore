@@ -152,3 +152,5 @@ docsbuild/source/*.rst
 
 *_ignore.py
 /TDS article/
+/clean_vigeo_files.ipynb
+/more_readers.ipynb
