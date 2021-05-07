@@ -230,7 +230,7 @@ def treat_remote_refix(path: Union[Path, TransparentPath, str], bucket: str) -> 
                 "is specified with bucket= or if TransparentPath already has been set to use a specified bucket"
                 "with set_global_fs"
             )
-        path = str(path).replace(TransparentPath.remote_prefix, "")
+        path = str(path).replace(TransparentPath.remote_prefix, "", 1)
 
     else:
         bucket_from_path = splitted[1].split("/")[0]
@@ -242,7 +242,7 @@ def treat_remote_refix(path: Union[Path, TransparentPath, str], bucket: str) -> 
                 )
         else:
             bucket = bucket_from_path
-        path = str(path).replace(TransparentPath.remote_prefix, "").replace(bucket_from_path, "")
+        path = str(path).replace(TransparentPath.remote_prefix, "", 1).replace(bucket_from_path, "", 1)
         if path.startswith("/"):
             path = path[1:]
     return path, bucket
@@ -1784,7 +1784,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if not isinstance(path, str) or isinstance(path, TransparentPath):
             raise TPTypeError("Can only pass a string to TransparentPath's cd method")
 
-        path = path.replace(TransparentPath.remote_prefix, "")
+        path = path.replace(TransparentPath.remote_prefix, "", 1)
 
         if "gcs" in self.fs_kind and str(path) == self.bucket or path == "" or path == "/":
             self.__path = Path(self.bucket)
