@@ -242,7 +242,10 @@ def treat_remote_refix(path: Union[Path, TransparentPath, str], bucket: str) -> 
                 )
         else:
             bucket = bucket_from_path
-        path = str(path).replace(TransparentPath.remote_prefix, "", 1).replace(bucket_from_path, "", 1)
+
+        path = str(path).replace(TransparentPath.remote_prefix, "", 1)
+        if path.startswith(bucket_from_path) or (len(path) > 0 and path[1:].startswith(bucket_from_path)):
+            path = path.replace(bucket_from_path, "", 1)
         if path.startswith("/"):
             path = path[1:]
     return path, bucket
