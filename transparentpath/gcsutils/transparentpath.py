@@ -1490,10 +1490,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def isfile(self):
         return self.is_file()
 
-    def isdir(self, *args):
+    def isdir(self, *args, **kwargs):
         return self.is_dir()
 
-    def is_dir(self, *args) -> bool:
+    def is_dir(self, *args, **kwargs) -> bool:
         """Check if self is a directory.
 
 
