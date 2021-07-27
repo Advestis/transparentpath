@@ -13,12 +13,7 @@ for req in requirements:
 
 
 # noinspection PyUnusedLocal,PyShadowingNames
-@pytest.mark.parametrize(
-    "fs_kind",
-    [
-        "local", "gcs"
-    ]
-)
+@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_joblib(clean, fs_kind):
     if reqs_ok is False:
         pparquet = get_path(fs_kind, ".joblib")
@@ -26,10 +21,20 @@ def test_joblib(clean, fs_kind):
             pparquet.read()
     else:
         from joblib import load
+        import numpy as np
+
         # noinspection PyTypeChecker
         picklefile = get_path(fs_kind, ".joblib")
         if picklefile == "skipped":
             return
         c = load(picklefile)
-        assert str(c) == "LGBMClassifier(learning_rate=0.0206468, max_depth=10, num_leaves=39, random_state=0, " \
-                         "reg_alpha=1.08752, reg_lambda=336.706, subsample=0.8) "
+        a = np.array(
+                [
+                    [1.0, 1.0, 1.0, 1.0, 1.0],
+                    [1.0, 1.0, 1.0, 1.0, 1.0],
+                    [1.0, 1.0, 1.0, 1.0, 1.0],
+                    [1.0, 1.0, 1.0, 1.0, 1.0],
+                    [1.0, 1.0, 1.0, 1.0, 1.0],
+                ]
+            )
+        np.testing.assert_equal(c, a)
