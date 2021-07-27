@@ -27,9 +27,6 @@ def myopen(*args, **kwargs) -> IO:
         raise TPValueError(f"Unknown type {type(thefile)} for path argument")
 
 
-setattr(builtins, "open", myopen)
-
-
 def overload_open():
     setattr(builtins, "open", myopen)
 
