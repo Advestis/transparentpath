@@ -2507,6 +2507,13 @@ setattr(TransparentPath, "write_bytes", write_bytes)
 
 try:
     # noinspection PyUnresolvedReferences
+    from transparentpath.io.joblib_load import overload_joblib_load
+    overload_joblib_load()
+except ImportError:
+    pass
+
+try:
+    # noinspection PyUnresolvedReferences
     from transparentpath.io.json import read, write
 
     setattr(TransparentPath, "read_json", read)
