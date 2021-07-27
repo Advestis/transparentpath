@@ -174,23 +174,22 @@ def test_itruediv(clean, fs_kind):
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "fs_kind, path1, path2, exists, expected",
+    "fs_kind, path1, path2, expected",
     [
-        ("local", "chien/chat", "chien", True, True),
-        ("gcs", "chien/chat", "chien", True, True),
-        ("local", "chien/chat", "chien", False, True),
-        ("gcs", "chien/chat", "chien", False, True),
-        ("local", "chien", "chien", True, False),
-        ("gcs", "chien", "chien", True, False),
-        ("local", "chien", "chien", False, False),
-        ("gcs", "chien", "chien", False, False),
-        ("local", "chien", "chat", True, False),
-        ("gcs", "chien", "chat", True, False),
-        ("local", "chien", "chat", False, False),
-        ("gcs", "chien", "chat", False, True),
+        ("local", "chien/chat", "chien", True),
+        ("gcs", "chien/chat", "chien", True),
+        ("local", "chien/chat", "chien", True),
+        ("gcs", "chien/chat", "chien", True),
+        ("local", "chien", "chien", False),
+        ("gcs", "chien", "chien", False),
+        ("local", "chien", "chien", False),
+        ("gcs", "chien", "chien", False),
+        ("local", "chien", "chat", False),
+        ("gcs", "chien", "chat", False),
+        ("local", "chien", "chat", False),
     ],
 )
-def test_isdir(clean, fs_kind, path1, path2, exists, expected):
+def test_isdir(clean, fs_kind, path1, path2, expected):
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -198,7 +197,7 @@ def test_isdir(clean, fs_kind, path1, path2, exists, expected):
     p1 = TransparentPath(path1)
     p1.touch()
     p2 = TransparentPath(path2)
-    assert p2.is_dir(exist=exists) == expected
+    assert p2.is_dir() == expected
 
 
 # noinspection PyUnusedLocal
@@ -373,9 +372,10 @@ def test_touch(clean, fs_kind, path):
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "fs_kind, path", [("local", "chien"), ("local", "chien/chat"), ("gcs", "chien"), ("gcs", "chien/chat")]
+    "fs_kind, path, expected",
+    [("local", "chien", True), ("local", "chien/chat", True), ("gcs", "chien", False), ("gcs", "chien/chat", False)],
 )
-def test_mkdir(clean, fs_kind, path):
+def test_mkdir(clean, fs_kind, path, expected):
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -383,7 +383,7 @@ def test_mkdir(clean, fs_kind, path):
 
     p = TransparentPath(path)
     p.mkdir()
-    assert p.is_dir()
+    assert p.is_dir() is expected
 
 
 # noinspection PyUnusedLocal
