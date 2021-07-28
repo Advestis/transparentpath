@@ -56,7 +56,7 @@ jobs:
         if: ${{ matrix.python-version == 3.8 }}
         uses: ad-m/github-push-action@master
         with:
-          github_token: ${{ secrets.TOKEN_CICD }}
+          github_token: ${{ secrets.ORG_TOKEN_CICD }}
           branch: ${{ env.BRANCH_NAME }}
           force: true
       - name: make doc
@@ -75,14 +75,14 @@ jobs:
         if: ${{ env.BRANCH_NAME != 'master' && matrix.python-version == 3.8 }}
         uses: ad-m/github-push-action@master
         with:
-          github_token: ${{ secrets.TOKEN_CICD }}
+          github_token: ${{ secrets.ORG_TOKEN_CICD }}
           branch: gh-pages-${{ env.BRANCH_NAME }}
           force: true
       - name: Push doc master
         if: ${{ env.BRANCH_NAME == 'master' && matrix.python-version == 3.8 }}
         uses: ad-m/github-push-action@master
         with:
-          github_token: ${{ secrets.TOKEN_CICD }}
+          github_token: ${{ secrets.ORG_TOKEN_CICD }}
           branch: gh-pages
           force: true
 
