@@ -122,7 +122,7 @@ builtins_isinstance = builtins.isinstance
 
 def mysmallisinstance(obj1: Any, obj2) -> bool:
     """Will return True when testing whether a TransparentPath is a str (required to use open(TransparentPath()))
-    or a TransparentPath, and False in every other cases (even pathlib.Path). """
+    or a TransparentPath, and False in every other cases (even pathlib.Path)."""
 
     if type(obj1) == TransparentPath:
         if obj2 == TransparentPath or obj2 == str:
@@ -361,7 +361,13 @@ def get_buckets(fs: gcsfs.GCSFileSystem) -> List[str]:
         next_page_token = page.get("nextPageToken", None)
 
         while next_page_token is not None:
-            page = fs.call("GET", "b/", project=fs.project, pageToken=next_page_token, json_out=True,)
+            page = fs.call(
+                "GET",
+                "b/",
+                project=fs.project,
+                pageToken=next_page_token,
+                json_out=True,
+            )
 
             assert page["kind"] == "storage#buckets"
             items.extend(page.get("items", []))
@@ -667,7 +673,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     @classmethod
     def show_state(cls):
-        """ Prints the state of the TransparentPath class """
+        """Prints the state of the TransparentPath class"""
         print("remote_prefix: ", cls.remote_prefix)
         print("fss: ", cls.fss)
         print("buckets_in_project: ", cls.buckets_in_project)
@@ -690,7 +696,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     @classmethod
     def get_state(cls) -> dict:
-        """ Returns the state of the TransparentPath class in a dictionnary"""
+        """Returns the state of the TransparentPath class in a dictionnary"""
         state = {
             "remote_prefix": cls.remote_prefix,
             "fss": cls.fss,
@@ -766,7 +772,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     translations = {
         "mkdir": MultiMethodTranslator(
-            "mkdir", ["local", "gcs"], ["mkdir", "self._do_nothing"], [{"parents": "create_parents"}, {"parents": ""}],
+            "mkdir",
+            ["local", "gcs"],
+            ["mkdir", "self._do_nothing"],
+            [{"parents": "create_parents"}, {"parents": ""}],
         ),
     }
 
@@ -1143,8 +1152,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def __hash__(self) -> int:
         """Uniaue hash number.
 
-         Two TransarentPath will have a same hash number if their fspath are the same and fs_kind (which will inlude
-         the project name if remote) are the same."""
+        Two TransarentPath will have a same hash number if their fspath are the same and fs_kind (which will inlude
+        the project name if remote) are the same."""
         hash_number = int.from_bytes((self.fs_kind + self.__fspath__()).encode(), "little") + int.from_bytes(
             self.fs_kind.encode(), "little"
         )
@@ -1274,7 +1283,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def _obj_missing(self, obj_name: str, kind: str, *args, **kwargs) -> Any:
         """Method to catch any call to a method/attribute missing from the class.
         Tries to call the object on the class's FileSystem object or the instance's self.path (a pathlib.Path object) if
-        FileSystem is local 
+        FileSystem is local
 
 
         Parameters
@@ -1353,8 +1362,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def _transform_path(self, method_name: str, *args: Tuple) -> Tuple:
         """
-        File system methods take self.path as first argument, so add its absolute path as first argument of args. 
-        Some, like ls or glob, are given a relative path to append to self.path, so we need to change the first 
+        File system methods take self.path as first argument, so add its absolute path as first argument of args.
+        Some, like ls or glob, are given a relative path to append to self.path, so we need to change the first
         element of args from args[0] to self.path / args[0]
 
         Parameters
@@ -1431,7 +1440,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.last_check = time()
 
     def _do_nothing(self) -> None:
-        """ does nothing (you don't say) """
+        """does nothing (you don't say)"""
         pass
 
     # ////////////// #
@@ -1646,7 +1655,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
         self.rm(absent=absent, ignore_kind=ignore_kind, recursive=True)
 
-    def glob(self, wildcard: str = "*", fast: bool = False) -> Iterator[TransparentPath]:
+    def glob(
+        self, wildcard: str = "*", fast: bool = False, i_am_sure_i_am_a_dict: bool = False
+    ) -> Iterator[TransparentPath]:
         """Returns a list of TransparentPath matching the wildcard pattern.
 
         By default, the wildcard is '*'. It means 'thepath/*', so will glob in the directory.
@@ -1668,8 +1679,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if not self.is_dir():
-            raise TPNotADirectoryError("The path must be a directory if you want to glob in it")
+        if not i_am_sure_i_am_a_dict:
+            if not self.is_dir():
+                raise TPNotADirectoryError("The path must be a directory if you want to glob in it")
 
         if wildcard.startswith("/") or wildcard.startswith("\\"):
             wildcard = wildcard[1:]
@@ -1721,7 +1733,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         )
 
     def ls(self, path_to_ls: str = "", fast: bool = False) -> Iterator[TransparentPath]:
-        """ Unlike glob, if on GCS, will also see directories.
+        """Unlike glob, if on GCS, will also see directories.
 
 
         Parameters
@@ -1754,12 +1766,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def cd(self, path: Optional[str] = None) -> None:
         """cd-like command. Works inplace
-        
-        Will collapse double-dots ('..'), so not compatible with symlinks. If path is absolute (starts with '/' or 
-        bucket name or is empty), will return a path starting from root directory if FileSystem is local, from bucket 
-        if it is GCS. If passing None or "" , will have the same effect than "/" on GCS, will return the current 
-        working directory on local. If passing ".", will return a path at the location of self. Will raise an error 
-        if trying to access a path before root or bucket. 
+
+        Will collapse double-dots ('..'), so not compatible with symlinks. If path is absolute (starts with '/' or
+        bucket name or is empty), will return a path starting from root directory if FileSystem is local, from bucket
+        if it is GCS. If passing None or "" , will have the same effect than "/" on GCS, will return the current
+        working directory on local. If passing ".", will return a path at the location of self. Will raise an error
+        if trying to access a path before root or bucket.
 
 
         Parameters
@@ -2150,7 +2162,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
         elif self.when_updated["created"] and not self.notupdatecache:  # Else, because called by check_multiplicity
             self._update_cache()
 
-    def read(self, *args, get_obj: bool = False, use_pandas: bool = False, use_dask: bool = False, **kwargs,) -> Any:
+    def read(
+        self,
+        *args,
+        get_obj: bool = False,
+        use_pandas: bool = False,
+        use_dask: bool = False,
+        **kwargs,
+    ) -> Any:
         """Method used to read the content of the file located at self
 
         Will raise FileNotFound error if there is no file. Calls a specific method to read self based on the suffix
@@ -2304,39 +2323,66 @@ class TransparentPath(os.PathLike):  # noqa : F811
             args = args[1:]
 
         if self.suffix == ".csv":
-            ret = self.to_csv(data=data, overwrite=overwrite, present=present, **kwargs,)
+            ret = self.to_csv(
+                data=data,
+                overwrite=overwrite,
+                present=present,
+                **kwargs,
+            )
             if ret is not None:
                 # To skip the assert at the end of the function. Indeed if something is returned it means we used
                 # Dask, which will have written files with a different name than self, so the assert would fail.
                 return
         elif self.suffix == ".parquet":
             self.to_parquet(
-                data=data, overwrite=overwrite, present=present, **kwargs,
+                data=data,
+                overwrite=overwrite,
+                present=present,
+                **kwargs,
             )
             if "dask" in str(type(data)):
                 # noinspection PyUnresolvedReferences
                 assert self.with_suffix("").is_dir(exist=True)
                 return
         elif self.suffix == ".hdf5" or self.suffix == ".h5":
-            ret = self.to_hdf5(data=data, set_name=set_name, use_pandas=use_pandas, **kwargs,)
+            ret = self.to_hdf5(
+                data=data,
+                set_name=set_name,
+                use_pandas=use_pandas,
+                **kwargs,
+            )
             if ret is not None:
                 # will not cache the changes for they will happen outside TransparentPath
                 return ret
         elif self.suffix == ".json":
             self.to_json(
-                data=data, overwrite=overwrite, present=present, **kwargs,
+                data=data,
+                overwrite=overwrite,
+                present=present,
+                **kwargs,
             )
         elif self.suffix == ".txt":
             self.write_stuff(
-                *args, data=data, overwrite=overwrite, present=present, **kwargs,
+                *args,
+                data=data,
+                overwrite=overwrite,
+                present=present,
+                **kwargs,
             )
         elif self.suffix in [".xlsx", ".xls", ".xlsm"]:
             self.to_excel(
-                data=data, overwrite=overwrite, present=present, **kwargs,
+                data=data,
+                overwrite=overwrite,
+                present=present,
+                **kwargs,
             )
         else:
             self.write_bytes(
-                *args, data=data, overwrite=overwrite, present=present, **kwargs,
+                *args,
+                data=data,
+                overwrite=overwrite,
+                present=present,
+                **kwargs,
             )
         self.update_tpchache(data)
         assert self.is_file()
@@ -2508,6 +2554,7 @@ setattr(TransparentPath, "write_bytes", write_bytes)
 try:
     # noinspection PyUnresolvedReferences
     from transparentpath.io.joblib_load import overload_joblib_load
+
     overload_joblib_load()
 except ImportError:
     pass
