@@ -1656,7 +1656,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.rm(absent=absent, ignore_kind=ignore_kind, recursive=True)
 
     def glob(
-        self, wildcard: str = "*", fast: bool = False, i_am_sure_i_am_a_dict: bool = False
+        self, wildcard: str = "*", fast: bool = False, i_am_sure_i_am_a_dir: bool = False
     ) -> Iterator[TransparentPath]:
         """Returns a list of TransparentPath matching the wildcard pattern.
 
@@ -1670,6 +1670,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
         fast: bool
             If True, does not check multiplicity when converting output paths to TransparentPath, significantly
             speeding up the process (Default value = False)
+        i_am_sure_i_am_a_dir: bool
+            If True, will not check that self points to a directory. Saves time.
 
 
         Returns
@@ -1679,7 +1681,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
 
-        if not i_am_sure_i_am_a_dict:
+        if not i_am_sure_i_am_a_dir:
             if not self.is_dir():
                 raise TPNotADirectoryError("The path must be a directory if you want to glob in it")
 
