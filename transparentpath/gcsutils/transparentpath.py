@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import Union, Tuple, Any, Iterator, Optional, Iterable, List, Callable
 
 from .methodtranslator import MultiMethodTranslator
-import gcsfs
+from gcsfs import GCSFileSystem
+from s3fs import S3FileSystem
 from fsspec.implementations.local import LocalFileSystem
 from inspect import signature
 import collections
@@ -221,16 +222,16 @@ def collapse_ddots(path: Union[Path, TransparentPath, str]) -> TransparentPath:
     )
 
 
-def treat_remote_refix(path: Union[Path, TransparentPath, str], bucket: str) -> Tuple[str, str]:
-    splitted = str(path).split(TransparentPath.remote_prefix)
+def treat_remote_refix(path: Union[Path, TransparentPath, str], bucket: str, prefix: str) -> Tuple[str, str]:
+    splitted = str(path).split(prefix)
     if len(splitted) == 0:
         if bucket is None and TransparentPath.bucket is None:
             raise TPValueError(
-                "If using a path starting with 'gs://', you must include the bucket name in it unless it"
+                f"If using a path starting with '{prefix}', you must include the bucket name in it unless it"
                 "is specified with bucket= or if TransparentPath already has been set to use a specified bucket"
                 "with set_global_fs"
             )
-        path = str(path).replace(TransparentPath.remote_prefix, "", 1)
+        path = str(path).replace(prefix, "", 1)
 
     else:
         bucket_from_path = splitted[1].split("/")[0]
@@ -243,7 +244,7 @@ def treat_remote_refix(path: Union[Path, TransparentPath, str], bucket: str) -> 
         else:
             bucket = bucket_from_path
 
-        path = str(path).replace(TransparentPath.remote_prefix, "", 1)
+        path = str(path).replace(prefix, "", 1)
         if path.startswith(bucket_from_path) or (len(path) > 0 and path[1:].startswith(bucket_from_path)):
             path = path.replace(bucket_from_path, "", 1)
         if path.startswith("/"):
@@ -252,20 +253,20 @@ def treat_remote_refix(path: Union[Path, TransparentPath, str], bucket: str) -> 
 
 
 def get_fs(
-    fs_kind: str,
+    fs_kind: str = None,
     bucket: Union[str, None] = None,
     token: Optional[Union[str, dict]] = None,
     path: Union[Path, None] = None,
-) -> Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem], str, str]:
-    """Gets the FileSystem object of either gcs or local (Default)
+) -> Tuple[Union[GCSFileSystem, LocalFileSystem, S3FileSystem], str, str]:
+    """Gets the FileSystem object of either gcs, s3 or local (Default)
 
-    If GCS is asked and bucket is specified, will check that it exists and is accessible.
+    If GCS or S3 is asked and bucket is specified, will check that it exists and is accessible.
 
 
     Parameters
     ----------
     fs_kind: str
-        Returns GCSFileSystem if 'gcs_*', LocalFilsSystem if 'local'.
+        Returns GCSFileSystem if 'gcs_*', LocalFilsSystem if 'local', S3FileSystem if 's3_*'.
 
     bucket: str
         bucket name for GCS
@@ -279,23 +280,42 @@ def get_fs(
 
     Returns
     -------
-    Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem], Union[None, str]]
-        The FileSystem object and the project if on GCS, else None
+    Tuple[Union[GCSFileSystem, LocalFileSystems, S3FileSystem], str, str]
+        The FileSystem object, the project and the bucket if on GCS or S3, else None, 'local', ''
 
     """
 
-    if fs_kind is None:
-        fs_kind = ""
-    if fs_kind == "" and token is not None:
-        fs_kind = "gcs"
+    if fs_kind is None and token is None:
+        raise ValueError("Must specify one of 'fs_kind' or 'token'")
+    if fs_kind is not None and token is not None:
+        raise ValueError("Can only specify one of 'fs_kind' or 'token'")
+
+    if token is not None:
+        fs_kind = "remote"
+
+    if fs_kind != "remote" and fs_kind != "local":
+        raise ValueError(f"Invalide value {fs_kind} for 'fs_kind'")
+
     fs_name = None
     if fs_kind == "local":
         bucket = None
 
-    if path is not None and fs_kind != "local":
+    if fs_kind == "local":
+        if "local" not in TransparentPath.fss:
+            TransparentPath.fss["local"] = LocalFileSystem()
+        return copy(TransparentPath.fss["local"]), "local", ""
+
+    """ At this point, we are sure we are asking for a remote filesystem """
+
+    # If bucket is specified, get the filesystem that contains it if it already exists. Else, create the filesystem.
+    if bucket is not None:
+        fs_name = check_bucket(bucket)
+        if fs_name is not None:
+            fs = copy(TransparentPath.fss[fs_name])
+            return fs, fs_name, bucket
+
+    if path is not None:
         # Called from TransparentPath.__init__()
-        if bucket is not None:
-            fs_name = check_bucket(bucket)
         if bucket is None and len(path.parts) > 0:
             bucket = path.parts[0]
             fs_name = check_bucket(bucket)
@@ -308,49 +328,36 @@ def get_fs(
         if fs_name is not None:
             return copy(TransparentPath.fss[fs_name]), fs_name, bucket
 
-    if "gcs" in fs_kind or token is not None:
-
-        # If bucket is specified, get the filesystem that contains it if it already exists. Else, create the filesystem.
-        if bucket is not None:
-            fs_name = check_bucket(bucket)
-            if fs_name is not None:
-                fs = copy(TransparentPath.fss[fs_name])
-                return fs, fs_name, ""
-
-        fs_name, project = extract_fs_name(token)
-        if fs_name in TransparentPath.fss:
-            pass
-        elif token is None:
-            fs = gcsfs.GCSFileSystem(project=project, asynchronous=False)
-            TransparentPath.buckets_in_project[fs_name] = get_buckets(fs)
-            TransparentPath.fss[fs_name] = fs
-        else:
-            fs = gcsfs.GCSFileSystem(project=project, asynchronous=False, token=token)
-            TransparentPath.buckets_in_project[fs_name] = get_buckets(fs)
-            TransparentPath.fss[fs_name] = fs
-
-        ret_bucket = False
-        if bucket is None and path is not None and len(path.parts) > 0:
-            bucket = path.parts[0]
-            ret_bucket = True
-        if bucket is not None:
-            if not bucket.endswith("/"):
-                bucket += "/"
-            if bucket not in TransparentPath.buckets_in_project[fs_name]:
-                raise TPNotADirectoryError(f"Bucket {bucket} does not exist in any loaded projects")
-
-        fs = copy(TransparentPath.fss[fs_name])
-        if ret_bucket:
-            return fs, fs_name, bucket
-        else:
-            return fs, fs_name, ""
+    fs_name, project = extract_fs_name(token)
+    if fs_name in TransparentPath.fss:
+        pass
+    elif token is None:
+        fs = GCSFileSystem(project=project, asynchronous=False)
+        TransparentPath.buckets_in_project[fs_name] = get_buckets(fs)
+        TransparentPath.fss[fs_name] = fs
     else:
-        if "local" not in TransparentPath.fss:
-            TransparentPath.fss["local"] = LocalFileSystem()
-        return copy(TransparentPath.fss["local"]), "local", ""
+        fs = GCSFileSystem(project=project, asynchronous=False, token=token)
+        TransparentPath.buckets_in_project[fs_name] = get_buckets(fs)
+        TransparentPath.fss[fs_name] = fs
+
+    ret_bucket = False
+    if bucket is None and path is not None and len(path.parts) > 0:
+        bucket = path.parts[0]
+        ret_bucket = True
+    if bucket is not None:
+        if not bucket.endswith("/"):
+            bucket += "/"
+        if bucket not in TransparentPath.buckets_in_project[fs_name]:
+            raise TPNotADirectoryError(f"Bucket {bucket} does not exist in any loaded projects")
+
+    fs = copy(TransparentPath.fss[fs_name])
+    if ret_bucket:
+        return fs, fs_name, bucket
+    else:
+        return fs, fs_name, ""
 
 
-def get_buckets(fs: gcsfs.GCSFileSystem) -> List[str]:
+def get_buckets(fs: GCSFileSystem) -> List[str]:
     """Return list of all buckets in the file system."""
     if "" not in fs.dircache:
         items = []
@@ -377,8 +384,7 @@ def get_buckets(fs: gcsfs.GCSFileSystem) -> List[str]:
 
 
 def check_bucket(bucket: Union[str, None]) -> Union[str, None]:
-    """Check that the bucket exist in an initiated file system and return the corresponding file system's name,
-    or raises TPNotADirectoryError."""
+    """If the bucket exists in an initiated remote file system, returns its name (gcs or s3), else returns None."""
     if bucket is None:
         return None
     bucket = str(bucket)
@@ -430,34 +436,51 @@ def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
 
 
 def extract_fs_name(token: str = None) -> Tuple[str, str]:
-    if token is None and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
-        fs = gcsfs.GCSFileSystem()
-        project = fs.project
-        if (
-            project is None
-            or fs.credentials is None
-            or not hasattr(fs.credentials, "service_account_email")
-            or fs.credentials.service_account_email is None
-        ):
-            raise TPEnvironmentError(
-                "If no token is explicitely specified and GOOGLE_APPLICATION_CREDENTIALS environnement variable is not"
-                " set, you need to have done gcloud init or to be on GCP already to create a TransparentPath"
-            )
-        email = fs.credentials.service_account_email
-        return f"gcs_{project}_{email}", project
-    elif token is None:
-        token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    is_gcs = False
+    is_s3 = False
+    if token is None:
+        if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
+            is_gcs = True
+        if "S3_APPLICATION_CREDENTIALS" in os.environ:
+            is_s3 = True
+        if is_s3 and is_gcs:
+            raise ValueError("No token was specified and both GOOGLE_APPLICATION_CREDENTIALS and "
+                             "S3_APPLICATION_CREDENTIALS were found in the environnement variables. I do not know"
+                             " what to do.")
+        if not is_gcs and not is_s3:
+            raise ValueError("No token was specified and neither GOOGLE_APPLICATION_CREDENTIALS nor "
+                             "S3_APPLICATION_CREDENTIALS were found in the environnement variables.")
 
-    if not TransparentPath(token, fs="local", nocheck=True, notupdatecache=True).is_file():
-        raise TPFileNotFoundError(f"Crendential file {token} not found")
-    content = json.load(open(token))
-    if "project_id" not in content:
-        raise TPValueError(f"Credential file {token} does not contain project_id key.")
-    if "client_email" not in content:
-        raise TPValueError(f"Credential file {token} does not contain client_email key.")
+        if is_gcs:
+            token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        else:
+            token = os.getenv("S3_APPLICATION_CREDENTIALS")
 
-    fs_name = f"gcs_{content['project_id']}_{content['client_email']}"
-    TransparentPath.tokens[fs_name] = token
+    if not isinstance(token, dict):
+        if TransparentPath(token, fs="local", nocheck=True, notupdatecache=True).is_file():
+            raise TPFileNotFoundError(f"Crendential file {token} not found")
+        content = json.load(open(token))
+    else:
+        content = token
+    if "token" in content:
+        if is_gcs:
+            raise ValueError("The token pointed by GOOGLE_APPLICATION_CREDENTIALS is a S3 token, not a GCS token")
+    else:
+        if is_s3:
+            raise ValueError("The token pointed by S3_APPLICATION_CREDENTIALS is a GCS token, not a S3 token")
+        is_gcs = True
+
+    if is_gcs:
+        if "project_id" not in content:
+            raise TPValueError(f"Credential file {token} does not contain project_id key.")
+        if "client_email" not in content:
+            raise TPValueError(f"Credential file {token} does not contain client_email key.")
+
+        fs_name = f"gcs_{content['project_id']}_{content['client_email']}"
+        TransparentPath.tokens[fs_name] = token
+    else:
+        fs_name = f"s3_{content['project_id']}_{content['user_id']}"
+        TransparentPath.tokens[fs_name] = token
     return fs_name, content["project_id"]
 
 
@@ -650,7 +673,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     @classmethod
     def reinit(cls):
-        cls.remote_prefix = "gs://"
         cls.fss = {}
         cls.buckets_in_project = {}
         cls.fs_kind = None
@@ -674,7 +696,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
     @classmethod
     def show_state(cls):
         """Prints the state of the TransparentPath class"""
-        print("remote_prefix: ", cls.remote_prefix)
         print("fss: ", cls.fss)
         print("buckets_in_project: ", cls.buckets_in_project)
         print("fs_kind: ", cls.fs_kind)
@@ -698,7 +719,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def get_state(cls) -> dict:
         """Returns the state of the TransparentPath class in a dictionnary"""
         state = {
-            "remote_prefix": cls.remote_prefix,
             "fss": cls.fss,
             "buckets_in_project": cls.buckets_in_project,
             "fs_kind": cls.fs_kind,
@@ -721,7 +741,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         }
         return state
 
-    remote_prefix = "gs://"
+    remote_prefix = {"local": "", "gcs": "gs://", "scw": "s3://", "aws": "s3://"}
     fss = {}
     buckets_in_project = {}
     fs_kind = None
@@ -941,12 +961,20 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return
 
         # In case we initiate a path containing 'gs://'
-        if str(path).startswith(TransparentPath.remote_prefix):
+
+        prefix = ""
+        for _fs in TransparentPath.remote_prefix:
+            if str(path).startswith(TransparentPath.remote_prefix[_fs]):
+                prefix = TransparentPath.remote_prefix[_fs]
+                fs = _fs
+                break
+
+        if prefix != "":
             if fs == "local":
                 raise TPValueError(
-                    "You specified a path starting with 'gs://' but ask for it to be local. This is not possible."
+                    f"You specified a path starting with '{prefix}' but ask for it to be local. This is not possible."
                 )
-            path, bucket = treat_remote_refix(path, bucket)
+            path, bucket = treat_remote_refix(path, bucket, prefix)
             fs = "gcs"
 
         self.__path = Path(str(path).encode("utf-8").decode("utf-8"), **kwargs)
@@ -1499,9 +1527,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def isfile(self):
         return self.is_file()
 
+    # noinspection PyUnusedLocal
     def isdir(self, *args, **kwargs):
         return self.is_dir()
 
+    # noinspection PyUnusedLocal
     def is_dir(self, *args, **kwargs) -> bool:
         """Check if self is a directory.
 
@@ -1794,7 +1824,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if not isinstance(path, str) or isinstance(path, TransparentPath):
             raise TPTypeError("Can only pass a string to TransparentPath's cd method")
 
-        path = path.replace(TransparentPath.remote_prefix, "", 1)
+        for _fs in TransparentPath.remote_prefix:
+            prefix = TransparentPath.remote_prefix[_fs]
+            if path.startswith(prefix):
+                path = path.replace(prefix, "", 1)
 
         if "gcs" in self.fs_kind and str(path) == self.bucket or path == "" or path == "/":
             self.__path = Path(self.bucket)
