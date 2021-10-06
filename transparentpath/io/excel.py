@@ -21,7 +21,7 @@ try:
     import sys
     import importlib.util
     from typing import Union, List, Tuple
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError, TPFileNotFoundError
+    from ..main.transparentpath import TransparentPath, check_kwargs, TPFileExistsError, TPFileNotFoundError
 
     if importlib.util.find_spec("xlrd") is None:
         raise TPImportError("Need the 'xlrd' package")
@@ -30,6 +30,7 @@ try:
 
     excel_ok = True
 
+    # noinspection PyUnresolvedReferences
     def read(self, **kwargs) -> pd.DataFrame:
 
         if not self.is_file():
@@ -54,6 +55,7 @@ try:
                 " Ask your cloud manager to remove encryption on it."
             )
 
+    # noinspection PyUnresolvedReferences
     def write(
         self, data: Union[pd.DataFrame, pd.Series], overwrite: bool = True, present: str = "ignore", **kwargs,
     ) -> None:
@@ -76,7 +78,7 @@ try:
                 data.to_excel(f.name, **kwargs)
                 TransparentPath(
                     path=f.name,
-                    fs="local",
+                    fs_kind="local",
                     notupdatecache=self.notupdatecache,
                     nocheck=self.nocheck,
                     when_checked=self.when_checked,

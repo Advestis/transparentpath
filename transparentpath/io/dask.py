@@ -26,7 +26,7 @@ try:
     # noinspection PyPackageRequirements
     import pandas as pd
 
-    from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs, \
+    from ..main.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs, \
         TPFileNotFoundError, TPValueError, TPFileExistsError
     from .hdf5 import hdf5_ok
     from .hdf5 import errormessage as errormessage_hdf5
@@ -134,6 +134,7 @@ try:
         # Do not delete the tmp file, since dask tasks are delayed
         return data.result()
 
+    # noinspection PyUnresolvedReferences
     def read_excel(self, **kwargs) -> pd.DataFrame:
 
         if not excel_ok:
@@ -189,13 +190,14 @@ try:
             path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
         futures = self.__class__.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
         outfiles = [
-            TransparentPath(f, fs=self.fs_kind, bucket=self.bucket) for f in futures.result()
+            TransparentPath(f, fs_kind=self.fs_kind, bucket=self.bucket) for f in futures.result()
         ]
         if len(outfiles) == 1:
             outfiles[0].mv(self)
         else:
             return outfiles
 
+    # noinspection PyUnresolvedReferences
     def write_parquet(
         self,
         data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
@@ -278,9 +280,10 @@ try:
                     dd.to_hdf, list(sets.values()), [f.name] * len(sets), list(sets.keys()), mode=mode, **kwargs
                 )
                 self.__class__.cli.gather(futures)
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
+                TransparentPath(path=f.name, fs_kind="local", bucket=self.bucket).put(self.path)
         return
 
+    # noinspection PyUnresolvedReferences
     def write_excel(
         self,
         data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
@@ -317,7 +320,7 @@ try:
                 check_kwargs(pd.DataFrame.to_excel, kwargs)
                 parts = delayed(pd.DataFrame.to_excel)(data, f.name, **kwargs)
                 parts.compute()
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
+                TransparentPath(path=f.name, fs_kind="local", bucket=self.bucket).put(self.path)
 
 
 except ImportError as e:

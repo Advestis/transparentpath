@@ -1,7 +1,8 @@
 import builtins
+import tempfile
 from typing import IO, Union, Any
 from pathlib import Path
-from ..gcsutils.transparentpath import TransparentPath, TPValueError, TPFileExistsError, TPFileNotFoundError
+from ..main.transparentpath import TransparentPath, TPValueError, TPFileExistsError, TPFileNotFoundError, treat_remote_prefix
 
 
 builtins_open = builtins.open
@@ -36,27 +37,48 @@ def set_old_open():
 
 
 def put(self, dst: Union[str, Path, TransparentPath]):
-    """used to push a local file to the cloud. Does not remove the local file.
+    self.upload(dst)
 
-    self must be a local TransparentPath. If dst is a TransparentPath, it must be on GCS. If it is a pathlib.Path
-    or a str, it will be casted into a GCS TransparentPath, so a gcs file system must have been set up before. """
+
+def upload(self, dst: Union[str, Path, TransparentPath]):
+    """
+    used to upload a local file (self) to a remote path (dst). Does not remove the local file.
+
+    self must be a local TransparentPath. If dst is a TransparentPath, it must be remote. If it is a pathlib.Path
+    or a str, it will be casted into a GCS TransparentPath, so a remote file system must have been set up before.
+    """
     if not self.fs_kind == "local":
         raise TPValueError(
             "The calling instance of put() must be local. "
-            "To move on gcs a file already on gcs, use mv("
-            "). To move a file from gcs, to local, use get("
+            "To move on remote a file already on remote, use mv("
+            "). To move a file from remote, to local, use get("
             "). "
         )
     # noinspection PyUnresolvedReferences
-    if type(dst) == TransparentPath and "gcs" not in dst.fs_kind:
+    if type(dst) == TransparentPath and dst.fs_kind == "local":
         raise TPValueError(
             "The second argument can not be a local TransparentPath. To move a file localy, use the mv() method."
         )
     if type(dst) != TransparentPath:
-        if TransparentPath.remote_prefix not in str(dst):
-            if "gcs" not in "".join(TransparentPath.fss):
-                raise TPValueError("You need to set up a gcs file system before using the put() command.")
-            dst = TransparentPath(dst, fs="gcs")
+
+        prefix = ""
+        for _fs in TransparentPath.remote_prefix:
+            if str(dst).startswith(TransparentPath.remote_prefix[_fs]):
+                prefix = TransparentPath.remote_prefix[_fs]
+                break
+
+        if prefix == "":
+            existing_fs_names = "-".join(list(TransparentPath.fss.keys()))
+            if "gcs_" not in existing_fs_names and "s3_" not in existing_fs_names:
+                raise TPValueError("No global remote file system set up. Please give put() a TransparentPath or a str"
+                                   "starting with the remote file system prefix.")
+            if "gcs_" in existing_fs_names and "s3_" in existing_fs_names:
+                raise TPValueError("More than one global remote file system set up. Please give put() a TransparentPath"
+                                   "  or a str starting with the remote file system prefix.")
+            if "gcs_" in existing_fs_names:
+                dst = TransparentPath(dst, fs_kind="gcs")
+            if "s3_" in existing_fs_names:
+                dst = TransparentPath(dst, fs_kind="s3")
         else:
             dst = TransparentPath(dst)
 
@@ -78,25 +100,29 @@ def put(self, dst: Union[str, Path, TransparentPath]):
 
 
 def get(self, loc: Union[str, Path, TransparentPath]):
-    """used to get a remote file to local. Does not remove the remote file.
+    self.download(loc)
+
+
+def download(self, loc: Union[str, Path, TransparentPath]):
+    """used to download a remote file (self) to local (loc). Does not remove the remote file.
 
     self must be a remote TransparentPath. If loc is a TransparentPath, it must be local. If it is a pathlib.Path or
     a str, it will be casted into a local TransparentPath. """
 
-    if "gcs" not in self.fs_kind:
-        raise TPValueError("The calling instance of get() must be on GCS. To move a file localy, use the mv() method.")
+    if self.fs_kind == "local":
+        raise TPValueError("The calling instance of get() must be remote. To move a file localy, use the mv() method.")
     # noinspection PyUnresolvedReferences
     if type(loc) == TransparentPath and loc.fs_kind != "local":
         raise TPValueError(
-            "The second argument can not be a GCS "
-            "TransparentPath. To move on gcs a file already"
-            "on gcs, use mv(). To move a file from gcs, to"
+            "The second argument can not be a remote "
+            "TransparentPath. To move on remote a file already"
+            "on remote, use mv(). To move a file from remote, to"
             " local, use get()"
         )
     if type(loc) != TransparentPath:
         loc = TransparentPath(
             loc,
-            fs="local",
+            fs_kind="local",
             notupdatecache=self.notupdatecache,
             nocheck=self.nocheck,
             when_checked=self.when_checked,
@@ -116,55 +142,19 @@ def get(self, loc: Union[str, Path, TransparentPath]):
 
 
 def mv(self, other: Union[str, Path, TransparentPath]):
-    """Used to move a file or a directory. Works between any filesystems."""
+    """
+    Moves self to other. Works between any file systems
+    """
 
-    if not type(other) == TransparentPath:
-        other = TransparentPath(
-            other,
-            fs=self.fs_kind,
-            bucket=self.bucket,
-            notupdatecache=self.notupdatecache,
-            nocheck=self.nocheck,
-            when_checked=self.when_checked,
-            when_updated=self.when_updated,
-            update_expire=self.update_expire,
-            check_expire=self.check_expire,
-            token=self.token,
-        )
-
-    if other.fs_kind != self.fs_kind:
-        if self.fs_kind == "local":
-            self.put(other)
-            self.rm(absent="raise", ignore_kind=True)
-        else:
-            self.get(other)
-            self.rm(absent="raise", ignore_kind=True)
-        return
-
-    # Do not use filesystem's move, for it is coded by apes and is not able to use recursive properly
-    # self.fs.mv(self.__fspath__(), other, **kwargs)
-
-    # noinspection PyProtectedMember
-    if not self.exist():
-        raise TPFileNotFoundError(f"No such file or directory: {self}")
-
-    if self.is_file():
-        self.fs.mv(self.__fspath__(), other)
-        return
-
-    for stuff in list(self.glob("**/*", fast=True)):
-        # noinspection PyUnresolvedReferences
-        if not stuff.is_file():
-            continue
-        # noinspection PyUnresolvedReferences
-        relative = stuff.split(f"/{self.name}/")[-1]
-        newpath = other / relative
-        newpath.parent.mkdir(recursive=True)
-        self.fs.mv(stuff.__fspath__(), newpath)
+    self.cp(other)
+    self.rm(absent="raise", ignore_kind=True)
 
 
 def cp(self, other: Union[str, Path, TransparentPath]):
-    """Used to copy a file or a directory on the same filesystem."""
+    """
+    Copies self to other. Works between any file systems.
+    If other is not a TransparentPath, it will be assumed that it is on the same file system than self.
+    """
 
     # noinspection PyProtectedMember
     if not self.exist():
@@ -173,7 +163,7 @@ def cp(self, other: Union[str, Path, TransparentPath]):
     if not type(other) == TransparentPath:
         other = TransparentPath(
             other,
-            fs=self.fs_kind,
+            fs_kind=self.fs_kind,
             bucket=self.bucket,
             notupdatecache=self.notupdatecache,
             nocheck=self.nocheck,
@@ -183,19 +173,27 @@ def cp(self, other: Union[str, Path, TransparentPath]):
             check_expire=self.check_expire,
             token=self.token,
         )
-    if other.fs_kind != self.fs_kind:
-        if self.fs_kind == "local":
-            self.put(other)
-        else:
-            self.get(other)
+
+    if self.fs_kind == "local":
+        self.upload(other)  # upload self in other
+        return
+    if other.fs_kind == "local":
+        self.download(other)  # download self in other
         return
 
     # Do not use filesystem's copy if self is not a file, for it was coded by apes and is not able to use recursive
     # properly
 
     if self.is_file():
-        self.fs.cp(self.__fspath__(), other)
-        return
+        if self.fs_name == other.fs_name:
+            self.fs.cp(self.__fspath__(), other)
+            return
+        else:
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=self.suffix)
+            tmp.close()  # deletes the tmp file
+            self.download(tmp.name)  # downloads self at tmp's address
+            TransparentPath(tmp.name, fs_kind="local").upload(other)
+            return
 
     for stuff in list(self.glob("**/*", fast=True)):
         # noinspection PyUnresolvedReferences

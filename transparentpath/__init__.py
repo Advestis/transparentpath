@@ -1,6 +1,6 @@
-from .gcsutils.transparentpath import TransparentPath
-from .gcsutils.transparentpath import TransparentPath as Path
-from .gcsutils.transparentpath import TPImportError, TPTypeError, TPValueError, TPAttributeError, TPEnvironmentError,\
+from .main.transparentpath import TransparentPath
+from .main.transparentpath import TransparentPath as Path
+from .main.transparentpath import TPImportError, TPTypeError, TPValueError, TPAttributeError, TPEnvironmentError,\
     TPIsADirectoryError, TPNotADirectoryError, TPFileNotFoundError, TPFileExistsError, TPMultipleExistenceError
 
 
