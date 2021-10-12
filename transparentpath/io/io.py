@@ -2,7 +2,7 @@ import builtins
 import tempfile
 from typing import IO, Union, Any
 from pathlib import Path
-from ..main.transparentpath import TransparentPath, TPValueError, TPFileExistsError, TPFileNotFoundError, treat_remote_prefix
+from ..main.transparentpath import TransparentPath, TPValueError, TPFileExistsError, TPFileNotFoundError
 
 
 builtins_open = builtins.open
@@ -196,14 +196,14 @@ def cp(self, other: Union[str, Path, TransparentPath]):
             return
 
     for stuff in list(self.glob("**/*", fast=True)):
-        # noinspection PyUnresolvedReferences
-        if not stuff.is_file():
+        if not stuff.is_file() and not stuff.is_dir():
             continue
         # noinspection PyUnresolvedReferences
         relative = stuff.split(f"/{self.name}/")[-1]
         newpath = other / relative
         newpath.parent.mkdir(recursive=True)
-        self.fs.cp(stuff.__fspath__(), newpath)
+        # noinspection PyUnresolvedReferences
+        stuff.cp(newpath)
 
 
 def read_text(self, *args, get_obj: bool = False, **kwargs) -> Union[str, IO]:
