@@ -23,6 +23,8 @@ try:
         """
 
         def default(self, obj: Any):
+            if obj.__class__.__name__ == "TransparentPath":
+                obj = str(obj)
             if hasattr(obj, "to_json"):
                 if callable(obj.to_json):
                     try:
