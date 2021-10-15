@@ -18,7 +18,8 @@ def test_joblib(clean, fs_kind):
     if reqs_ok is False:
         pparquet = get_path(fs_kind, ".joblib")
         with pytest.raises(ImportError):
-            pparquet.read()
+            from joblib import load
+            import numpy as np
     else:
         from joblib import load
         import numpy as np
