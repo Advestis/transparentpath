@@ -33,7 +33,7 @@ def clean(pytestconfig):
     TransparentPath._do_check = False
     path1 = TransparentPath("chien")
     path2 = TransparentPath("chien2")
-    suffixes = ["", ".zip", ".txt", ".json", ".csv", ".parquet", ".hdf5", ".xlsx"]
+    suffixes = ["", ".zip", ".txt", ".json", ".csv", ".parquet", ".hdf5", ".xlsx", ".joblib"]
     for suffix in suffixes:
         path1.with_suffix(suffix).rm(recursive=True, ignore_kind=True, absent="ignore")
         path1.with_suffix(suffix).rm(recursive=True, ignore_kind=True, absent="ignore")

@@ -1431,7 +1431,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if not self.exists():
             return
 
-        thels = self.fs.ls(str(collapse_ddots(self.__path / "..")))
+        collapsed = str(collapse_ddots(self.__path / ".."))
+        if collapsed == "/":  # Can not ls on root directory anymore
+            return
+        thels = self.fs.ls(collapsed)
         if len(thels) > 1:
             thels = [Path(apath).name for apath in thels if Path(apath).name == self.name]
             if len(thels) > 1:
@@ -1481,6 +1484,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return self.exists()
 
     def exists(self):
+        if str(self.path) == "/" and self.fs_kind == "local":
+            return True
+        elif self.path == "gs://" and self.fs_kind == "gcs":
+            return True
         updated = False
         if self.when_checked["used"] and not self.nocheck:
             self._check_multiplicity()
@@ -1499,9 +1506,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def isfile(self):
         return self.is_file()
 
+    # noinspection PyUnusedLocal
     def isdir(self, *args, **kwargs):
         return self.is_dir()
 
+    # noinspection PyUnusedLocal
     def is_dir(self, *args, **kwargs) -> bool:
         """Check if self is a directory.
 
@@ -1512,6 +1521,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         """
         if self.fs_kind == "local":
+            if str(self.path) == "/":
+                return True
             return self.__path.is_dir()
         else:
             if not self.exists():
@@ -1796,7 +1807,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         path = path.replace(TransparentPath.remote_prefix, "", 1)
 
-        if "gcs" in self.fs_kind and str(path) == self.bucket or path == "" or path == "/":
+        if "gcs" in self.fs_kind and str(path) == self.bucket or path == "" or str(path) == "/":
             self.__path = Path(self.bucket)
             return
 
@@ -1868,7 +1879,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             else:
                 return
 
-        for parent in self.parents:
+        for parent in reversed(self.parents):
             p = TransparentPath(
                 parent,
                 fs=self.fs_kind,
@@ -1919,7 +1930,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 raise TPFileExistsError(f"There is already an object at {self} and it is not a  directory")
             return
 
-        for parent in self.parents:
+        for parent in reversed(self.parents):
             thefile = TransparentPath(
                 parent,
                 fs=self.fs_kind,
@@ -1974,7 +1985,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     stat[key] = dt.timestamp()
                 if key == "created" or key == "mtime":
                     stat[key] = int(stat[key])
-                stat[key_translation[key]] = stat.pop(key)
+                stat[key_translation[key]] = stat[key]
 
         for key in key_translation.values():
             if key not in stat:

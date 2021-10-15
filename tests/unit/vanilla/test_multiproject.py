@@ -18,7 +18,7 @@ def test_multiproject_1(clean):
     init("gcs")
     TransparentPath.set_global_fs("gcs", token=os.environ["GOOGLE_APPLICATION_CREDENTIALS_2"])
     p1 = TransparentPath("code_tests_sand")
-    p2 = TransparentPath("code_tests")
+    p2 = TransparentPath("code_tests_dev")
     p3 = TransparentPath("coucou")
     assert "gcs" in p1.fs_kind
     assert "gcs" in p2.fs_kind
@@ -34,7 +34,7 @@ def test_multiproject_2(clean):
     TransparentPath("code_test_sand")
     TransparentPath.set_global_fs("gcs", bucket="code_tests", token=os.environ["GOOGLE_APPLICATION_CREDENTIALS_2"])
     p1 = TransparentPath("code_tests_sand")
-    p2 = TransparentPath("code_tests")
+    p2 = TransparentPath("code_tests_dev")
     p3 = TransparentPath("coucou")
     assert "gcs" in p1.fs_kind
     assert "gcs" in p2.fs_kind
