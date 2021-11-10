@@ -90,8 +90,8 @@ jobs:
         if: ${{ matrix.python-version == 3.8 }}
         uses: pypa/gh-action-pypi-publish@master
         with:
-          user: ${{ secrets.pypi_login }}
-          password: ${{ secrets.pypi_passwd }}
+          user: ${{ secrets.ORG_PYPI_LOGIN }}
+          password: ${{ secrets.ORG_PYPI_PASSWD }}
           skip_existing: true
           verbose: true
 
@@ -99,15 +99,15 @@ jobs:
         if: ${{ env.BRANCH_NAME != 'master' && matrix.python-version == 3.8 }}
         uses: docker/build-push-action@v1
         with:
-          username: ${{ secrets.docker_login }}
-          password: ${{ secrets.docker_passwd }}
+          username: ${{ secrets.ORG_DOCKER_LOGIN }}
+          password: ${{ secrets.ORG_DOCKER_PASSWD }}
           repository: advestisrepositories/transparentpath-${{ env.BRANCH_NAME }}
           tag_with_ref: true
       - name: todocker master
         if: ${{ env.BRANCH_NAME == 'master' && matrix.python-version == 3.8 }}
         uses: docker/build-push-action@v1
         with:
-          username: ${{ secrets.docker_login }}
-          password: ${{ secrets.docker_passwd }}
+          username: ${{ secrets.ORG_DOCKER_LOGIN }}
+          password: ${{ secrets.ORG_DOCKER_PASSWD }}
           repository: advestisrepositories/transparentpath
           tag_with_ref: true
