@@ -436,14 +436,14 @@ def extract_fs_name(token: str = None) -> Tuple[str, str]:
         if (
             project is None
             or fs.credentials is None
-            or not hasattr(fs.credentials, "service_account_email")
-            or fs.credentials.service_account_email is None
+            or not hasattr(fs.credentials.credentials, "service_account_email")
+            or fs.credentials.credentials.service_account_email is None
         ):
             raise TPEnvironmentError(
                 "If no token is explicitely specified and GOOGLE_APPLICATION_CREDENTIALS environnement variable is not"
                 " set, you need to have done gcloud init or to be on GCP already to create a TransparentPath"
             )
-        email = fs.credentials.service_account_email
+        email = fs.credentials.credentials.service_account_email
         return f"gcs_{project}_{email}", project
     elif token is None:
         token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
