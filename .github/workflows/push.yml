@@ -139,7 +139,7 @@ jobs:
           server_port: 587
           username: ${{secrets.ORG_MAIL_AUTOMAT}}
           password: ${{secrets.ORG_PASSWD_AUTOMAT}}
-          subject: New commit on branch $BRANCH_NAME in project ${{ github.event.repository.name }}
+          subject: New commit on branch ${{ env.BRANCH_NAME }} in project ${{ github.event.repository.name }}
           to: cb1d360e.advestis.com@emea.teams.ms
           body: Commit message is "${{ github.event.head_commit.message }}"
           from: CI/CD
