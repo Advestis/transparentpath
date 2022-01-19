@@ -75,7 +75,7 @@ requirements = []
 all_reqs = []
 
 for afile in workdir.glob("*requirements.txt"):
-    if str(afile) == "requirements.txt":
+    if afile.name == "requirements.txt":
         requirements = afile.read_text().splitlines()
         all_reqs = list(set(all_reqs) | set(afile.read_text().splitlines()))
     else:
