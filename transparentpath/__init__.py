@@ -13,3 +13,8 @@ except ImportError:
                 "Support for json does not seem to be installed for TransparentPath.\n"
                 "You can change that by running 'pip install transparentpath[json]'."
             )
+
+try:
+    from ._version import __version__
+except ImportError:
+    pass
