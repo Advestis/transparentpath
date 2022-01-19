@@ -222,13 +222,7 @@ if you use GCS:
 
   4. If you delete a file that was alone in its parent directories, those directories disapear.
 
-  5. Since most of the times we use is_dir() we want to check whether a directry exists to write in it,
-  by default the is_dir() method will return True if the directory does not exists on GCS (see point 3)(will
-  still return false if using a local file system). The only case is_dir() will return False is if a file with
-  the same name exists (localy, behavior is straightforward). To actually check whether the directory exists (
-  for, like, reading from it), add the kwarg 'exist=True' to is_dir() if using GCS.
-
-  6. If a file exists at the same path than a directory, then the class is not able to know which one is the
+  5. If a file exists at the same path than a directory, then the class is not able to know which one is the
   file and which one is the directory, and will raise a TPMultipleExistenceError upon object creation. Will also
   check for multiplicity at almost every method in case an exterior source created a duplicate of the
   file/directory. This case can't happen locally. However, it can happen on remote if the cache is not updated
