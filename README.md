@@ -4,6 +4,9 @@ permalink: /docs/index.html
 
 **The complete documentation is available at https://advestis.github.io/transparentpath/**
 
+**WARNING** : This package is not maintained for python 3.6 anymore. The latest version available for python 3.6 is 0.1.129.
+Please use python >= 3.7.
+
 # TransparentPath
 
 A class that allows one to use a path in a local file system or a gcs file system (more or less) in almost the
