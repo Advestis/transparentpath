@@ -9,8 +9,8 @@ Please use python >= 3.7.
 
 # TransparentPath
 
-A class that allows one to use a path in a local file system or a gcs file system (more or less) in almost the
-same way one would use a pathlib.Path object.
+A class that allows one to use a path in a local file system or a Google Cloud Storage (GCS) file system in the
+same way one would use a *pathlib.Path* object.
 
 ## Requirements
 
