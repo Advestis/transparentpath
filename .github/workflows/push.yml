@@ -29,20 +29,6 @@ jobs:
           pip install .[all]
           python setup.py sdist
 
-      - name: commit version
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add .
-          git commit -m "VERSION-SKIP-CI"
-
-      - name: Push version
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.ORG_TOKEN_CICD }}
-          branch: master
-          force: true
-
       - name: make doc
         run: |
           pip install pdoc3
