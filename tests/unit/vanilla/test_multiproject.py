@@ -32,7 +32,7 @@ def test_multiproject_2(clean):
         return
     init("gcs")
     TransparentPath("code_test_sand")
-    TransparentPath.set_global_fs("gcs", bucket="code_tests", token=os.environ["GOOGLE_APPLICATION_CREDENTIALS_2"])
+    TransparentPath.set_global_fs("gcs", bucket="code_tests_dev", token=os.environ["GOOGLE_APPLICATION_CREDENTIALS_2"])
     p1 = TransparentPath("code_tests_sand")
     p2 = TransparentPath("code_tests_dev")
     p3 = TransparentPath("coucou")
