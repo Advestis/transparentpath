@@ -126,7 +126,7 @@ try:
 
         check_kwargs(dd.read_hdf, kwargs)
         if self.fs_kind == "local":
-            return dd.read_hdf(pattern=self, key=set_names, **kwargs)
+            return dd.read_hdf(pattern=self.__fspath__(), key=set_names, **kwargs)
         f = tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5")
         f.close()  # deletes the tmp file, but we can still use its name to download the remote file locally
         self.get(f.name)
@@ -271,7 +271,7 @@ try:
 
         if self.fs_kind == "local":
             for aset in sets:
-                dd.to_hdf(sets[aset], self, aset, mode=mode, **kwargs)
+                dd.to_hdf(sets[aset], self.__fspath__(), aset, mode=mode, **kwargs)
         else:
             with tempfile.NamedTemporaryFile() as f:
                 futures = self.__class__.cli.map(
