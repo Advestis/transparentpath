@@ -19,20 +19,17 @@ jobs:
           repo_name=$(echo ${{ github.repository }} | sed "s/${{ github.repository_owner }}\///g")
           echo "REPO_NAME=$repo_name" >> $GITHUB_ENV
           echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
-          if [ "${GITHUB_REF#refs/heads/}" != "master" ] && [ "${GITHUB_REF#refs/heads/}" != "main" ] ; then
-            echo "SUFFIX=$(echo -${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
-          fi
 
       - name: Check envvars
         run: |
           echo "branch: ${{ env.BRANCH_NAME }}"
           echo "repo: ${{ env.REPO_NAME }}"
-          echo "suffix: ${{ env.SUFFIX }}"
 
       - uses: actions/checkout@master
         with:
           persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
           fetch-depth: 0 # otherwise, you will failed to push refs to dest repo
+          ref: ${{ github.head_ref }}
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
