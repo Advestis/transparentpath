@@ -18,9 +18,9 @@ jobs:
         run: |
           repo_name=$(echo ${{ github.repository }} | sed "s/${{ github.repository_owner }}\///g")
           echo "REPO_NAME=$repo_name" >> $GITHUB_ENV
-          echo "BRANCH_NAME=$(echo ${GITHUB_BASE_REF#refs/heads/})" >> $GITHUB_ENV
-          if [ "${GITHUB_BASE_REF#refs/heads/}" != "master" ] && [ "${GITHUB_BASE_REF#refs/heads/}" != "main" ] ; then
-            echo "SUFFIX=$(echo -${GITHUB_BASE_REF#refs/heads/})" >> $GITHUB_ENV
+          echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
+          if [ "${GITHUB_REF#refs/heads/}" != "master" ] && [ "${GITHUB_REF#refs/heads/}" != "main" ] ; then
+            echo "SUFFIX=$(echo -${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
           fi
 
       - name: Check envvars
