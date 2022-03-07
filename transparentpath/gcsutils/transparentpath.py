@@ -279,8 +279,8 @@ def get_fs(
 
     Returns
     -------
-    Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem], Union[None, str]]
-        The FileSystem object and the project if on GCS, else None
+    Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem], Union[None, str], Union[None, str], Union[None, str]]
+        The FileSystem object, the project if on GCS else None, and the bucket if on GCS.
 
     """
 

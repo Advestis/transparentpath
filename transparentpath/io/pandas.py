@@ -44,7 +44,8 @@ try:
         try:
 
             check_kwargs(pd.read_csv, kwargs)
-            return pd.read_csv(self.__fspath__(), **kwargs)
+            with self.fs.open(self.__fspath__()) as f:
+                return pd.read_csv(f, **kwargs)
 
         except pd.errors.ParserError:
             # noinspection PyUnresolvedReferences
@@ -66,7 +67,8 @@ try:
             raise TPFileExistsError()
 
         check_kwargs(data.to_csv, kwargs)
-        data.to_csv(self.__fspath__(), **kwargs)
+        with self.fs.open(self.__fspath__(), "w") as f:
+            data.to_csv(f, **kwargs)
 
 
 except ImportError as e:

@@ -41,7 +41,7 @@ try:
         if which != "read":
             return
         if self.__class__.cli is None:
-            self.__class__.cli = client.Client(processes=False)
+            self.__class__.cli = client.Client()
         if self.suffix != ".csv" and self.suffix != ".parquet" and not self.is_file():
             raise TPFileNotFoundError(f"Could not find file {self}")
         else:
@@ -182,7 +182,7 @@ try:
             raise TPFileExistsError()
 
         if self.__class__.cli is None:
-            self.__class__.cli = client.Client(processes=False)
+            self.__class__.cli = client.Client()
         check_kwargs(dd.to_csv, kwargs)
         path_to_save = self
         if not path_to_save.stem.endswith("*"):
@@ -229,7 +229,7 @@ try:
             data.columns = data.columns.astype(str)
 
         if self.__class__.cli is None:
-            self.__class__.cli = client.Client(processes=False)
+            self.__class__.cli = client.Client()
         check_kwargs(dd.to_parquet, kwargs)
         dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
 
@@ -254,7 +254,7 @@ try:
             self._check_multiplicity()
 
         if self.__class__.cli is None:
-            self.__class__.cli = client.Client(processes=False)
+            self.__class__.cli = client.Client()
         check_kwargs(dd.to_hdf, kwargs)
 
         mode = "w"
@@ -305,7 +305,7 @@ try:
 
         if self.fs_kind == "local":
             if self.__class__.cli is None:
-                self.__class__.cli = client.Client(processes=False)
+                self.__class__.cli = client.Client()
             check_kwargs(pd.DataFrame.to_excel, kwargs)
             parts = delayed(pd.DataFrame.to_excel)(data, self.__fspath__(), **kwargs)
             parts.compute()
@@ -313,7 +313,7 @@ try:
         else:
             with tempfile.NamedTemporaryFile(delete=True, suffix=".xlsx") as f:
                 if TransparentPath.cli is None:
-                    TransparentPath.cli = client.Client(processes=False)
+                    TransparentPath.cli = client.Client()
                 check_kwargs(pd.DataFrame.to_excel, kwargs)
                 parts = delayed(pd.DataFrame.to_excel)(data, f.name, **kwargs)
                 parts.compute()
