@@ -3,7 +3,7 @@ on:
     branches:
       - master
 
-name: pull_request
+name: pytests
 jobs:
 
   test-setups:
