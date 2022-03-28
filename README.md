@@ -5,8 +5,8 @@
 **WARNING** : This package is not maintained for python 3.6 anymore. The latest version available for python 3.6 is 0.1.129.
 Please use python >= 3.7.
 
-![example workflow](https://github.com/Advestis/[repo]/actions/workflows/pull-request.yml/badge.svg)
-![example workflow](https://github.com/Advestis/[repo]/actions/workflows/push.yml/badge.svg)
+![example workflow](https://github.com/Advestis/ [repo] /actions/workflows/pull-request.yml/badge.svg)
+![example workflow](https://github.com/Advestis/ [repo] /actions/workflows/push.yml/badge.svg)
 
 ![example workflow](https://img.shields.io/github/issues-pr/Advestis/[repo].svg)
 ![example workflow](https://img.shields.io/github/issues/Advestis/[repo].svg)
