@@ -9,6 +9,8 @@ Please use python >= 3.7.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
+https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white
+
 # TransparentPath
 
 A class that allows one to use a path in a local file system or a Google Cloud Storage (GCS) file system in the
