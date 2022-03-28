@@ -7,7 +7,7 @@ handle an active community efficiently. For this reason, the following contribut
 
 ## Pull Requests
 
-The community is not allowed to open pull requests. We would not have the time to review them.
+The community's pull requests will not be treated. We would not have the time to review them. They will be closed with the suggestion to open them as Issues.
 
 ## Issues
 
