@@ -14,7 +14,7 @@ Please use python >= 3.7.
 ![example workflow](https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
 ![example workflow](http://ForTheBadge.com/images/badges/made-with-python.svg)
 
-[(https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/company/advestis/)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/company/advestis/)
 
 # TransparentPath
 
