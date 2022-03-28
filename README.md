@@ -3,16 +3,16 @@
 **WARNING** : This package is not maintained for python 3.6 anymore. The latest version available for python 3.6 is 0.1.129.
 Please use python >= 3.7.
 
-![example workflow](https://github.com/Advestis/transparentpath/actions/workflows/pull-request.yml/badge.svg)
-![example workflow](https://github.com/Advestis/transparentpath/actions/workflows/push.yml/badge.svg)
+![Pytests](https://github.com/Advestis/transparentpath/actions/workflows/pull-request.yml/badge.svg)
+![push](https://github.com/Advestis/transparentpath/actions/workflows/push.yml/badge.svg)
 
-![example workflow](https://img.shields.io/github/issues-pr/Advestis/transparentpath.svg)
-![example workflow](https://img.shields.io/github/issues/Advestis/transparentpath.svg)
+![Open PRs](https://img.shields.io/github/issues-pr/Advestis/transparentpath.svg)
+![Open Issues](https://img.shields.io/github/issues/Advestis/transparentpath.svg)
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-![example workflow](https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
-![example workflow](http://ForTheBadge.com/images/badges/made-with-python.svg)
+![OS](https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
+![Coded with](http://ForTheBadge.com/images/badges/made-with-python.svg)
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/company/advestis/)
 
