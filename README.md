@@ -6,6 +6,9 @@ Please use python >= 3.7.
 ![example workflow](https://github.com/Advestis/transparentpath/actions/workflows/pull-request.yml/badge.svg)
 ![example workflow](https://github.com/Advestis/transparentpath/actions/workflows/push.yml/badge.svg)
 
+![example workflow](https://img.shields.io/github/issues-pr/{username}/{repo-name}.svg)
+![example workflow](https://img.shields.io/github/issues/{username}/{repo-name}.svg)
+
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 ![example workflow](https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
