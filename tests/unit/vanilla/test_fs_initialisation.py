@@ -1,7 +1,7 @@
 import gcsfs
 import pytest
 from fsspec.implementations.local import LocalFileSystem
-from transparentpath import TransparentPath, TPNotADirectoryError
+from transparentpath import TransparentPath
 from ..functions import init, skip_gcs, reinit
 
 
@@ -35,6 +35,6 @@ def test_init_gcs_fail():  # Do not use clean : we do NOT want to execute the rm
         return
 
     reinit()
-    with pytest.raises(TPNotADirectoryError):
+    with pytest.raises(NotADirectoryError):
         TransparentPath.set_global_fs("gcs", bucket="coucou")
     reinit()

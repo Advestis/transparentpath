@@ -4,12 +4,6 @@ errormessage = (
 )
 
 
-class TPImportError(ImportError):
-    def __init__(self, message: str = ""):
-        self.message = f"Error in TransparentPath: {message}"
-        super().__init__(self.message)
-
-
 excel_ok = False
 
 try:
@@ -21,19 +15,19 @@ try:
     import sys
     import importlib.util
     from typing import Union, List, Tuple
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError, TPFileNotFoundError
+    from ..gcsutils.transparentpath import TransparentPath, check_kwargs
 
     if importlib.util.find_spec("xlrd") is None:
-        raise TPImportError("Need the 'xlrd' package")
+        raise ImportError("Need the 'xlrd' package")
     if importlib.util.find_spec("openpyxl") is None:
-        raise TPImportError("Need the 'openpyxl' package")
+        raise ImportError("Need the 'openpyxl' package")
 
     excel_ok = True
 
     def read(self, **kwargs) -> pd.DataFrame:
 
         if not self.is_file():
-            raise TPFileNotFoundError(f"Could not find file {self}")
+            raise FileNotFoundError(f"Could not find file {self}")
 
         check_kwargs(pd.read_excel, kwargs)
         # noinspection PyTypeChecker,PyUnresolvedReferences
@@ -64,7 +58,7 @@ try:
             self.change_suffix(".xlsx")
 
         if not overwrite and self.is_file() and present != "ignore":
-            raise TPFileExistsError()
+            raise FileExistsError()
 
         # noinspection PyTypeChecker
 
@@ -87,4 +81,4 @@ try:
 
 
 except ImportError as e:
-    raise TPImportError(str(e))
+    raise ImportError(str(e))

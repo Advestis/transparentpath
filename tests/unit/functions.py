@@ -19,7 +19,7 @@ def before_init():
     assert TransparentPath.unset
     assert TransparentPath.fs_kind is None
     assert TransparentPath.bucket is None
-    assert TransparentPath.nas_dir == "/media/SERVEUR"
+    assert TransparentPath.nas_dir is None
 
 
 def init(fs_kind, bucket_=""):
