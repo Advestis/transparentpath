@@ -6,12 +6,6 @@ errormessage = (
 parquet_ok = False
 
 
-class TPImportError(ImportError):
-    def __init__(self, message: str = ""):
-        self.message = f"Error in TransparentPath: {message}"
-        super().__init__(self.message)
-
-
 try:
     import pandas as pd
     import tempfile
@@ -19,10 +13,10 @@ try:
     import sys
     from typing import Union, List, Tuple
     import importlib.util
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError, TPFileNotFoundError
+    from ..gcsutils.transparentpath import TransparentPath, check_kwargs
 
     if importlib.util.find_spec("pyarrow") is None:
-        raise TPImportError("Need the 'pyarrow' package")
+        raise ImportError("Need the 'pyarrow' package")
 
     parquet_ok = True
 
@@ -48,7 +42,7 @@ try:
     def read(self, **kwargs) -> Union[pd.DataFrame, pd.Series]:
 
         if not self.is_file():
-            raise TPFileNotFoundError(f"Could not find file {self}")
+            raise FileNotFoundError(f"Could not find file {self}")
 
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
 
@@ -88,7 +82,7 @@ try:
                           f"specified '{compression}', it will be replaced by 'snappy'.")
 
         if not overwrite and self.is_file() and present != "ignore":
-            raise TPFileExistsError()
+            raise FileExistsError()
 
         if to_dataframe and isinstance(data, pd.Series):
             name = data.name
@@ -106,4 +100,4 @@ try:
 
 
 except ImportError as e:
-    raise TPImportError(str(e))
+    raise ImportError(str(e))

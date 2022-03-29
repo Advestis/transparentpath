@@ -4,12 +4,6 @@ errormessage = (
 )
 
 
-class TPImportError(ImportError):
-    def __init__(self, message: str = ""):
-        self.message = f"Error in TransparentPath: {message}"
-        super().__init__(self.message)
-
-
 try:
     # noinspection PyUnresolvedReferences,PyPackageRequirements
     import dask.dataframe as dd
@@ -26,8 +20,7 @@ try:
     # noinspection PyPackageRequirements
     import pandas as pd
 
-    from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs, \
-        TPFileNotFoundError, TPValueError, TPFileExistsError
+    from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs
     from .hdf5 import hdf5_ok
     from .hdf5 import errormessage as errormessage_hdf5
     from .excel import excel_ok
@@ -43,7 +36,7 @@ try:
         if self.__class__.cli is None:
             self.__class__.cli = client.Client()
         if self.suffix != ".csv" and self.suffix != ".parquet" and not self.is_file():
-            raise TPFileNotFoundError(f"Could not find file {self}")
+            raise FileNotFoundError(f"Could not find file {self}")
         else:
             if (
                 not self.is_file()
@@ -51,7 +44,7 @@ try:
                 and not self.with_suffix("").is_dir(exist=True)
                 and "*" not in str(self)
             ):
-                raise TPFileNotFoundError(f"Could not find file nor directory {self} nor {self.with_suffix('')}")
+                raise FileNotFoundError(f"Could not find file nor directory {self} nor {self.with_suffix('')}")
 
     def apply_index_and_date_dd(index_col: int, parse_dates: bool, df: dd.DataFrame) -> dd.DataFrame:
         if index_col is not None:
@@ -81,7 +74,7 @@ try:
     def read_parquet(self, **kwargs) -> Union[dd.DataFrame, dd.Series]:
 
         if not parquet_ok:
-            raise TPImportError(errormessage_parquet)
+            raise ImportError(errormessage_parquet)
 
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
 
@@ -102,7 +95,7 @@ try:
     def read_hdf5(self, set_names: str = "", use_pandas: bool = False, **kwargs) -> dd.DataFrame:
 
         if not hdf5_ok:
-            raise TPImportError(errormessage_hdf5)
+            raise ImportError(errormessage_hdf5)
 
         if use_pandas:
             raise NotImplementedError("Using dask in transparentpath does not support pandas's HDFStore")
@@ -112,7 +105,7 @@ try:
             mode = kwargs["mode"]
             del kwargs["mode"]
         if "r" not in mode:
-            raise TPValueError("If using read_hdf5, mode must contain 'r'")
+            raise ValueError("If using read_hdf5, mode must contain 'r'")
 
         if not self.nocheck:
             self._check_multiplicity()
@@ -120,7 +113,7 @@ try:
         check_dask(self)
 
         if len(set_names) == 0:
-            raise TPValueError(
+            raise ValueError(
                 "If using Dask, you must specify the dataset name to extract using set_names='aname' or a wildcard."
             )
 
@@ -137,7 +130,7 @@ try:
     def read_excel(self, **kwargs) -> pd.DataFrame:
 
         if not excel_ok:
-            raise TPImportError(errormessage_excel)
+            raise ImportError(errormessage_excel)
 
         # noinspection PyProtectedMember
         if not self.nocheck:
@@ -179,7 +172,7 @@ try:
             self._check_multiplicity()
 
         if not overwrite and self.is_file() and present != "ignore":
-            raise TPFileExistsError()
+            raise FileExistsError()
 
         if self.__class__.cli is None:
             self.__class__.cli = client.Client()
@@ -187,6 +180,7 @@ try:
         path_to_save = self
         if not path_to_save.stem.endswith("*"):
             path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
+        # noinspection PyTypeChecker
         futures = self.__class__.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
         outfiles = [
             TransparentPath(f, fs=self.fs_kind, bucket=self.bucket) for f in futures.result()
@@ -206,7 +200,7 @@ try:
     ) -> None:
 
         if not parquet_ok:
-            raise TPImportError(errormessage_hdf5)
+            raise ImportError(errormessage_hdf5)
 
         if self.suffix != ".parquet":
             warnings.warn(f"path {self} does not have '.parquet' as suffix while using to_parquet. The path will be "
@@ -223,7 +217,7 @@ try:
             self._check_multiplicity()
 
         if not overwrite and self.is_file() and present != "ignore":
-            raise TPFileExistsError()
+            raise FileExistsError()
 
         if columns_to_string and not isinstance(data.columns[0], str):
             data.columns = data.columns.astype(str)
@@ -240,7 +234,7 @@ try:
     ) -> Union[None, "h5py.File"]:
 
         if not hdf5_ok:
-            raise TPImportError(errormessage_hdf5)
+            raise ImportError(errormessage_hdf5)
 
         if use_pandas:
             raise NotImplementedError("TransparentPath does not support storing Dask objects in pandas's HDFStore yet.")
@@ -290,7 +284,7 @@ try:
     ) -> None:
 
         if not excel_ok:
-            raise TPImportError(errormessage_excel)
+            raise ImportError(errormessage_excel)
 
         if self.suffix != ".xlsx" and self.suffix != ".xls" and self.suffix != ".xlsm":
             warnings.warn(f"path {self} does not have '.xls(x,m)' as suffix while using to_excel. The path will be "
@@ -301,7 +295,7 @@ try:
             self._check_multiplicity()
 
         if not overwrite and self.is_file() and present != "ignore":
-            raise TPFileExistsError()
+            raise FileExistsError()
 
         if self.fs_kind == "local":
             if self.__class__.cli is None:
@@ -321,4 +315,4 @@ try:
 
 
 except ImportError as e:
-    raise TPImportError(str(e))
+    raise ImportError(str(e))

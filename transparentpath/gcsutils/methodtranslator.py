@@ -1,7 +1,7 @@
 from typing import Dict, Tuple, List
 
 
-class TPValueError(ValueError):
+class ValueError(ValueError):
     def __init__(self, message: str = ""):
         self.message = f"Error in TransparentPath: {message}"
         super().__init__(self.message)
@@ -110,7 +110,7 @@ class MultiMethodTranslator(object):
             new_method(arg1, arg2..., kwargs1=val1, translated_kwargs2=val2...)
         """
         if case not in self.cases:
-            raise TPValueError(f"Case {case} not fonud in object")
+            raise ValueError(f"Case {case} not fonud in object")
         return self.translators[case].translate_str(*args, **kwargs)
 
     def translate(self, case: str, *args: Tuple, **kwargs: Dict) -> [str, Tuple, Dict]:
@@ -130,5 +130,5 @@ class MultiMethodTranslator(object):
             translated kwargs
         """
         if case not in self.cases:
-            raise TPValueError(f"Case {case} not fonud in object")
+            raise ValueError(f"Case {case} not fonud in object")
         return self.translators[case].translate(*args, **kwargs)

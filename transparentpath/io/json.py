@@ -4,12 +4,6 @@ errormessage = (
 )
 
 
-class TPImportError(ImportError):
-    def __init__(self, message: str = ""):
-        self.message = f"Error in TransparentPath: {message}"
-        super().__init__(self.message)
-
-
 try:
     import json
     import warnings
@@ -65,4 +59,4 @@ try:
 
 
 except ImportError as e:
-    raise TPImportError(str(e))
+    raise ImportError(str(e))

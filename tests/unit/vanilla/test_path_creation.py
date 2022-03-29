@@ -2,7 +2,7 @@ import gcsfs
 import pytest
 import os
 from fsspec.implementations.local import LocalFileSystem
-from transparentpath import TransparentPath, TPValueError, TPNotADirectoryError
+from transparentpath import TransparentPath
 from ..functions import init, reinit, skip_gcs, get_prefixes, bucket
 
 
@@ -36,13 +36,13 @@ def test_set_global_fs_then_path_with_gs_failed(clean):
         return
 
     init("gcs")
-    with pytest.raises(TPValueError):
+    with pytest.raises(ValueError):
         TransparentPath(f"gs://{bucket + 'chat'}/chien", bucket=bucket)
 
-    with pytest.raises(TPNotADirectoryError):
+    with pytest.raises(NotADirectoryError):
         TransparentPath(f"gs://{bucket + 'chat'}/chien")
 
-    with pytest.raises(TPValueError):
+    with pytest.raises(ValueError):
         TransparentPath(f"gs://{bucket}/chien", fs="local")
 
 
@@ -113,7 +113,7 @@ def test_gcs_path_without_set_global_fs_fail(clean, args, kwargs):
         print("skipped")
         return
 
-    with pytest.raises(TPNotADirectoryError):
+    with pytest.raises(NotADirectoryError):
         TransparentPath(*args, **kwargs)
 
 

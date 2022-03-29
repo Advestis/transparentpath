@@ -1,7 +1,7 @@
 import builtins
 from typing import IO, Union, Any
 from pathlib import Path
-from ..gcsutils.transparentpath import TransparentPath, TPValueError, TPFileExistsError, TPFileNotFoundError
+from ..gcsutils.transparentpath import TransparentPath
 
 
 builtins_open = builtins.open
@@ -10,7 +10,7 @@ builtins_open = builtins.open
 def myopen(*args, **kwargs) -> IO:
     """Method overloading builtins' 'open' method, allowing to open files on GCS using TransparentPath."""
     if len(args) == 0:
-        raise TPValueError("open method needs arguments.")
+        raise ValueError("open method needs arguments.")
     thefile = args[0]
     if type(thefile) == str and "gs://" in thefile:
         thefile = TransparentPath(thefile)
@@ -24,7 +24,7 @@ def myopen(*args, **kwargs) -> IO:
     ):
         return builtins_open(*args, **kwargs)
     else:
-        raise TPValueError(f"Unknown type {type(thefile)} for path argument")
+        raise ValueError(f"Unknown type {type(thefile)} for path argument")
 
 
 def overload_open():
@@ -41,7 +41,7 @@ def put(self, dst: Union[str, Path, TransparentPath]):
     self must be a local TransparentPath. If dst is a TransparentPath, it must be on GCS. If it is a pathlib.Path
     or a str, it will be casted into a GCS TransparentPath, so a gcs file system must have been set up before. """
     if not self.fs_kind == "local":
-        raise TPValueError(
+        raise ValueError(
             "The calling instance of put() must be local. "
             "To move on gcs a file already on gcs, use mv("
             "). To move a file from gcs, to local, use get("
@@ -49,20 +49,20 @@ def put(self, dst: Union[str, Path, TransparentPath]):
         )
     # noinspection PyUnresolvedReferences
     if type(dst) == TransparentPath and "gcs" not in dst.fs_kind:
-        raise TPValueError(
+        raise ValueError(
             "The second argument can not be a local TransparentPath. To move a file localy, use the mv() method."
         )
     if type(dst) != TransparentPath:
         if TransparentPath.remote_prefix not in str(dst):
             if "gcs" not in "".join(TransparentPath.fss):
-                raise TPValueError("You need to set up a gcs file system before using the put() command.")
+                raise ValueError("You need to set up a gcs file system before using the put() command.")
             dst = TransparentPath(dst, fs="gcs")
         else:
             dst = TransparentPath(dst)
 
     # noinspection PyProtectedMember
     if not self.exist():
-        raise TPFileNotFoundError(f"No such file or directory: {self}")
+        raise FileNotFoundError(f"No such file or directory: {self}")
 
     if self.is_dir():
         for item in self.glob("/*"):
@@ -84,10 +84,10 @@ def get(self, loc: Union[str, Path, TransparentPath]):
     a str, it will be casted into a local TransparentPath. """
 
     if "gcs" not in self.fs_kind:
-        raise TPValueError("The calling instance of get() must be on GCS. To move a file localy, use the mv() method.")
+        raise ValueError("The calling instance of get() must be on GCS. To move a file localy, use the mv() method.")
     # noinspection PyUnresolvedReferences
     if type(loc) == TransparentPath and loc.fs_kind != "local":
-        raise TPValueError(
+        raise ValueError(
             "The second argument can not be a GCS "
             "TransparentPath. To move on gcs a file already"
             "on gcs, use mv(). To move a file from gcs, to"
@@ -107,7 +107,7 @@ def get(self, loc: Union[str, Path, TransparentPath]):
 
     # noinspection PyProtectedMember
     if not self.exist():
-        raise TPFileNotFoundError(f"No such file or directory: {self}")
+        raise FileNotFoundError(f"No such file or directory: {self}")
 
     if self.is_dir(exist=True):
         self.fs.get(self.__fspath__(), loc.__fspath__(), recursive=True)
@@ -146,7 +146,7 @@ def mv(self, other: Union[str, Path, TransparentPath]):
 
     # noinspection PyProtectedMember
     if not self.exist():
-        raise TPFileNotFoundError(f"No such file or directory: {self}")
+        raise FileNotFoundError(f"No such file or directory: {self}")
 
     if self.is_file():
         self.fs.mv(self.__fspath__(), other)
@@ -168,7 +168,7 @@ def cp(self, other: Union[str, Path, TransparentPath]):
 
     # noinspection PyProtectedMember
     if not self.exist():
-        raise TPFileNotFoundError(f"No such file or directory: {self}")
+        raise FileNotFoundError(f"No such file or directory: {self}")
 
     if not type(other) == TransparentPath:
         other = TransparentPath(
@@ -210,7 +210,7 @@ def cp(self, other: Union[str, Path, TransparentPath]):
 
 def read_text(self, *args, get_obj: bool = False, **kwargs) -> Union[str, IO]:
     if not self.is_file():
-        raise TPFileNotFoundError(f"Could not find file {self}")
+        raise FileNotFoundError(f"Could not find file {self}")
 
     byte_mode = True
     if len(args) == 0:
@@ -232,7 +232,7 @@ def read_text(self, *args, get_obj: bool = False, **kwargs) -> Union[str, IO]:
 def write_stuff(self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs) -> None:
 
     if not overwrite and self.is_file() and present != "ignore":
-        raise TPFileExistsError()
+        raise FileExistsError()
 
     args = list(args)
     if len(args) == 0:
