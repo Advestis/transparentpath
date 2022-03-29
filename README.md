@@ -7,8 +7,8 @@ Please use python >= 3.7.
 ![Pytests](https://github.com/Advestis/transparentpath/actions/workflows/pull-request.yml/badge.svg)
 ![push](https://github.com/Advestis/transparentpath/actions/workflows/push.yml/badge.svg)
 ![maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
-![issues](https://img.shields.io/github/issues/{username}/{repo-name}.svg)
-![pr](https://img.shields.io/github/issues-pr/{username}/{repo-name}.svg)
+![issues](https://img.shields.io/github/issues/Advestis/transparentpath.svg)
+![pr](https://img.shields.io/github/issues-pr/Advestis/transparentpath.svg)
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
