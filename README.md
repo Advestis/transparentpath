@@ -50,18 +50,18 @@ Optionally, you can also install support for several other packages like pandas,
 available optionnal packages are accessible through the follownig commands: 
 
 ```bash
-pip install transparentpath-nightly[pandas]
-pip install transparentpath-nightly[parquet]
-pip install transparentpath-nightly[hdf5]
-pip install transparentpath-nightly[json]
-pip install transparentpath-nightly[excel]
-pip install transparentpath-nightly[dask]
+pip install transparentpath[pandas]
+pip install transparentpath[parquet]
+pip install transparentpath[hdf5]
+pip install transparentpath[json]
+pip install transparentpath[excel]
+pip install transparentpath[dask]
 ```
 
 you can install all of those at once
 
 ```bash
-pip install transparentpath-nightly[all]
+pip install transparentpath[all]
 ```
 
 ## Usage
