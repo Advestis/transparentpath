@@ -32,9 +32,8 @@ same way one would use a *pathlib.Path* object.
 
 ## Requirements
 
-You will need credential .json file, that you can set in the envvar GOOGLE_APPLICATION_CREDENTIALS.
-If your python code is launched in a google cloud instance (VM, pods, etc...), GOOGLE_APPLICATION_CREDENTIALS should 
-be set by default. 
+You will need credentials, aither as a *.json* file, that you can set in the envvar GOOGLE_APPLICATION_CREDENTIALS, or
+by running directly in a google cloud instance (VM, pods, etc...). 
  
 ## Installation
 
