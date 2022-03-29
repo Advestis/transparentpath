@@ -6,6 +6,7 @@ Please use python >= 3.7.
 #### Status
 ![Pytests](https://github.com/Advestis/transparentpath/actions/workflows/pull-request.yml/badge.svg)
 ![push](https://github.com/Advestis/transparentpath/actions/workflows/push.yml/badge.svg)
+![maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
@@ -17,7 +18,8 @@ Please use python >= 3.7.
 
 ##### Contact
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/company/advestis/)
-[![mail](https://img.shields.io/badge/Microsoft_Outlook-0078D4?style=for-the-badge&logo=microsoft-outlook&logoColor=white)](pythondev@advestis.com)
+[site](https://img.shields.io/badge/Website-Advestis-1abc9c.svg)
+
 
 # TransparentPath
 
