@@ -1,8 +1,7 @@
 on:
   push:
     branches:
-      - master
-      - main
+      - none
 
 name: PyPI
 jobs:
