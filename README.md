@@ -68,7 +68,8 @@ pip install transparentpath[all]
 
 Set TransparentPath to point to GCS:
 ```python
-from transparentpath import TransparentPath as Path
+from transparentpath import Path
+# Or : from transparentpath import TransparentPath
 Path.set_global_fs("gcs", bucket="bucket_name")
 mypath = Path("foo") / "bar"  # Will use GCS
 local_path = Path("chien", fs="local")  # will NOT use GCS
@@ -79,7 +80,7 @@ other_path_2 = local_path / "stuff"  # Will NOT use GCS
 or
 
 ```python
-from transparentpath import TransparentPath as Path
+from transparentpath import Path
 mypath = Path("foo", fs='gcs', bucket="my_bucket_name")  # Will use GCS
 local_path = Path("chien", fs="local")  # will NOT use GCS 
 other_local_path = Path("foo2")  # will NOT use GCS
@@ -89,7 +90,7 @@ or
 
 ```python
 # noinspection PyShadowingNames
-from transparentpath import TransparentPath as Path
+from transparentpath import Path
 mypath = Path("gs://my_bucket_name/foo")  # Will use GCS
 other_path = Path("foo2")  # will NOT use GCS
 ```
@@ -97,7 +98,7 @@ other_path = Path("foo2")  # will NOT use GCS
 No matter whether you are using GCS or your local file system, the following commands are valid:
 
 ```python
-from transparentpath import TransparentPath as Path
+from transparentpath import Path
 # Path.set_global_fs("gcs", bucket="bucket_name", project="project_name")
 # The following lines will also work with the previous line uncommented 
 
@@ -166,7 +167,7 @@ All instances of TransparentPath are absolute, even if created with relative pat
 TransparentPaths are seen as instances of str: 
 
 ```python
-from transparentpath import TransparentPath as Path
+from transparentpath import Path
 path = Path()
 isinstance(path, str)  # returns True
 ```
@@ -174,7 +175,7 @@ isinstance(path, str)  # returns True
 This is required to allow
  
 ```python
-from transparentpath import TransparentPath as Path
+from transparentpath import Path
 path = Path()
 with open(path(), "w/r/a/b...") as ifile:
     ...
@@ -182,7 +183,7 @@ with open(path(), "w/r/a/b...") as ifile:
 to work. If you want to check whether path is actually a TransparentPath and nothing else, use 
 
 ```python
-from transparentpath import TransparentPath as Path
+from transparentpath import Path
 path = Path()
 type(path) == Path  # returns True
 ```
@@ -195,7 +196,7 @@ in your .bashrc. You can also do it from within your python code with `os.enviro
 =path_to_project_cred.json`. The last method is:
 
 ```python
-from transparentpath import TransparentPath as Path
+from transparentpath import Path
 Path.set_global_fs("gcs", bucket="bucket", token="path_to_project_cred.json")
 # AND/OR
 path = Path("gs://bucket/file", token="path_to_project_cred.json")
@@ -210,7 +211,7 @@ bucket.
 If your directories architecture on GCS is the same than localy up to some root directory, you can do:
 
 ```python
-from transparentpath import TransparentPath as Path
+from transparentpath import Path
 Path.nas_dir = "/media/SERVEUR" # Example root path that differs between local and GCS architecture
 Path.set_global_fs("gcs", bucket="my_bucket")
 p = Path("/media/SERVEUR") / "chien" / "chat"  # Will be gs://my_bucket/chien/chat
