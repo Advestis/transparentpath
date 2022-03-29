@@ -13,6 +13,7 @@
 ![OS](https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
 ![Coded with](https://img.shields.io/badge/Python-14354C?style=for-the-badge&logo=python&logoColor=white)
 ![GCP](https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)
+
 This package is not maintained for python 3.6 anymore. The latest version available for python 3.6 is 0.1.129.
 Please use python >= 3.7.
 
