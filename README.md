@@ -3,7 +3,7 @@
 **WARNING** : This package is not maintained for python 3.6 anymore. The latest version available for python 3.6 is 0.1.129.
 Please use python >= 3.7.
 
-#### status
+#### Status
 ![Pytests](https://github.com/Advestis/transparentpath/actions/workflows/pull-request.yml/badge.svg)
 ![push](https://github.com/Advestis/transparentpath/actions/workflows/push.yml/badge.svg)
 
@@ -12,6 +12,7 @@ Please use python >= 3.7.
 #### Compatibilities
 ![OS](https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
 ![Coded with](http://ForTheBadge.com/images/badges/made-with-python.svg)
+https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white
 
 
 ##### Contact
