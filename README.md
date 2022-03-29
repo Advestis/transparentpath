@@ -39,12 +39,9 @@ by running directly in a google cloud instance (VM, pods, etc...).
 
 You can install this package with pip :
 
-    pip install transparentpath-nightly
-
-Or use it in a Dockerfile:
-
-    FROM advestis/transparentpath-nightly
-    ...
+```bash
+pip install transparentpath
+```
 
 ## Optional packages
 
@@ -52,16 +49,20 @@ The vanilla version allows you to declare paths and work with them. You can use 
 Optionally, you can also install support for several other packages like pandas, dask, etc... the currently 
 available optionnal packages are accessible through the follownig commands: 
 
-    pip install transparentpath-nightly[pandas]
-    pip install transparentpath-nightly[parquet]
-    pip install transparentpath-nightly[hdf5]
-    pip install transparentpath-nightly[json]
-    pip install transparentpath-nightly[excel]
-    pip install transparentpath-nightly[dask]
+```bash
+pip install transparentpath-nightly[pandas]
+pip install transparentpath-nightly[parquet]
+pip install transparentpath-nightly[hdf5]
+pip install transparentpath-nightly[json]
+pip install transparentpath-nightly[excel]
+pip install transparentpath-nightly[dask]
+```
 
 you can install all of those at once
 
-    pip install transparentpath-nightly[all]
+```bash
+pip install transparentpath-nightly[all]
+```
 
 ## Usage
 
