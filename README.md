@@ -21,6 +21,7 @@ Please use python >= 3.7.
 ##### Contact
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/company/advestis/)
 [![website](https://img.shields.io/badge/website-Advestis.com-blue)](https://www.advestis.com/)
+[![mail](https://img.shields.io/badge/contact-maintainers-blue)](mailto:pcotte@advestis.com)
 
 
 
