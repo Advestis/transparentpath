@@ -27,6 +27,7 @@ try:
                     dct["dtypes"] = dict(obj.dtypes.astype(str))
                 else:
                     dct["dtype"] = str(obj.dtype)
+                dct["datetimeindex"] = isinstance(obj.index, pd.DatetimeIndex)
                 return dct
             elif isinstance(obj, np.ndarray):
                 return dict(__ndarray__=obj.tolist(), dtype=str(obj.dtype), shape=obj.shape)
@@ -41,23 +42,29 @@ try:
     def json_obj_hook(dct):
         if isinstance(dct, dict) and "__ndarray__" in dct:
             return np.array(dct["__ndarray__"], dct["dtype"]).reshape(dct["shape"])
-        elif isinstance(dct, dict) and "columns" in dct and "data" in dct:
-            possible_keys = ["data", "index", "dtypes", "columns"]
-            if len(dct) > 4: # not a pd.DataFrame
+        elif isinstance(dct, dict) and "columns" in dct and "data" in dct and "datetimeindex" in dct:
+            possible_keys = ["data", "index", "dtypes", "columns", "datetimeindex"]
+            if len(dct) > 5:  # not a pd.DataFrame
                 return dct
-            if any([k not in possible_keys for k in dct]): # not a pd.DataFrame either
+            if any([k not in possible_keys for k in dct]):  # not a pd.DataFrame either
                 return dct
             df = pd.DataFrame(dct["data"], columns=dct["columns"])
             if "index" in dct:
                 df.index = dct["index"]
             if "dtypes" in dct:
                 df = df.astype(dct["dtypes"])
+            if dct["datetimeindex"] is True:
+                if df.index.dtype == int:
+                    # noinspection PyTypeChecker
+                    df.index = pd.to_datetime(df.index, unit="ms")
+                else:
+                    df.index = pd.DatetimeIndex(df.index)
             return df
-        elif isinstance(dct, dict) and "data" in dct:
-            possible_keys = ["data", "index", "dtype", "name"]
-            if len(dct) > 4: # not a pd.Series
+        elif isinstance(dct, dict) and "data" in dct and "datetimeindex" in dct:
+            possible_keys = ["data", "index", "dtype", "name", "datetimeindex"]
+            if len(dct) > 5:  # not a pd.Series
                 return dct
-            if any([k not in possible_keys for k in dct]): # not a pd.Series either
+            if any([k not in possible_keys for k in dct]):  # not a pd.Series either
                 return dct
             s = pd.Series(dct["data"])
             if "index" in dct:
@@ -66,6 +73,12 @@ try:
                 s = s.astype(dct["dtype"])
             if "name" in dct:
                 s.name = dct["name"]
+            if dct["datetimeindex"] is True:
+                if s.index.dtype == int:
+                    # noinspection PyTypeChecker
+                    s.index = pd.to_datetime(s.index, unit="ms")
+                else:
+                    s.index = pd.DatetimeIndex(s.index)
             return s
 
         return dct
