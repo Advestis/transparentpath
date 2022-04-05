@@ -111,9 +111,7 @@ def test_write_pandas(clean, fs_kind):
         assert path.is_file()
         res = path.read()
         # noinspection PyUnresolvedReferences
-        assert (np.array(res["data"]) == data.values).all()
-        assert res["columns"] == data.columns.tolist()
-        assert res["index"] == data.index.tolist()
+        pd.testing.assert_frame_equal(data, res)
 
 
 def get_path(fs_kind):
