@@ -83,6 +83,17 @@ def get(self, loc: Union[str, Path, TransparentPath]):
     self must be a remote TransparentPath. If loc is a TransparentPath, it must be local. If it is a pathlib.Path or
     a str, it will be casted into a local TransparentPath. """
 
+    def recursive(source, destination):
+        if not source.exists():
+            raise FileNotFoundError(f"Element {source} does not exist")
+        if source.isfile():
+            source.get(destination)
+        elif source.isdir():
+            for element in source.glob("*", fast=True):
+                recursive(element, destination / element.name)
+        else:
+            raise ValueError(f"Element {source} exists is neither a file nor a dir, then what is it ?")
+
     if "gcs" not in self.fs_kind:
         raise ValueError("The calling instance of get() must be on GCS. To move a file localy, use the mv() method.")
     # noinspection PyUnresolvedReferences
@@ -110,7 +121,8 @@ def get(self, loc: Union[str, Path, TransparentPath]):
         raise FileNotFoundError(f"No such file or directory: {self}")
 
     if self.is_dir(exist=True):
-        self.fs.get(self.__fspath__(), loc.__fspath__(), recursive=True)
+        # Recursive fs.get does not find all existing elements, it seems, so overload it
+        recursive(self, loc)
     else:
         self.fs.get(self.__fspath__(), loc.__fspath__())
 
