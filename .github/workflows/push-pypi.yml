@@ -1,0 +1,67 @@
+on:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: pypi
+  cancel-in-progress: true
+
+name: push-pypi
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: "
+      !endsWith(github.event.head_commit.message, '!minor')
+      && !endsWith(github.event.head_commit.message, '!wip')
+      && !endsWith(github.event.head_commit.message, '!WIP')
+      && !startsWith(github.event.head_commit.message, 'doc:')
+      && !startsWith(github.event.head_commit.message, 'test')
+    "
+    strategy:
+      matrix:
+        python-version: [ 3.9 ]
+    steps:
+
+      - uses: actions/checkout@master
+        with:
+          persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
+          fetch-depth: 0 # otherwise, you will failed to push refs to dest repo
+          ref: ${{ github.head_ref }}
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: actions/cache@v2
+        with:
+          path: ${{ env.pythonLocation }}
+          key: ${{ env.pythonLocation }}-${{ hashFiles('setup.cfg') }}
+
+      - name: build
+        run: |
+          python -m pip install --upgrade pip
+          # versioneer gets the latest version from number of commits since tag
+          pip install --upgrade --upgrade-strategy eager .
+          # use this version to make a NEW tag
+          version=$(python -c '
+          import versioneer
+          v = versioneer.get_version()
+          ncommits = v.split("+")[1].split(".")[0]
+          tag = v.split("+")[0]
+          version = ".".join([tag, ncommits])
+          print(version)
+          ')
+          git tag v$version
+          echo "Version is $version"
+          python setup.py version
+          python setup.py sdist
+
+      - name: topypi
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: ${{ secrets.ORG_PYPI_LOGIN }}
+          password: ${{ secrets.ORG_PYPI_PASSWD }}
+          skip_existing: true
+          verbose: true

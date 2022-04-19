@@ -1,14 +1,22 @@
 on:
   push:
     branches:
-      - main
       - master
 
-name: PyPI
+concurrency:
+  group: doc
+  cancel-in-progress: true
+
+name: push-doc
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, 'VERSION-SKIP-CI')"
+    if: "
+      !endsWith(github.event.head_commit.message, '!minor')
+      && !endsWith(github.event.head_commit.message, '!wip')
+      && !endsWith(github.event.head_commit.message, '!WIP')
+      && !startsWith(github.event.head_commit.message, 'test')
+    "
     strategy:
       matrix:
         python-version: [ 3.9 ]
@@ -17,13 +25,8 @@ jobs:
       - name: Set envvars
         run: |
           repo_name=$(echo ${{ github.repository }} | sed "s/${{ github.repository_owner }}\///g")
+          echo "Repo name is $repo_name"
           echo "REPO_NAME=$repo_name" >> $GITHUB_ENV
-          echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
-
-      - name: Check envvars
-        run: |
-          echo "branch: ${{ env.BRANCH_NAME }}"
-          echo "repo: ${{ env.REPO_NAME }}"
 
       - uses: actions/checkout@master
         with:
@@ -36,22 +39,24 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - uses: actions/cache@v2
+        with:
+          path: ${{ env.pythonLocation }}
+          key: ${{ env.pythonLocation }}-${{ hashFiles('setup.cfg') }}
+
       - name: build
         run: |
           python -m pip install --upgrade pip
-          pip install .[all]
-          python setup.py sdist
+          pip install --upgrade --upgrade-strategy eager .
 
       - name: make doc
-        if: ${{ env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main' }}
         run: |
-          pip install pdoc3
+          pip install --upgrade --upgrade-strategy eager pdoc3
           pdoc --html ${{ env.REPO_NAME }} -o docs
           mv docs/${{ env.REPO_NAME }}/* docs/
           rm -r docs/${{ env.REPO_NAME }}
 
       - name: commit doc
-        if: ${{ env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main' }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
@@ -59,30 +64,8 @@ jobs:
           git commit -m "docs"
 
       - name: Push doc
-        if: ${{ env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main' }}
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.ORG_TOKEN_CICD }}
           branch: "gh-pages"
           force: true
-
-      - name: topypi
-        if: ${{ env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main' }}
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          user: ${{ secrets.ORG_PYPI_LOGIN }}
-          password: ${{ secrets.ORG_PYPI_PASSWD }}
-          skip_existing: true
-          verbose: true
-
-      - name: send-mail
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: outlook.office365.com
-          server_port: 587
-          username: ${{secrets.ORG_MAIL_AUTOMAT}}
-          password: ${{secrets.ORG_PASSWD_AUTOMAT}}
-          subject: New commit on branch ${{ env.BRANCH_NAME }} in project ${{ github.event.repository.name }}
-          to: cb1d360e.advestis.com@emea.teams.ms
-          body: Commit message is "${{ github.event.head_commit.message }}"
-          from: CI/CD
