@@ -2,8 +2,9 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 #### Status
-![Pytests](https://github.com/Advestis/transparentpath/actions/workflows/pull-request.yml/badge.svg)
-![push](https://github.com/Advestis/transparentpath/actions/workflows/push.yml/badge.svg)
+[![pytests](https://github.com/Advestis/transparentpath/actions/workflows/pull-request.yml/badge.svg)](https://github.com/Advestis/transparentpath/actions/workflows/pull-request.yml)
+[![push-pypi](https://github.com/Advestis/transparentpath/actions/workflows/push-pypi.yml/badge.svg)](https://github.com/Advestis/transparentpath/actions/workflows/push-pypi.yml)
+[![push-doc](https://github.com/Advestis/transparentpath/actions/workflows/push-doc.yml/badge.svg)](https://github.com/Advestis/transparentpath/actions/workflows/push-doc.yml)
 
 ![maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
 ![issues](https://img.shields.io/github/issues/Advestis/transparentpath.svg)
