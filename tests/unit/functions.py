@@ -1,11 +1,36 @@
 import sys
 import os
 from transparentpath import TransparentPath
-from pathlib import Path
 from importlib import reload
 
 bucket = "code_tests_sand"
 skip_gcs = {"local": False, "gcs": False}
+requirements = {"vanilla": []}
+
+with open("setup.cfg", "r") as setupfile:
+    all_reqs_lines = setupfile.read()
+    all_reqs_lines = all_reqs_lines[
+                     all_reqs_lines.index("[options.extras_require]"):all_reqs_lines.index("[versioneer]")
+                     ]
+    all_reqs_lines = all_reqs_lines.replace("[options.extras_require]", "").replace("[versioneer]", "").split("\n")
+    opt = None
+    for line in all_reqs_lines:
+        if line == "":
+            continue
+        if line.endswith("="):
+            opt = line.replace("=", "")
+            requirements[opt] = []
+        else:
+            if opt is None:
+                raise ValueError("Malformed setup.cfg : can not read requirements")
+            package = line.replace(" ", "")
+            package = package.split("==")[0] if "==" in package else package
+            package = package.split("<=")[0] if "<=" in package else package
+            package = package.split(">=")[0] if ">=" in package else package
+            package = package.split("<")[0] if "<" in package else package
+            package = package.split(">")[0] if ">=" in package else package
+            package = package.split("[")[0] if "[" in package else package
+            requirements[opt].append(package)
 
 # if "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
 #     print("No google credentials found. Skipping GCS tests.")
@@ -42,20 +67,7 @@ def get_prefixes(fs_kind):
 
 
 def get_reqs(name):
-    requirements = []
-    filename = Path(f"{name}-requirements.txt")
-    if name == "vanilla":
-        filename = Path("requirements.txt")
-    if not filename.is_file():
-        raise FileNotFoundError(f"File {filename} does not exist")
-    for s in filename.read_text().splitlines():
-        s = s.split("==")[0] if "==" in s else s
-        s = s.split("<=")[0] if "<=" in s else s
-        s = s.split(">=")[0] if ">=" in s else s
-        s = s.split("<")[0] if "<" in s else s
-        s = s.split(">")[0] if ">=" in s else s
-        requirements.append(s)
-    return requirements
+    return requirements[name]
 
 
 def get_path(fs_kind, suffix):

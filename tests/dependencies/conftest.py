@@ -1,5 +1,4 @@
 import pytest
-from pathlib import Path
 
 
 acceptable = {
@@ -14,28 +13,35 @@ acceptable = {
 @pytest.fixture
 def reqs(pytestconfig):
     name = pytestconfig.getoption("name")
-    requirements = {}
-    all_reqs = []
+    requirements = {"vanilla": []}
 
-    for afile in Path("").glob("*requirements.txt"):
-        if afile.stem == "requirements":
-            opt = "vanilla"
-        else:
-            opt = afile.stem.split("-requirements")[0]
-
-        requirements[opt] = []
-        for s in afile.read_text().splitlines():
-            s = s.split("==")[0] if "==" in s else s
-            s = s.split("<=")[0] if "<=" in s else s
-            s = s.split(">=")[0] if ">=" in s else s
-            s = s.split("<")[0] if "<" in s else s
-            s = s.split(">")[0] if ">=" in s else s
-            s = s.split("[")[0] if "[" in s else s
-            requirements[opt].append(s)
-        all_reqs = list(set(all_reqs) | set(requirements[opt]))
+    with open("setup.cfg", "r") as setupfile:
+        all_reqs_lines = setupfile.read()
+        all_reqs_lines = all_reqs_lines[
+                         all_reqs_lines.index("[options.extras_require]"):all_reqs_lines.index("[versioneer]")
+                         ]
+        all_reqs_lines = all_reqs_lines.replace("[options.extras_require]", "").replace("[versioneer]", "").split("\n")
+        opt = None
+        for line in all_reqs_lines:
+            if line == "":
+                continue
+            if line.endswith("="):
+                opt = line.replace("=", "")
+                requirements[opt] = []
+            else:
+                if opt is None:
+                    raise ValueError("Malformed setup.cfg : can not read requirements")
+                package = line.replace(" ", "")
+                package = package.split("==")[0] if "==" in package else package
+                package = package.split("<=")[0] if "<=" in package else package
+                package = package.split(">=")[0] if ">=" in package else package
+                package = package.split("<")[0] if "<" in package else package
+                package = package.split(">")[0] if ">=" in package else package
+                package = package.split("[")[0] if "[" in package else package
+                requirements[opt].append(package)
 
     if name == "all":
-        return all_reqs, [], []
+        return requirements["all"], [], []
 
     this_one = requirements[name]
     others = []
