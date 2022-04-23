@@ -35,7 +35,7 @@ same way one would use a *pathlib.Path* object. One can use many different GCP p
 
 ## Requirements
 
-You will need credentials, aither as a *.json* file, that you can set in the envvar GOOGLE_APPLICATION_CREDENTIALS, or
+You will need GCP credentials, either as a *.json* file, that you can set in the envvar GOOGLE_APPLICATION_CREDENTIALS, or
 by running directly in a google cloud instance (VM, pods, etc...). 
  
 ## Installation
