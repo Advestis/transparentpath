@@ -27,7 +27,7 @@ jobs:
       - name: Check PR message
         id: check
         run: |
-          message=$(echo ${{ steps.PR.outputs.pr_body }})
+          message=$(echo "${{ steps.PR.outputs.pr_body }}")
           echo "Message is $message"
           if [[ "$message" == "" ]] ; then
             echo "Pull request message not provided!!"
