@@ -946,6 +946,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.when_checked = path.when_checked
             # noinspection PyUnresolvedReferences
             self.when_updated = path.when_updated
+            # noinspection PyUnresolvedReferences
+            self.token = path.token
             return
 
         # In case we initiate a path containing 'gs://'
@@ -959,6 +961,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         self.__path = Path(str(path).encode("utf-8").decode("utf-8"), **kwargs)
 
+        self.token = token
         self.fs, self.fs_kind, b = get_fs(fs, bucket, token, path=self.__path)
         if b != "":
             bucket = b
