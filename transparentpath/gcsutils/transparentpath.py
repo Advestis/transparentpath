@@ -2408,10 +2408,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 present=present,
                 **kwargs,
             )
-        self.update_tpchache(data)
+        self.update_tpcache(data)
         assert self.is_file()
 
-    def update_tpchache(self, data) -> None:
+    def update_tpcache(self, data) -> None:
         if self.enable_caching:
             if self.caching == "ram":
                 if self.__hash__() in TransparentPath.cached_data_dict.keys():
@@ -2421,6 +2421,40 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     TransparentPath(TransparentPath.cached_data_dict[self.__hash__()]["file"].name, fs="local").write(
                         data
                     )
+
+    @property
+    def download(self) -> Union[None, str]:
+        """Returns a clickable link to download the file from GCS.
+
+        Returns None if the path does not correspond to an existing file on GCS.
+        """
+        if self.fs_kind.startswith("gcs") and self.is_file():
+            obj = str(self).replace(TransparentPath.remote_prefix, "").replace(" ", "%20")
+            return f"https://storage.cloud.google.com/{obj}"
+        return None
+
+    @property
+    def url(self) -> Union[None, str]:
+        """Returns a clickable link to open the path in GCS
+
+        Returns None if the path does not correspond to an existing file or directory.
+        """
+        obj = str(self).replace(TransparentPath.remote_prefix, "").replace(" ", "%20")
+        if self.fs_kind.startswith("gcs"):
+            project = self.fs.project
+            if self.is_file():
+                prefix = "https://console.cloud.google.com/storage/browser/_details/"
+                postfix = f";tab=live_object?project={project}"
+            elif self.is_dir():
+                prefix = "https://console.cloud.google.com/storage/browser/"
+                postfix = f";tab=objects?project={project}"
+            else:
+                return None
+        else:
+            if not self.exists():
+                return None
+            return f"file://{obj}"
+        return f"{prefix}{obj}{postfix}"
 
     # READ CSV
 

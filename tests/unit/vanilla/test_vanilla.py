@@ -453,3 +453,31 @@ def test_buckets(clean):
     init("gcs")
 
     assert "code_tests_sand/" in TransparentPath().buckets
+
+
+@pytest.mark.parametrize("fs_kind, ", ["local", "gcs"])
+def test_urls(clean, fs_kind):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+
+    p = TransparentPath("chat chat/chien chien")
+    p.touch()
+    if fs_kind == "gcs":
+        assert p.url == "https://console.cloud.google.com/storage/browser/_details/code_tests_sand/chat%20chat/" \
+                        "chien%20chien;tab=live_object?project=sandbox-281209"
+        print(p.url)
+        assert p.download == "https://storage.cloud.google.com/code_tests_sand/chat%20chat/chien%20chien"
+        print(p.download)
+        assert p.parent.url == "https://console.cloud.google.com/storage/browser/code_tests_sand/chat%20chat" \
+                               ";tab=objects?project=sandbox-281209"
+        print(p.parent.url)
+        assert p.parent.download is None
+    else:
+        assert p.url == f"file://{str(p).replace(' ', '%20')}"
+        print(p.url)
+        assert p.parent.url == f"file://{str(p.parent).replace(' ', '%20')}"
+        print(p.parent.url)
+        assert p.download is None
+        assert p.parent.download is None
