@@ -39,6 +39,7 @@ def clean(pytestconfig):
         path1.with_suffix(suffix).rm(recursive=True, ignore_kind=True, absent="ignore")
         path2.with_suffix(suffix).rm(recursive=True, ignore_kind=True, absent="ignore")
         path2.with_suffix(suffix).rm(recursive=True, ignore_kind=True, absent="ignore")
+    TransparentPath("chat chat").rm(recursive=True, ignore_kind=True, absent="ignore")
     TransparentPath._do_update_cache = True
     TransparentPath._do_check = True
     reinit()
