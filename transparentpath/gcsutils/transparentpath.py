@@ -973,7 +973,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.enable_caching = enable_caching
 
         if path is None:
-            path = "."
+            path = "../main"
 
         if (
             not (type(path) == type(Path("dummy")))  # noqa: E721
@@ -2706,10 +2706,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
 # Do imports from detached files here because some of them import TransparentPath and need it fully declared.
 
-from ..io.io import put, get, mv, cp, overload_open, read_text, write_stuff, write_bytes
+from transparentpath.io.io import put, get, mv, cp, overload_open, read_text, write_stuff, write_bytes
 
 # noinspection PyUnresolvedReferences
-from ..io import zipfile
+from transparentpath.io import zipfile
 
 overload_open()
 setattr(TransparentPath, "put", put)
@@ -2739,7 +2739,7 @@ except ImportError:
 
 try:
     # noinspection PyUnresolvedReferences
-    from ..io.pandas import read, write
+    from transparentpath.io.pandas import read, write
 
     setattr(TransparentPath, "read_csv_classic", read)
     setattr(TransparentPath, "to_csv_classic", write)
@@ -2748,7 +2748,7 @@ except ImportError:
 
 try:
     # noinspection PyUnresolvedReferences
-    from ..io.hdf5 import read, write
+    from transparentpath.io.hdf5 import read, write
 
     setattr(TransparentPath, "read_hdf5_classic", read)
     setattr(TransparentPath, "to_hdf5_classic", write)
@@ -2757,7 +2757,7 @@ except ImportError:
 
 try:
     # noinspection PyUnresolvedReferences
-    from ..io.parquet import read, write
+    from transparentpath.io.parquet import read, write
 
     setattr(TransparentPath, "read_parquet_classic", read)
     setattr(TransparentPath, "to_parquet_classic", write)
@@ -2766,7 +2766,7 @@ except ImportError:
 
 try:
     # noinspection PyUnresolvedReferences
-    from ..io.excel import read, write
+    from transparentpath.io.excel import read, write
 
     setattr(TransparentPath, "read_excel_classic", read)
     setattr(TransparentPath, "to_excel_classic", write)
@@ -2774,7 +2774,7 @@ except ImportError:
     pass
 
 try:
-    from ..io.dask import (
+    from transparentpath.io.dask import (
         read_csv,
         write_csv,
         read_hdf5,
