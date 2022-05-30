@@ -4,18 +4,12 @@ errormessage = (
 )
 
 
-class TPImportError(ImportError):
-    def __init__(self, message: str = ""):
-        self.message = f"Error in TransparentPath: {message}"
-        super().__init__(self.message)
-
-
 try:
     import pandas as pd
     import tempfile
     import warnings
     from typing import Union, List
-    from ..gcsutils.transparentpath import TransparentPath, check_kwargs, TPFileExistsError, TPFileNotFoundError
+    from ..gcsutils.transparentpath import TransparentPath, check_kwargs
 
     class MyHDFStore(pd.HDFStore):
         """Same as MyHDFFile but for pd.HDFStore objects"""
@@ -38,13 +32,14 @@ try:
     def read(self, **kwargs) -> pd.DataFrame:
 
         if not self.is_file():
-            raise TPFileNotFoundError(f"Could not find file {self}")
+            raise FileNotFoundError(f"Could not find file {self}")
 
         # noinspection PyTypeChecker,PyUnresolvedReferences
         try:
 
             check_kwargs(pd.read_csv, kwargs)
-            return pd.read_csv(self.__fspath__(), **kwargs)
+            with self.fs.open(self.__fspath__()) as f:
+                return pd.read_csv(f, **kwargs)
 
         except pd.errors.ParserError:
             # noinspection PyUnresolvedReferences
@@ -63,11 +58,12 @@ try:
             self.change_suffix(".csv")
 
         if not overwrite and self.is_file() and present != "ignore":
-            raise TPFileExistsError()
+            raise FileExistsError()
 
         check_kwargs(data.to_csv, kwargs)
-        data.to_csv(self.__fspath__(), **kwargs)
+        with self.fs.open(self.__fspath__(), "w") as f:
+            data.to_csv(f, **kwargs)
 
 
 except ImportError as e:
-    raise TPImportError(str(e))
+    raise ImportError(str(e))

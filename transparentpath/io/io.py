@@ -2,7 +2,7 @@ import builtins
 import tempfile
 from typing import IO, Union, Any
 from pathlib import Path
-from ..main.transparentpath import TransparentPath, TPValueError, TPFileExistsError, TPFileNotFoundError
+from ..gcsutils.transparentpath import TransparentPath
 
 
 builtins_open = builtins.open
@@ -11,7 +11,7 @@ builtins_open = builtins.open
 def myopen(*args, **kwargs) -> IO:
     """Method overloading builtins' 'open' method, allowing to open files on GCS using TransparentPath."""
     if len(args) == 0:
-        raise TPValueError("open method needs arguments.")
+        raise ValueError("open method needs arguments.")
     thefile = args[0]
     if type(thefile) == str and "gs://" in thefile:
         thefile = TransparentPath(thefile)
@@ -25,7 +25,7 @@ def myopen(*args, **kwargs) -> IO:
     ):
         return builtins_open(*args, **kwargs)
     else:
-        raise TPValueError(f"Unknown type {type(thefile)} for path argument")
+        raise ValueError(f"Unknown type {type(thefile)} for path argument")
 
 
 def overload_open():
@@ -48,7 +48,7 @@ def upload(self, dst: Union[str, Path, TransparentPath]):
     or a str, it will be casted into a GCS TransparentPath, so a remote file system must have been set up before.
     """
     if not self.fs_kind == "local":
-        raise TPValueError(
+        raise ValueError(
             "The calling instance of put() must be local. "
             "To move on remote a file already on remote, use mv("
             "). To move a file from remote, to local, use get("
@@ -56,7 +56,7 @@ def upload(self, dst: Union[str, Path, TransparentPath]):
         )
     # noinspection PyUnresolvedReferences
     if type(dst) == TransparentPath and dst.fs_kind == "local":
-        raise TPValueError(
+        raise ValueError(
             "The second argument can not be a local TransparentPath. To move a file localy, use the mv() method."
         )
     if type(dst) != TransparentPath:
@@ -70,11 +70,15 @@ def upload(self, dst: Union[str, Path, TransparentPath]):
         if prefix == "":
             existing_fs_names = "-".join(list(TransparentPath.fss.keys()))
             if "gcs_" not in existing_fs_names and "s3_" not in existing_fs_names:
-                raise TPValueError("No global remote file system set up. Please give put() a TransparentPath or a str"
-                                   "starting with the remote file system prefix.")
+                raise ValueError(
+                    "No global remote file system set up. Please give put() a TransparentPath or a str"
+                    " starting with the remote file system prefix."
+                )
             if "gcs_" in existing_fs_names and "s3_" in existing_fs_names:
-                raise TPValueError("More than one global remote file system set up. Please give put() a TransparentPath"
-                                   "  or a str starting with the remote file system prefix.")
+                raise ValueError(
+                    "More than one global remote file system set up. Please give put() a TransparentPath"
+                    " or a str starting with the remote file system prefix."
+                )
             if "gcs_" in existing_fs_names:
                 dst = TransparentPath(dst, fs_kind="gcs")
             if "s3_" in existing_fs_names:
@@ -84,7 +88,7 @@ def upload(self, dst: Union[str, Path, TransparentPath]):
 
     # noinspection PyProtectedMember
     if not self.exist():
-        raise TPFileNotFoundError(f"No such file or directory: {self}")
+        raise FileNotFoundError(f"No such file or directory: {self}")
 
     if self.is_dir():
         for item in self.glob("/*"):
@@ -109,11 +113,22 @@ def download(self, loc: Union[str, Path, TransparentPath]):
     self must be a remote TransparentPath. If loc is a TransparentPath, it must be local. If it is a pathlib.Path or
     a str, it will be casted into a local TransparentPath. """
 
+    def recursive(source, destination):
+        if not source.exists():
+            raise FileNotFoundError(f"Element {source} does not exist")
+        if source.isfile():
+            source.get(destination)
+        elif source.isdir():
+            for element in source.glob("*", fast=True):
+                recursive(element, destination / element.name)
+        else:
+            raise ValueError(f"Element {source} exists is neither a file nor a dir, then what is it ?")
+
     if self.fs_kind == "local":
-        raise TPValueError("The calling instance of get() must be remote. To move a file localy, use the mv() method.")
+        raise ValueError("The calling instance of get() must be remote. To move a file localy, use the mv() method.")
     # noinspection PyUnresolvedReferences
     if type(loc) == TransparentPath and loc.fs_kind != "local":
-        raise TPValueError(
+        raise ValueError(
             "The second argument can not be a remote "
             "TransparentPath. To move on remote a file already"
             "on remote, use mv(). To move a file from remote, to"
@@ -122,7 +137,7 @@ def download(self, loc: Union[str, Path, TransparentPath]):
     if type(loc) != TransparentPath:
         loc = TransparentPath(
             loc,
-            fs_kind="local",
+            fs="local",
             notupdatecache=self.notupdatecache,
             nocheck=self.nocheck,
             when_checked=self.when_checked,
@@ -133,37 +148,75 @@ def download(self, loc: Union[str, Path, TransparentPath]):
 
     # noinspection PyProtectedMember
     if not self.exist():
-        raise TPFileNotFoundError(f"No such file or directory: {self}")
+        raise FileNotFoundError(f"No such file or directory: {self}")
 
     if self.is_dir(exist=True):
-        self.fs.get(self.__fspath__(), loc.__fspath__(), recursive=True)
+        # Recursive fs.get does not find all existing elements, it seems, so overload it
+        recursive(self, loc)
     else:
         self.fs.get(self.__fspath__(), loc.__fspath__())
 
 
 def mv(self, other: Union[str, Path, TransparentPath]):
-    """
-    Moves self to other. Works between any file systems
-    """
-
-    self.cp(other)
-    self.rm(absent="raise", ignore_kind=True)
-
-
-def cp(self, other: Union[str, Path, TransparentPath]):
-    """
-    Copies self to other. Works between any file systems.
-    If other is not a TransparentPath, it will be assumed that it is on the same file system than self.
-    """
-
-    # noinspection PyProtectedMember
-    if not self.exist():
-        raise TPFileNotFoundError(f"No such file or directory: {self}")
+    """Used to move a file or a directory. Works between any filesystems."""
 
     if not type(other) == TransparentPath:
         other = TransparentPath(
             other,
-            fs_kind=self.fs_kind,
+            fs=self.fs_kind,
+            bucket=self.bucket,
+            notupdatecache=self.notupdatecache,
+            nocheck=self.nocheck,
+            when_checked=self.when_checked,
+            when_updated=self.when_updated,
+            update_expire=self.update_expire,
+            check_expire=self.check_expire,
+            token=self.token,
+        )
+
+    if other.fs_kind != self.fs_kind:
+        # TODO : adapt to s3
+        if self.fs_kind == "local":
+            self.put(other)
+            self.rm(absent="raise", ignore_kind=True)
+        else:
+            self.get(other)
+            self.rm(absent="raise", ignore_kind=True)
+        return
+
+    # Do not use filesystem's move, for it is coded by apes and is not able to use recursive properly
+    # self.fs.mv(self.__fspath__(), other, **kwargs)
+
+    # noinspection PyProtectedMember
+    if not self.exist():
+        raise FileNotFoundError(f"No such file or directory: {self}")
+
+    if self.is_file():
+        self.fs.mv(self.__fspath__(), other)
+        return
+
+    for stuff in list(self.glob("**/*", fast=True)):
+        # noinspection PyUnresolvedReferences
+        if not stuff.is_file():
+            continue
+        # noinspection PyUnresolvedReferences
+        relative = stuff.split(f"/{self.name}/")[-1]
+        newpath = other / relative
+        newpath.parent.mkdir(recursive=True)
+        self.fs.mv(stuff.__fspath__(), newpath)
+
+
+def cp(self, other: Union[str, Path, TransparentPath]):
+    """Used to copy a file or a directory on the same filesystem."""
+
+    # noinspection PyProtectedMember
+    if not self.exist():
+        raise FileNotFoundError(f"No such file or directory: {self}")
+
+    if not type(other) == TransparentPath:
+        other = TransparentPath(
+            other,
+            fs=self.fs_kind,
             bucket=self.bucket,
             notupdatecache=self.notupdatecache,
             nocheck=self.nocheck,
@@ -208,7 +261,7 @@ def cp(self, other: Union[str, Path, TransparentPath]):
 
 def read_text(self, *args, get_obj: bool = False, **kwargs) -> Union[str, IO]:
     if not self.is_file():
-        raise TPFileNotFoundError(f"Could not find file {self}")
+        raise FileNotFoundError(f"Could not find file {self}")
 
     byte_mode = True
     if len(args) == 0:
@@ -230,7 +283,7 @@ def read_text(self, *args, get_obj: bool = False, **kwargs) -> Union[str, IO]:
 def write_stuff(self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs) -> None:
 
     if not overwrite and self.is_file() and present != "ignore":
-        raise TPFileExistsError()
+        raise FileExistsError()
 
     args = list(args)
     if len(args) == 0:

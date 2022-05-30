@@ -4,12 +4,6 @@ errormessage = (
 )
 
 
-class TPImportError(ImportError):
-    def __init__(self, message: str = ""):
-        self.message = f"Error in TransparentPath: {message}"
-        super().__init__(self.message)
-
-
 try:
     # noinspection PyUnresolvedReferences,PyPackageRequirements
     import dask.dataframe as dd
@@ -26,8 +20,7 @@ try:
     # noinspection PyPackageRequirements
     import pandas as pd
 
-    from ..main.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs, \
-        TPFileNotFoundError, TPValueError, TPFileExistsError
+    from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs
     from .hdf5 import hdf5_ok
     from .hdf5 import errormessage as errormessage_hdf5
     from .excel import excel_ok
@@ -41,9 +34,9 @@ try:
         if which != "read":
             return
         if self.__class__.cli is None:
-            self.__class__.cli = client.Client(processes=False)
+            self.__class__.cli = client.Client()
         if self.suffix != ".csv" and self.suffix != ".parquet" and not self.is_file():
-            raise TPFileNotFoundError(f"Could not find file {self}")
+            raise FileNotFoundError(f"Could not find file {self}")
         else:
             if (
                 not self.is_file()
@@ -51,7 +44,7 @@ try:
                 and not self.with_suffix("").is_dir(exist=True)
                 and "*" not in str(self)
             ):
-                raise TPFileNotFoundError(f"Could not find file nor directory {self} nor {self.with_suffix('')}")
+                raise FileNotFoundError(f"Could not find file nor directory {self} nor {self.with_suffix('')}")
 
     def apply_index_and_date_dd(index_col: int, parse_dates: bool, df: dd.DataFrame) -> dd.DataFrame:
         if index_col is not None:
@@ -81,7 +74,7 @@ try:
     def read_parquet(self, **kwargs) -> Union[dd.DataFrame, dd.Series]:
 
         if not parquet_ok:
-            raise TPImportError(errormessage_parquet)
+            raise ImportError(errormessage_parquet)
 
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
 
@@ -102,7 +95,7 @@ try:
     def read_hdf5(self, set_names: str = "", use_pandas: bool = False, **kwargs) -> dd.DataFrame:
 
         if not hdf5_ok:
-            raise TPImportError(errormessage_hdf5)
+            raise ImportError(errormessage_hdf5)
 
         if use_pandas:
             raise NotImplementedError("Using dask in transparentpath does not support pandas's HDFStore")
@@ -112,7 +105,7 @@ try:
             mode = kwargs["mode"]
             del kwargs["mode"]
         if "r" not in mode:
-            raise TPValueError("If using read_hdf5, mode must contain 'r'")
+            raise ValueError("If using read_hdf5, mode must contain 'r'")
 
         if not self.nocheck:
             self._check_multiplicity()
@@ -120,13 +113,13 @@ try:
         check_dask(self)
 
         if len(set_names) == 0:
-            raise TPValueError(
+            raise ValueError(
                 "If using Dask, you must specify the dataset name to extract using set_names='aname' or a wildcard."
             )
 
         check_kwargs(dd.read_hdf, kwargs)
         if self.fs_kind == "local":
-            return dd.read_hdf(pattern=self, key=set_names, **kwargs)
+            return dd.read_hdf(pattern=self.__fspath__(), key=set_names, **kwargs)
         f = tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5")
         f.close()  # deletes the tmp file, but we can still use its name to download the remote file locally
         self.get(f.name)
@@ -134,11 +127,10 @@ try:
         # Do not delete the tmp file, since dask tasks are delayed
         return data.result()
 
-    # noinspection PyUnresolvedReferences
     def read_excel(self, **kwargs) -> pd.DataFrame:
 
         if not excel_ok:
-            raise TPImportError(errormessage_excel)
+            raise ImportError(errormessage_excel)
 
         # noinspection PyProtectedMember
         if not self.nocheck:
@@ -180,24 +172,24 @@ try:
             self._check_multiplicity()
 
         if not overwrite and self.is_file() and present != "ignore":
-            raise TPFileExistsError()
+            raise FileExistsError()
 
         if self.__class__.cli is None:
-            self.__class__.cli = client.Client(processes=False)
+            self.__class__.cli = client.Client()
         check_kwargs(dd.to_csv, kwargs)
         path_to_save = self
         if not path_to_save.stem.endswith("*"):
             path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
+        # noinspection PyTypeChecker
         futures = self.__class__.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
         outfiles = [
-            TransparentPath(f, fs_kind=self.fs_kind, bucket=self.bucket) for f in futures.result()
+            TransparentPath(f, fs=self.fs_kind, bucket=self.bucket) for f in futures.result()
         ]
         if len(outfiles) == 1:
             outfiles[0].mv(self)
         else:
             return outfiles
 
-    # noinspection PyUnresolvedReferences
     def write_parquet(
         self,
         data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
@@ -208,7 +200,7 @@ try:
     ) -> None:
 
         if not parquet_ok:
-            raise TPImportError(errormessage_hdf5)
+            raise ImportError(errormessage_hdf5)
 
         if self.suffix != ".parquet":
             warnings.warn(f"path {self} does not have '.parquet' as suffix while using to_parquet. The path will be "
@@ -225,13 +217,13 @@ try:
             self._check_multiplicity()
 
         if not overwrite and self.is_file() and present != "ignore":
-            raise TPFileExistsError()
+            raise FileExistsError()
 
         if columns_to_string and not isinstance(data.columns[0], str):
             data.columns = data.columns.astype(str)
 
         if self.__class__.cli is None:
-            self.__class__.cli = client.Client(processes=False)
+            self.__class__.cli = client.Client()
         check_kwargs(dd.to_parquet, kwargs)
         dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
 
@@ -242,7 +234,7 @@ try:
     ) -> Union[None, "h5py.File"]:
 
         if not hdf5_ok:
-            raise TPImportError(errormessage_hdf5)
+            raise ImportError(errormessage_hdf5)
 
         if use_pandas:
             raise NotImplementedError("TransparentPath does not support storing Dask objects in pandas's HDFStore yet.")
@@ -256,7 +248,7 @@ try:
             self._check_multiplicity()
 
         if self.__class__.cli is None:
-            self.__class__.cli = client.Client(processes=False)
+            self.__class__.cli = client.Client()
         check_kwargs(dd.to_hdf, kwargs)
 
         mode = "w"
@@ -273,17 +265,16 @@ try:
 
         if self.fs_kind == "local":
             for aset in sets:
-                dd.to_hdf(sets[aset], self, aset, mode=mode, **kwargs)
+                dd.to_hdf(sets[aset], self.__fspath__(), aset, mode=mode, **kwargs)
         else:
             with tempfile.NamedTemporaryFile() as f:
                 futures = self.__class__.cli.map(
                     dd.to_hdf, list(sets.values()), [f.name] * len(sets), list(sets.keys()), mode=mode, **kwargs
                 )
                 self.__class__.cli.gather(futures)
-                TransparentPath(path=f.name, fs_kind="local", bucket=self.bucket).put(self.path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
         return
 
-    # noinspection PyUnresolvedReferences
     def write_excel(
         self,
         data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
@@ -293,7 +284,7 @@ try:
     ) -> None:
 
         if not excel_ok:
-            raise TPImportError(errormessage_excel)
+            raise ImportError(errormessage_excel)
 
         if self.suffix != ".xlsx" and self.suffix != ".xls" and self.suffix != ".xlsm":
             warnings.warn(f"path {self} does not have '.xls(x,m)' as suffix while using to_excel. The path will be "
@@ -304,11 +295,11 @@ try:
             self._check_multiplicity()
 
         if not overwrite and self.is_file() and present != "ignore":
-            raise TPFileExistsError()
+            raise FileExistsError()
 
         if self.fs_kind == "local":
             if self.__class__.cli is None:
-                self.__class__.cli = client.Client(processes=False)
+                self.__class__.cli = client.Client()
             check_kwargs(pd.DataFrame.to_excel, kwargs)
             parts = delayed(pd.DataFrame.to_excel)(data, self.__fspath__(), **kwargs)
             parts.compute()
@@ -316,12 +307,12 @@ try:
         else:
             with tempfile.NamedTemporaryFile(delete=True, suffix=".xlsx") as f:
                 if TransparentPath.cli is None:
-                    TransparentPath.cli = client.Client(processes=False)
+                    TransparentPath.cli = client.Client()
                 check_kwargs(pd.DataFrame.to_excel, kwargs)
                 parts = delayed(pd.DataFrame.to_excel)(data, f.name, **kwargs)
                 parts.compute()
-                TransparentPath(path=f.name, fs_kind="local", bucket=self.bucket).put(self.path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
 
 
 except ImportError as e:
-    raise TPImportError(str(e))
+    raise ImportError(str(e))

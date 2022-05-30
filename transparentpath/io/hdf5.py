@@ -5,20 +5,14 @@ errormessage = (
 hdf5_ok = False
 
 
-class TPImportError(ImportError):
-    def __init__(self, message: str = ""):
-        self.message = f"Error in TransparentPath: {message}"
-        super().__init__(self.message)
-
-
 class MyHDFFile:
     def __init__(self):
-        raise TPImportError(errormessage)
+        raise ImportError(errormessage)
 
 
 class MyHDFStore:
     def __init__(self):
-        raise TPImportError(
+        raise ImportError(
             "pandas does not seem to be installed. You will not be able to use pandas objects through "
             "TransparentPath.\nYou can change that by running 'pip install transparentpath[pandas]'."
         )
@@ -30,7 +24,7 @@ try:
     import tempfile
     from typing import Union, Any
     from pathlib import Path
-    from ..main.transparentpath import TransparentPath, TPValueError, TPFileNotFoundError
+    from ..gcsutils.transparentpath import TransparentPath
     from .pandas import MyHDFStore
     import sys
     import importlib.util
@@ -38,14 +32,13 @@ try:
     hdf5_ok = True
 
     if importlib.util.find_spec("tables") is None:
-        raise TPImportError("Need the 'tables' package")
+        raise ImportError("Need the 'tables' package")
 
     class MyHDFFile(h5py.File):
         """Class to override h5py.File to handle files on remote.
 
         This allows to do :
         >>> from transparentpath import TransparentPath  # doctest: +SKIP
-        >>> # noinspection PyUnresolvedReferences
         >>> import numpy as np  # doctest: +SKIP
         >>> TransparentPath.set_global_fs("gcs", bucket="bucket_name")  # doctest: +SKIP
         >>> path = TransparentPath("chien.hdf5"  # doctest: +SKIP
@@ -83,7 +76,7 @@ try:
             h5py.File.__exit__(self, *args)
             if self.remote_file is not None:
                 # noinspection PyUnresolvedReferences
-                TransparentPath(self.local_path.name, fs_kind="local").put(self.remote_file)
+                TransparentPath(self.local_path.name, fs="local").put(self.remote_file)
                 # noinspection PyUnresolvedReferences
                 self.local_path.close()
 
@@ -116,14 +109,14 @@ try:
             mode = kwargs["mode"]
             del kwargs["mode"]
         if "r" not in mode:
-            raise TPValueError("If using read_hdf5, mode must contain 'r'")
+            raise ValueError("If using read_hdf5, mode must contain 'r'")
 
         class_to_use = h5py.File
         if use_pandas:
             class_to_use = MyHDFStore
 
         if not self.is_file():
-            raise TPFileNotFoundError(f"Could not find file {self}")
+            raise FileNotFoundError(f"Could not find file {self}")
 
         if self.fs_kind == "local":
             # Do not check kwargs since HDFStore and h5py both accepct kwargs anyway
@@ -210,7 +203,7 @@ try:
                     thefile.close()
                     TransparentPath(
                         path=f.name,
-                        fs_kind="local",
+                        fs="local",
                         notupdatecache=self.notupdatecache,
                         nocheck=self.nocheck,
                         when_checked=self.when_checked,
@@ -228,4 +221,4 @@ try:
         pass
 
 except ImportError as e:
-    raise TPImportError(str(e))
+    raise ImportError(str(e))

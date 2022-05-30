@@ -1,5 +1,0 @@
-gcsfs==2021.10.0
-fsspec==2021.10.0
-pathlib
-setuptools
-datetime

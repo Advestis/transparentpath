@@ -1,7 +1,6 @@
-from .main.transparentpath import TransparentPath
-from .main.transparentpath import TransparentPath as Path
-from .main.transparentpath import TPImportError, TPTypeError, TPValueError, TPAttributeError, TPEnvironmentError,\
-    TPIsADirectoryError, TPNotADirectoryError, TPFileNotFoundError, TPFileExistsError, TPMultipleExistenceError
+from .gcsutils.transparentpath import TransparentPath
+from .gcsutils.transparentpath import TransparentPath as Path
+from .gcsutils.transparentpath import TPMultipleExistenceError
 
 
 try:
@@ -13,3 +12,6 @@ except ImportError:
                 "Support for json does not seem to be installed for TransparentPath.\n"
                 "You can change that by running 'pip install transparentpath[json]'."
             )
+
+from . import _version
+__version__ = _version.get_versions()['version']
