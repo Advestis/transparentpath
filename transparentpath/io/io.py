@@ -104,10 +104,10 @@ def upload(self, dst: Union[str, Path, TransparentPath]):
 
 
 def get(self, loc: Union[str, Path, TransparentPath]):
-    self.download(loc)
+    self.download_object(loc)
 
 
-def download(self, loc: Union[str, Path, TransparentPath]):
+def download_object(self, loc: Union[str, Path, TransparentPath]):
     """used to download a remote file (self) to local (loc). Does not remove the remote file.
 
     self must be a remote TransparentPath. If loc is a TransparentPath, it must be local. If it is a pathlib.Path or
@@ -231,7 +231,7 @@ def cp(self, other: Union[str, Path, TransparentPath]):
         self.upload(other)  # upload self in other
         return
     if other.fs_kind == "local":
-        self.download(other)  # download self in other
+        self.download_object(other)  # download self in other
         return
 
     # Do not use filesystem's copy if self is not a file, for it was coded by apes and is not able to use recursive
@@ -244,7 +244,7 @@ def cp(self, other: Union[str, Path, TransparentPath]):
         else:
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=self.suffix)
             tmp.close()  # deletes the tmp file
-            self.download(tmp.name)  # downloads self at tmp's address
+            self.download_object(tmp.name)  # downloads self at tmp's address
             TransparentPath(tmp.name, fs_kind="local").upload(other)
             return
 
