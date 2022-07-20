@@ -37,6 +37,12 @@ def test_parquet(clean, fs_kind):
         pd.testing.assert_frame_equal(df_parquet, pparquet.read())
 
 
+@pytest.mark.parametrize(
+    "fs_kind",
+    [
+        "local", "gcs"
+    ]
+)
 def test_fastparquet(clean, fs_kind):
     if reqs_ok is False:
         pparquet = get_path(fs_kind, ".parquet")
