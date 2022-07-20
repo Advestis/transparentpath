@@ -13,6 +13,7 @@ try:
     import sys
     from typing import Union, List, Tuple
     import importlib.util
+    from pathlib import Path
     from ..gcsutils.transparentpath import TransparentPath, check_kwargs
 
     if importlib.util.find_spec("pyarrow") is None:
@@ -58,9 +59,12 @@ try:
             )
 
         else:
-            return apply_index_and_date(
-                index_col, parse_dates, pd.read_parquet(self.open("rb"), engine=engine, **kwargs)
-            )
+            f = tempfile.NamedTemporaryFile(delete=False, suffix=".parquet")
+            f.close()  # deletes the tmp file, but we can still use its name
+            self.get(f.name)
+            data = pd.read_parquet(f.name, engine=engine, **kwargs)
+            Path(f.name).unlink()
+            return apply_index_and_date(index_col, parse_dates, data)
 
     def write(
         self,
@@ -81,10 +85,6 @@ try:
             warnings.warn(f"path {self} does not have '.parquet' as suffix while using to_parquet. The path will be "
                           f"changed to a path with '.parquet' as suffix")
             self.change_suffix(".parquet")
-
-        if compression is not None and compression != "snappy":
-            warnings.warn("TransparentPath does not support all compressions for all environments. You "
-                          f"specified '{compression}', we recommend 'snappy'.")
 
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
@@ -111,7 +111,22 @@ try:
         else:
             compression = "snappy"
         del kwargs["compression"]
-        data.to_parquet(self.open("wb"), engine=engine, compression=compression, **kwargs)
+        if self.fs_kind == "local":
+            data.to_parquet(self.open("wb"), engine=engine, compression=compression, **kwargs)
+        else:
+            with tempfile.NamedTemporaryFile(delete=True, suffix=".parquet") as f:
+                thefile = pd.read_parquet(f.name, **kwargs)
+                thefile.close()
+                TransparentPath(
+                    path=f.name,
+                    fs="local",
+                    notupdatecache=self.notupdatecache,
+                    nocheck=self.nocheck,
+                    when_checked=self.when_checked,
+                    when_updated=self.when_updated,
+                    update_expire=self.update_expire,
+                    check_expire=self.check_expire,
+                ).put(self.path)
 
 
 except ImportError as e:
