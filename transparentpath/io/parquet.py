@@ -108,7 +108,7 @@ try:
             compression = kwargs["compression"]
         else:
             compression = "snappy"
-        data.to_parquet(self.open("wb"), engine=engine, compression="compression", **kwargs)
+        data.to_parquet(self.open("wb"), engine=engine, compression=compression, **kwargs)
 
 
 except ImportError as e:
