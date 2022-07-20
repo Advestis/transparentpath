@@ -51,6 +51,7 @@ try:
             engine = kwargs["engine"]
         else:
             engine = "pyarrow"
+        del kwargs["engine"]
         if self.fs_kind == "local":
             return apply_index_and_date(
                 index_col, parse_dates, pd.read_parquet(self.__fspath__(), engine=engine, **kwargs)
@@ -104,10 +105,12 @@ try:
             engine = kwargs["engine"]
         else:
             engine = "pyarrow"
+        del kwargs["engine"]
         if "compression" in kwargs:
             compression = kwargs["compression"]
         else:
             compression = "snappy"
+        del kwargs["compression"]
         data.to_parquet(self.open("wb"), engine=engine, compression=compression, **kwargs)
 
 
