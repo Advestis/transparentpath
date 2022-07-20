@@ -53,11 +53,15 @@ try:
         else:
             engine = "pyarrow"
         del kwargs["engine"]
-        if self.fs_kind == "local":
+        if (self.fs_kind == "local") and (engine == "pyarrow"):
             return apply_index_and_date(
                 index_col, parse_dates, pd.read_parquet(self.__fspath__(), engine=engine, **kwargs)
             )
 
+        elif engine == "pyarrow":
+            return apply_index_and_date(
+                index_col, parse_dates, pd.read_parquet(self.open("rb"), engine="pyarrow", **kwargs)
+            )
         else:
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".parquet")
             f.close()  # deletes the tmp file, but we can still use its name
@@ -111,9 +115,7 @@ try:
         else:
             compression = "snappy"
         del kwargs["compression"]
-        if self.fs_kind == "local":
-            data.to_parquet(self.open("wb"), engine=engine, compression=compression, **kwargs)
-        else:
+        if (self.fs_kind != "local") and ((engine != "pyarrow") or (compression != "snappy")):
             with tempfile.NamedTemporaryFile(delete=True, suffix=".parquet") as f:
                 thefile = pd.read_parquet(f.name, **kwargs)
                 thefile.close()
@@ -127,7 +129,8 @@ try:
                     update_expire=self.update_expire,
                     check_expire=self.check_expire,
                 ).put(self.path)
-
+        else:
+            data.to_parquet(self.open("wb"), engine=engine, compression=compression, **kwargs)
 
 except ImportError as e:
     raise ImportError(str(e))
