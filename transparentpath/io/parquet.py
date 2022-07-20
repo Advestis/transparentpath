@@ -82,8 +82,8 @@ try:
             self.change_suffix(".parquet")
 
         if compression is not None and compression != "snappy":
-            warnings.warn("TransparentPath can not write parquet files with a compression that is not snappy. You "
-                          f"specified '{compression}', it will be replaced by 'snappy'.")
+            warnings.warn("TransparentPath does not support all compressions for all environments. You "
+                          f"specified '{compression}', we recommend 'snappy'.")
 
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
