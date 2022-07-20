@@ -35,3 +35,28 @@ def test_parquet(clean, fs_kind):
         pparquet.write(df_parquet)
         assert pparquet.is_file()
         pd.testing.assert_frame_equal(df_parquet, pparquet.read())
+
+
+def test_fastparquet(clean, fs_kind):
+    if reqs_ok is False:
+        pparquet = get_path(fs_kind, ".parquet")
+        with pytest.raises(ImportError):
+            pparquet.read()
+    else:
+        # noinspection PyUnresolvedReferences
+        import pandas as pd
+        df_parquet = pd.DataFrame(columns=["timedelta", "date", "int"], index=["a", "b"],
+                                  data=[
+                                        ["0 days 00:07:20", "2016-01-01 20:17:48", 1],
+                                        ["6 days 00:20:34", "2018-08-31 00:34:46", 4]
+                                        ]
+                                  )
+        df_parquet['date'] = pd.to_datetime(df_parquet['date'])
+        df_parquet['timedelta'] = pd.to_timedelta(df_parquet['foo'])
+        # noinspection PyTypeChecker
+        pparquet = get_path(fs_kind, ".parquet")
+        if pparquet == "skipped":
+            return
+        pparquet.write(df_parquet, engine="fastparquet", compression="gzip")
+        assert pparquet.is_file()
+        pd.testing.assert_frame_equal(df_parquet, pparquet.read(engine="fastparquet"))
