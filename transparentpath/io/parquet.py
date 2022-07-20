@@ -47,14 +47,18 @@ try:
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
 
         check_kwargs(pd.read_parquet, kwargs)
+        if "engine" in kwargs:
+            engine = kwargs["engine"]
+        else:
+            engine = "pyarrow"
         if self.fs_kind == "local":
             return apply_index_and_date(
-                index_col, parse_dates, pd.read_parquet(self.__fspath__(), engine="pyarrow", **kwargs)
+                index_col, parse_dates, pd.read_parquet(self.__fspath__(), engine=engine, **kwargs)
             )
 
         else:
             return apply_index_and_date(
-                index_col, parse_dates, pd.read_parquet(self.open("rb"), engine="pyarrow", **kwargs)
+                index_col, parse_dates, pd.read_parquet(self.open("rb"), engine=engine, **kwargs)
             )
 
     def write(
@@ -96,7 +100,15 @@ try:
 
         # noinspection PyTypeChecker
         check_kwargs(data.to_parquet, kwargs)
-        data.to_parquet(self.open("wb"), engine="pyarrow", compression="snappy", **kwargs)
+        if "engine" in kwargs:
+            engine = kwargs["engine"]
+        else:
+            engine = "pyarrow"
+        if "compression" in kwargs:
+            engine = kwargs["compression"]
+        else:
+            engine = "snappy"
+        data.to_parquet(self.open("wb"), engine=engine, compression="snappy", **kwargs)
 
 
 except ImportError as e:
