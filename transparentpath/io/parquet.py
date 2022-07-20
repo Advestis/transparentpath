@@ -105,10 +105,10 @@ try:
         else:
             engine = "pyarrow"
         if "compression" in kwargs:
-            engine = kwargs["compression"]
+            compression = kwargs["compression"]
         else:
-            engine = "snappy"
-        data.to_parquet(self.open("wb"), engine=engine, compression="snappy", **kwargs)
+            compression = "snappy"
+        data.to_parquet(self.open("wb"), engine=engine, compression="compression", **kwargs)
 
 
 except ImportError as e:
