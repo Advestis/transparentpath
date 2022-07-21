@@ -117,7 +117,7 @@ try:
             compression = "snappy"
         if (self.fs_kind != "local") and ((engine != "pyarrow") or (compression != "snappy")):
             with tempfile.NamedTemporaryFile(delete=True, suffix=".parquet") as f:
-                thefile = pd.read_parquet(f.name, **kwargs)
+                thefile = pd.read_parquet(f.name, engine=engine, compression=compression, **kwargs)
                 thefile.close()
                 TransparentPath(
                     path=f.name,
