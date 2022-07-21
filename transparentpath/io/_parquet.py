@@ -127,6 +127,8 @@ try:
                     update_expire=self.update_expire,
                     check_expire=self.check_expire,
                 ).put(self.path)
+        elif self.fs_kind == "local":
+            data.to_parquet(str(self), engine=engine, compression=compression, **kwargs)
         else:
             data.to_parquet(self.open("wb"), engine=engine, compression=compression, **kwargs)
 
