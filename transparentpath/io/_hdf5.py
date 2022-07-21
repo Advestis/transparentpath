@@ -25,7 +25,7 @@ try:
     from typing import Union, Any
     from pathlib import Path
     from ..gcsutils.transparentpath import TransparentPath
-    from .pandas import MyHDFStore
+    from ._pandas import MyHDFStore
     import sys
     import importlib.util
 
@@ -39,6 +39,7 @@ try:
 
         This allows to do :
         >>> from transparentpath import TransparentPath  # doctest: +SKIP
+        >>> # noinspection PyUnresolvedReferences
         >>> import numpy as np  # doctest: +SKIP
         >>> TransparentPath.set_global_fs("gcs", bucket="bucket_name")  # doctest: +SKIP
         >>> path = TransparentPath("chien.hdf5"  # doctest: +SKIP
@@ -214,7 +215,7 @@ try:
 
     try:
         # noinspection PyUnresolvedReferences
-        from .pandas import MyHDFStore as Hs
+        from ._pandas import MyHDFStore as Hs
 
         MyHDFStore = Hs
     except ImportError:

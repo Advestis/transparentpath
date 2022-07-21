@@ -2613,10 +2613,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
 # Do imports from detached files here because some of them import TransparentPath and need it fully declared.
 
-from ..io.io import put, get, mv, cp, overload_open, read_text, write_stuff, write_bytes
+# noinspection PyProtectedMember
+from ..io._io import put, get, mv, cp, overload_open, read_text, write_stuff, write_bytes
 
-# noinspection PyUnresolvedReferences
-from ..io import zipfile
+# noinspection PyUnresolvedReferences, PyProtectedMember
+from ..io import _zipfile
 
 overload_open()
 setattr(TransparentPath, "put", put)
@@ -2628,16 +2629,16 @@ setattr(TransparentPath, "write_stuff", write_stuff)
 setattr(TransparentPath, "write_bytes", write_bytes)
 
 try:
-    # noinspection PyUnresolvedReferences
-    from transparentpath.io.joblib_load import overload_joblib_load
+    # noinspection PyUnresolvedReferences,PyProtectedMember
+    from transparentpath.io._joblib_load import overload_joblib_load
 
     overload_joblib_load()
 except ImportError:
     pass
 
 try:
-    # noinspection PyUnresolvedReferences
-    from transparentpath.io.json import read, write
+    # noinspection PyUnresolvedReferences,PyProtectedMember
+    from transparentpath.io._json import read, write
 
     setattr(TransparentPath, "read_json", read)
     setattr(TransparentPath, "to_json", write)
@@ -2645,8 +2646,8 @@ except ImportError:
     pass
 
 try:
-    # noinspection PyUnresolvedReferences
-    from ..io.pandas import read, write
+    # noinspection PyUnresolvedReferences,PyProtectedMember
+    from ..io._pandas import read, write
 
     setattr(TransparentPath, "read_csv_classic", read)
     setattr(TransparentPath, "to_csv_classic", write)
@@ -2654,8 +2655,8 @@ except ImportError:
     pass
 
 try:
-    # noinspection PyUnresolvedReferences
-    from ..io.hdf5 import read, write
+    # noinspection PyUnresolvedReferences,PyProtectedMember
+    from ..io._hdf5 import read, write
 
     setattr(TransparentPath, "read_hdf5_classic", read)
     setattr(TransparentPath, "to_hdf5_classic", write)
@@ -2663,8 +2664,8 @@ except ImportError:
     pass
 
 try:
-    # noinspection PyUnresolvedReferences
-    from ..io.parquet import read, write
+    # noinspection PyUnresolvedReferences,PyProtectedMember
+    from ..io._parquet import read, write
 
     setattr(TransparentPath, "read_parquet_classic", read)
     setattr(TransparentPath, "to_parquet_classic", write)
@@ -2672,8 +2673,8 @@ except ImportError:
     pass
 
 try:
-    # noinspection PyUnresolvedReferences
-    from ..io.excel import read, write
+    # noinspection PyUnresolvedReferences,PyProtectedMember
+    from ..io._excel import read, write
 
     setattr(TransparentPath, "read_excel_classic", read)
     setattr(TransparentPath, "to_excel_classic", write)
@@ -2681,7 +2682,8 @@ except ImportError:
     pass
 
 try:
-    from ..io.dask import (
+    # noinspection PyProtectedMember
+    from ..io._dask import (
         read_csv,
         write_csv,
         read_hdf5,
