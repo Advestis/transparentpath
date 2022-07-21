@@ -77,7 +77,6 @@ try:
         present: str = "ignore",
         columns_to_string: bool = True,
         to_dataframe: bool = True,
-        compression: str = None,
         **kwargs,
     ) -> None:
         """
