@@ -50,9 +50,9 @@ try:
         check_kwargs(pd.read_parquet, kwargs)
         if "engine" in kwargs:
             engine = kwargs["engine"]
+            del kwargs["engine"]
         else:
             engine = "pyarrow"
-        del kwargs["engine"]
         if (self.fs_kind == "local") and (engine == "pyarrow"):
             return apply_index_and_date(
                 index_col, parse_dates, pd.read_parquet(self.__fspath__(), engine=engine, **kwargs)
@@ -107,14 +107,14 @@ try:
         check_kwargs(data.to_parquet, kwargs)
         if "engine" in kwargs:
             engine = kwargs["engine"]
+            del kwargs["engine"]
         else:
             engine = "pyarrow"
-        del kwargs["engine"]
         if "compression" in kwargs:
             compression = kwargs["compression"]
+            del kwargs["compression"]
         else:
             compression = "snappy"
-        del kwargs["compression"]
         if (self.fs_kind != "local") and ((engine != "pyarrow") or (compression != "snappy")):
             with tempfile.NamedTemporaryFile(delete=True, suffix=".parquet") as f:
                 thefile = pd.read_parquet(f.name, **kwargs)

@@ -58,7 +58,7 @@ def test_fastparquet(clean, fs_kind):
                                         ]
                                   )
         df_parquet['date'] = pd.to_datetime(df_parquet['date'])
-        df_parquet['timedelta'] = pd.to_timedelta(df_parquet['foo'])
+        df_parquet['timedelta'] = pd.to_timedelta(df_parquet['timedelta'])
         # noinspection PyTypeChecker
         pparquet = get_path(fs_kind, ".parquet")
         if pparquet == "skipped":
