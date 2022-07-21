@@ -65,4 +65,4 @@ def test_fastparquet(clean, fs_kind):
             return
         pparquet.write(df_parquet, engine="fastparquet", compression="gzip")
         assert pparquet.is_file()
-        pd.testing.assert_frame_equal(df_parquet, pparquet.read(engine="fastparquet"))
+        pd.testing.assert_frame_equal(df_parquet, pparquet.read(engine="fastparquet"), check_names=False)
