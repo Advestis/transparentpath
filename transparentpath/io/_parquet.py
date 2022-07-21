@@ -53,7 +53,7 @@ try:
             del kwargs["engine"]
         else:
             engine = "pyarrow"
-        if (self.fs_kind == "local") and (engine == "pyarrow"):
+        if self.fs_kind == "local":
             return apply_index_and_date(
                 index_col, parse_dates, pd.read_parquet(self.__fspath__(), engine=engine, **kwargs)
             )
@@ -116,8 +116,7 @@ try:
             compression = "snappy"
         if (self.fs_kind != "local") and ((engine != "pyarrow") or (compression != "snappy")):
             with tempfile.NamedTemporaryFile(delete=True, suffix=".parquet") as f:
-                thefile = pd.read_parquet(f.name, engine=engine, compression=compression, **kwargs)
-                thefile.close()
+                data.to_parquet(f.name, engine=engine, compression=compression, **kwargs)
                 TransparentPath(
                     path=f.name,
                     fs="local",

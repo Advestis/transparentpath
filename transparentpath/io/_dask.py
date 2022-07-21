@@ -21,12 +21,12 @@ try:
     import pandas as pd
 
     from ..gcsutils.transparentpath import TransparentPath, get_index_and_date_from_kwargs, check_kwargs
-    from .hdf5 import hdf5_ok
-    from .hdf5 import errormessage as errormessage_hdf5
-    from .excel import excel_ok
-    from .excel import errormessage as errormessage_excel
-    from .parquet import parquet_ok
-    from .parquet import errormessage as errormessage_parquet
+    from ._hdf5 import hdf5_ok
+    from ._hdf5 import errormessage as errormessage_hdf5
+    from ._excel import excel_ok
+    from ._excel import errormessage as errormessage_excel
+    from ._parquet import parquet_ok
+    from ._parquet import errormessage as errormessage_parquet
 
     TransparentPath.cli = None
 

@@ -4,7 +4,8 @@ from .gcsutils.transparentpath import TPMultipleExistenceError
 
 
 try:
-    from transparentpath.io.json import JSONEncoder
+    # noinspection PyProtectedMember
+    from transparentpath.io._json import JSONEncoder
 except ImportError:
     class JSONEncoder:
         def __init__(self, *args, **kwargs):
