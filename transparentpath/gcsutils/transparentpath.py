@@ -388,8 +388,9 @@ def extract_fs_name(token: str = None) -> Tuple[str, str]:
     elif token is None:
         token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
+    token = token.strip()
     if not TransparentPath(token, fs="local", nocheck=True, notupdatecache=True).is_file():
-        raise FileNotFoundError(f"Crendential file {token} not found")
+        raise FileNotFoundError(f"Credential file {token} not found")
     content = json.load(open(token))
     if "project_id" not in content:
         raise ValueError(f"Credential file {token} does not contain project_id key.")
