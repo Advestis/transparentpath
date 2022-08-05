@@ -2574,10 +2574,15 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if self.fs_kind == "gcs":
                 obj = str(self).replace(TransparentPath.remote_prefix["gcs"], "").replace(" ", "%20")
                 return f"https://storage.cloud.google.com/{obj}"
-            elif self.fs_kind == "scw":  # TODO implement
-                endpoint = TransparentPath.scaleway_endpoint_url
+            elif self.fs_kind == "scw":  # TODO implement -> to verif
+                # endpoint = TransparentPath.scaleway_endpoint_url
                 obj = str(self).replace(TransparentPath.remote_prefix["scw"], "".replace(" ", "%20"))
-                return f"https://{endpoint}/{obj}"
+                res = obj.split('/')
+                bucket = res[0]
+                res.remove(bucket)
+                obj = "/".join(res)
+                return f"https://{bucket}.s3.fr-par.scw.cloud/{obj}"
+
             else:
                 ValueError(f"{self.fs_kind} does not exist ")
         return None
