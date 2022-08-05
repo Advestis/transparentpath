@@ -257,7 +257,7 @@ def get_fs(
                 fs = copy(TransparentPath.fss[fs_name])
                 return fs, fs_name, ""
 
-        fs_name, project = extract_fs_name(token)
+        fs_name, project, token = extract_fs_name(token)
         if fs_name in TransparentPath.fss:
             pass
         elif token is None:
@@ -369,7 +369,7 @@ def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
     return index_col, parse_dates, kwargs
 
 
-def extract_fs_name(token: str = None) -> Tuple[str, str]:
+def extract_fs_name(token: str = None) -> Tuple[str, str, Union[str, None]]:
     if token is None and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
         fs = gcsfs.GCSFileSystem()
         project = fs.project
@@ -384,7 +384,7 @@ def extract_fs_name(token: str = None) -> Tuple[str, str]:
                 " set, you need to have done gcloud init or to be on GCP already to create a TransparentPath"
             )
         email = fs.credentials.credentials.service_account_email
-        return f"gcs_{project}_{email}", project
+        return f"gcs_{project}_{email}", project, None
     elif token is None:
         token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
@@ -399,7 +399,7 @@ def extract_fs_name(token: str = None) -> Tuple[str, str]:
 
     fs_name = f"gcs_{content['project_id']}_{content['client_email']}"
     TransparentPath.tokens[fs_name] = token
-    return fs_name, content["project_id"]
+    return fs_name, content["project_id"], token
 
 
 class TransparentPath(os.PathLike):  # noqa : F811
