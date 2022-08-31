@@ -455,49 +455,47 @@ def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
     return index_col, parse_dates, kwargs
 
 
-def extract_fs_name(token: str = None) -> Tuple[str, str, Union[str, None]]:
+def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, str]:
     is_gcs = False
     is_s3 = False
+    if fs_kind is None and token is None:
+        raise ValueError("Must specify one of 'fs_kind' or 'token'")
+    if fs_kind is not None and token is not None:
+        raise ValueError("Can only specify one of 'fs_kind' or 'token'")
 
-    if token is None and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ and "S3_APPLICATION_CREDENTIALS" not in os.environ:
-        fs = gcsfs.GCSFileSystem()
-        project = fs.project
-        if (
-                project is None
-                or fs.credentials is None
-                or not hasattr(fs.credentials.credentials, "service_account_email")
-                or fs.credentials.credentials.service_account_email is None
-        ):
-            raise EnvironmentError(
-                "If no token is explicitely specified and GOOGLE_APPLICATION_CREDENTIALS environnement variable is not"
-                " set, you need to have done gcloud init or to be on GCP already to create a TransparentPath"
-            )
-        email = fs.credentials.credentials.service_account_email
-        return f"gcs_{project}_{email}", project, None
+    if fs_kind is not None and not (
+            fs_kind == "gcs"
+            or fs_kind == "scw"
+            or fs_kind == "local"
+    ):
+        raise ValueError(f"Unknown value {fs_kind} for parameter 'fs_kind'")
 
-    elif token is None:
+    if token is None:
         if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
             is_gcs = True
         if "S3_APPLICATION_CREDENTIALS" in os.environ:
             is_s3 = True
-
         if is_s3 and is_gcs:
-            raise ValueError("No token was specified and both GOOGLE_APPLICATION_CREDENTIALS and "
-                             "S3_APPLICATION_CREDENTIALS were found in the environnement variables. I do not know"
-                             " what to do.")
+            if fs_kind == "gcs":
+                is_s3 = False
+            elif fs_kind == "scw":
+                is_gcs = False
+            else:
+                raise ValueError("No token was specified and both GOOGLE_APPLICATION_CREDENTIALS and "
+                                 "S3_APPLICATION_CREDENTIALS were found in the environnement variables. I do not know"
+                                 " what to do.")
+        if not is_gcs and not is_s3:
+            raise ValueError("No token was specified and neither GOOGLE_APPLICATION_CREDENTIALS nor "
+                             "S3_APPLICATION_CREDENTIALS were found in the environnement variables.")
 
-    if not is_gcs and not is_s3:
-        raise ValueError("No token was specified and neither GOOGLE_APPLICATION_CREDENTIALS nor "
-                         "S3_APPLICATION_CREDENTIALS were found in the environnement variables.")
-
-    if is_gcs:
-        token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    else:
-        token = os.getenv("S3_APPLICATION_CREDENTIALS")
+        if is_gcs:
+            token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        else:
+            token = os.getenv("S3_APPLICATION_CREDENTIALS")
 
     token = token.strip()
-    if not TransparentPath(token, fs="local", nocheck=True, notupdatecache=True).is_file():
-        raise FileNotFoundError(f"Credential file {token} not found")
+    if TransparentPath(token, fs_kind="local", nocheck=True, notupdatecache=True).is_file():
+        raise FileNotFoundError(f"Crendential file {token} not found")
     content = json.load(open(token))
 
     if is_gcs:
@@ -511,8 +509,7 @@ def extract_fs_name(token: str = None) -> Tuple[str, str, Union[str, None]]:
     else:
         fs_name = f"s3_{content['project_id']}_{content['user_id']}"
         TransparentPath.tokens[fs_name] = token
-
-    return fs_name, content["project_id"], None
+    return fs_name, content["project_id"], token
 
 
 class TransparentPath(os.PathLike):  # noqa : F811
