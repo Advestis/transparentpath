@@ -1,15 +1,16 @@
 import builtins
 import tempfile
-from typing import IO, Union, Any
 from pathlib import Path
-from ..gcsutils.transparentpath import TransparentPath
+from typing import IO, Union, Any
 
+from ..gcsutils.transparentpath import TransparentPath
 
 builtins_open = builtins.open
 
 
 def myopen(*args, **kwargs) -> IO:
-    """Method overloading builtins' 'open' method, allowing to open files on GCS using TransparentPath."""
+    """Method overloading builtins' 'open' method, allowing to open files on GCS and scaleway and by ssh using
+    TransparentPath. """
     if len(args) == 0:
         raise ValueError("open method needs arguments.")
     thefile = args[0]
@@ -21,7 +22,8 @@ def myopen(*args, **kwargs) -> IO:
             thefile._check_multiplicity()
         return thefile.open(*args[1:], **kwargs)
     elif (
-        isinstance(thefile, str) or isinstance(thefile, Path) or isinstance(thefile, int) or isinstance(thefile, bytes)
+            isinstance(thefile, str) or isinstance(thefile, Path) or isinstance(thefile, int) or isinstance(thefile,
+                                                                                                            bytes)
     ):
         return builtins_open(*args, **kwargs)
     else:
@@ -83,7 +85,8 @@ def put(self, dst: Union[str, Path, TransparentPath]):
     # noinspection PyProtectedMember
     if not self.exist():
         raise FileNotFoundError(f"No such file or directory: {self}")
-
+    existing_fs_names = "-".join(list(TransparentPath.fss.keys()))
+    print(existing_fs_names)
     if self.is_dir():
         for item in self.glob("/*"):
             # noinspection PyUnresolvedReferences
@@ -270,7 +273,6 @@ def read_text(self, *args, get_obj: bool = False, **kwargs) -> Union[str, IO]:
 
 
 def write_stuff(self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs) -> None:
-
     if not overwrite and self.is_file() and present != "ignore":
         raise FileExistsError()
 
@@ -282,8 +284,7 @@ def write_stuff(self, data: Any, *args, overwrite: bool = True, present: str = "
         f.write(data)
 
 
-def write_bytes(self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs,) -> None:
-
+def write_bytes(self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs, ) -> None:
     args = list(args)
     if len(args) == 0:
         args = ("wb",)

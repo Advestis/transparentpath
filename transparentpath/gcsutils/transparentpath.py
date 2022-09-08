@@ -1,21 +1,23 @@
-import warnings
 import builtins
-import os
+import collections
 import json
+import os
 import sys
 import tempfile
-from time import time
+import warnings
 from copy import copy
 from datetime import datetime
+from inspect import signature
 from pathlib import Path
+from time import time
 from typing import Union, Tuple, Any, Iterator, Optional, Iterable, List, Callable
 
-from .methodtranslator import MultiMethodTranslator
 import gcsfs
 import s3fs
 from fsspec.implementations.local import LocalFileSystem
-from inspect import signature
-import collections
+from fsspec.implementations.sftp import SFTPFileSystem
+
+from .methodtranslator import MultiMethodTranslator
 
 
 class TPMultipleExistenceError(Exception):
@@ -204,7 +206,7 @@ def get_fs(
         token: Optional[Union[str, dict]] = None,
         path: Union[Path, None] = None,
         endpoint_url: Optional[str] = None,
-) -> Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem, s3fs.S3FileSystem], str, str]:
+) -> Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem, s3fs.S3FileSystem, SFTPFileSystem], str, str]:
     """Gets the FileSystem object of either remote or local (Default)
 
     If remote is asked and bucket is specified, will check that it exists and is accessible.
@@ -214,7 +216,7 @@ def get_fs(
     Parameters
     ----------
     fs_kind: str
-        Returns GCSFileSystem if 'gcs_*', LocalFilsSystem if 'local', S3FileSystem if 's3_*'.
+        Returns GCSFileSystem if 'gcs_*', LocalFilsSystem if 'local', S3FileSystem if 's3_*', Ssh.
     bucket: str
         bucket name for GCS or scaleway
     token: Optional[Union[str, dict]]
@@ -227,7 +229,7 @@ def get_fs(
 
     Returns
     -------
-    Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem], Union[None, str], Union[None, str], Union[None, str]]
+    Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem, s3fs.S3FileSystem], Union[None, str], Union[None, str], Union[None, str]]
         The FileSystem object, the project if on remote else None, and the bucket if on remote.
     """
 
@@ -240,7 +242,7 @@ def get_fs(
             fs_kind = "scw"
 
     fs_name = None
-    if fs_kind == "local":
+    if fs_kind == "local" or fs_kind == "ssh":
         bucket = None
 
     if path is not None and fs_kind != "local":
@@ -271,7 +273,7 @@ def get_fs(
                 fs = copy(TransparentPath.fss[fs_name])
                 return fs, fs_name, ""
 
-        fs_name, project, token = extract_fs_name(token)
+        fs_name, project, token = extract_fs_name(fs_kind, token)
         if fs_name in TransparentPath.fss:
             pass
         elif token is None:
@@ -308,7 +310,7 @@ def get_fs(
                 fs = copy(TransparentPath.fss[fs_name])
                 return fs, fs_name, ""
 
-        fs_name, project, token = extract_fs_name(token)
+        fs_name, project, token = extract_fs_name(fs_kind, token)
         if fs_name in TransparentPath.fss:
             pass
         elif endpoint_url is not None and token is not None:
@@ -371,9 +373,14 @@ def get_fs(
             return fs, fs_name, ""
 
     else:
-        if "local" not in TransparentPath.fss:
-            TransparentPath.fss["local"] = LocalFileSystem()
-        return copy(TransparentPath.fss["local"]), "local", ""
+        if fs_kind == "local":
+            if "local" not in TransparentPath.fss:
+                TransparentPath.fss["local"] = LocalFileSystem()
+            return copy(TransparentPath.fss["local"]), "local", ""
+        else:
+            if "ssh" not in TransparentPath.fss:
+                TransparentPath.fss["ssh"] = SFTPFileSystem()
+            return copy(TransparentPath.fss["ssh"]), "ssh", ""
 
 
 def get_buckets(fs: Union[gcsfs.GCSFileSystem, s3fs.S3FileSystem]) -> List[str]:
@@ -750,7 +757,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     @classmethod
     def reinit(cls):
         """Reinit all class attributes to their default values"""
-        cls.remote_prefix = {"local": "", "gcs": "gs://", "scw": "s3://"}
+        cls.remote_prefix = {"local": "", "gcs": "gs://", "scw": "s3://", "ssh": ""}
         cls.scaleway_endpoint_url = "https://s3.fr-par.scw.cloud"
         cls.fss = {}
         cls.buckets_in_project = {}
@@ -823,7 +830,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         }
         return state
 
-    remote_prefix = {"local": "", "gcs": "gs://", "scw": "s3://"}
+    remote_prefix = {"local": "", "gcs": "gs://", "scw": "s3://", "ssh": ""}
     """remote prefix of the known possible remote file system. For now, only GCS and scaleway is supported, 
     so there are gs:// and s3:// """
     scaleway_endpoint_url = "https://s3.fr-par.scw.cloud"
@@ -904,13 +911,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
     translations = {
         "mkdir": MultiMethodTranslator(
             "mkdir",
-            ["local", "gcs", "s3"],
-            ["mkdir", "self._do_nothing", "self._do_nothing"],
-            [{"parents": "create_parents"}, {"parents": ""}, {"parents": ""}],
+            ["local", "gcs", "s3", "ssh"],
+            ["mkdir", "self._do_nothing", "self._do_nothing", "mkdir"],
+            [{"parents": "create_parents"}, {"parents": ""}, {"parents": ""}, {"parents": "create_parents"}],
         ),
     }
     """To translate method args and kwargs between `fsspec.implementations.local.LocalFileSystem` 
-    and `gcsfs.GCSFileSystem`"""
+    and `gcsfs.GCSFileSystem` and `S3.S3FileSystem`"""
 
     @classmethod
     def set_global_fs(
@@ -948,6 +955,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 fs == "gcs"
                 or fs == "scw"
                 or fs == "local"
+                or fs == "ssh"
         ):
             raise ValueError(f"Unknown value {fs} for parameter 'fs'")
 
@@ -1083,11 +1091,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if str(path).startswith(TransparentPath.remote_prefix[_fs]):
                 prefix = TransparentPath.remote_prefix[_fs]
                 break
-
         if prefix != "":
-            if fs == "local":
+            if fs == "local" or fs == "ssh":
                 raise ValueError(
-                    f"You specified a path starting with {prefix} but ask for it to be local. This is not possible."
+                    f"You specified a path starting with {prefix} but ask for it to be {fs}. This is not possible."
                 )
             path, bucket = treat_remote_prefix(path, bucket, prefix)
             fs = _fs
@@ -1136,7 +1143,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 self.__path) == self.nas_dir
             ):
                 self.__path = self.__path.relative_to(self.nas_dir)
-
             if str(self.__path) == "." or str(self.__path) == "/":
                 self.__path = Path(self.bucket)
             elif len(self.__path.parts) > 0:
@@ -1146,7 +1152,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     self.__path = Path(str(self.__path)[1:])
 
                 if not str(self.__path.parts[0]) == self.bucket:
-                    self.__path = Path(self.bucket) / self.__path
+                    print(self.bucket)
+                    if self.bucket is not None:
+                        self.__path = Path(self.bucket) / self.__path
             else:
                 self.__path = Path(self.bucket) / self.__path
             # if len(self.__path.parts) > 1 and self.bucket in self.__path.parts[1:]:
@@ -1286,7 +1294,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return str(self.__path)
 
     def __fspath__(self) -> str:
-        if self.fs_kind == "local":
+        if self.fs_kind == "local" or self.fs_kind == "ssh":
             return str(self.__path)
         else:
             s = "".join([TransparentPath.remote_prefix, str(self.__path)])
@@ -1553,7 +1561,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return
 
         self.fs.invalidate_cache()
-        if self.fs_kind != "local":
+        if self.fs_kind != "local" and self.fs_kind != "ssh":
             try:
                 self.fs.info(self.bucket)
             except FileNotFoundError:
@@ -1629,7 +1637,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return self.exists()
 
     def exists(self) -> bool:
-        if str(self.path) == "/" and self.fs_kind == "local":
+        if str(self.path) == "/" and self.fs_kind == ("local" or "ssh"):
             return True
         elif self.path == "gs://" and self.fs_kind == "gcs":
             return True
