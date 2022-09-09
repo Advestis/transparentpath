@@ -11,7 +11,7 @@ from inspect import signature
 from pathlib import Path
 from time import time
 from typing import Union, Tuple, Any, Iterator, Optional, Iterable, List, Callable
-
+from dotenv import load_dotenv
 import gcsfs
 import s3fs
 from fsspec.implementations.local import LocalFileSystem
@@ -379,7 +379,12 @@ def get_fs(
             return copy(TransparentPath.fss["local"]), "local", ""
         else:
             if "ssh" not in TransparentPath.fss:
-                TransparentPath.fss["ssh"] = SFTPFileSystem()
+                load_dotenv()
+                host = os.getenv("SSH_HOST")
+                usename = os.getenv("SSH_USERNAME")
+                password = os.getenv("SSH_PASSWORD")
+                TransparentPath.fss["ssh"] = SFTPFileSystem(host=host, username=usename,
+                                                            password=password)
             return copy(TransparentPath.fss["ssh"]), "ssh", ""
 
 
@@ -474,6 +479,7 @@ def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, str]:
             fs_kind == "gcs"
             or fs_kind == "scw"
             or fs_kind == "local"
+            or fs_kind == "ssh"
     ):
         raise ValueError(f"Unknown value {fs_kind} for parameter 'fs_kind'")
 
@@ -1152,7 +1158,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     self.__path = Path(str(self.__path)[1:])
 
                 if not str(self.__path.parts[0]) == self.bucket:
-                    print(self.bucket)
                     if self.bucket is not None:
                         self.__path = Path(self.bucket) / self.__path
             else:
@@ -2017,7 +2022,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
             What to do if there is already something at self. Can be "raise" or "ignore" (Default value = "ignore")
 
         kwargs
-            The kwargs to pass to file system's touch method
 
 
         Returns
@@ -2036,25 +2040,30 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 raise FileExistsError(f"There is already an object at {self} which is not a file.")
             else:
                 return
+        if self.fs_kind != "ssh":
+            for parent in reversed(self.parents):
+                print(parent)
+                p = TransparentPath(
+                    parent,
+                    fs=self.fs_kind,
+                    bucket=self.bucket,
+                    notupdatecache=self.notupdatecache,
+                    nocheck=self.nocheck,
+                    when_checked=self.when_checked,
+                    when_updated=self.when_updated,
+                    update_expire=self.update_expire,
+                    check_expire=self.check_expire,
+                )
+                if p.is_file():
+                    raise FileExistsError(
+                        f"A parent directory can not be created because there is already a file at {p}")
+                elif not p.exists():
+                    p.mkdir()
 
-        for parent in reversed(self.parents):
-            p = TransparentPath(
-                parent,
-                fs=self.fs_kind,
-                bucket=self.bucket,
-                notupdatecache=self.notupdatecache,
-                nocheck=self.nocheck,
-                when_checked=self.when_checked,
-                when_updated=self.when_updated,
-                update_expire=self.update_expire,
-                check_expire=self.check_expire,
-            )
-            if p.is_file():
-                raise FileExistsError(f"A parent directory can not be created because there is already a file at {p}")
-            elif not p.exists():
-                p.mkdir()
+            self.fs.touch(self.__fspath__(), **kwargs)
+        else:
 
-        self.fs.touch(self.__fspath__(), **kwargs)
+            self.fs.touch(self.__fspath__(), **kwargs)
 
     def mkdir(self, present: str = "ignore", **kwargs) -> None:
         """Creates the directory corresponding to self if does not exist
@@ -2105,7 +2114,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     "A parent directory can not be created because there is already a file at" f" {thefile}"
                 )
 
-        if self.fs_kind == "local":
+        if self.fs_kind == ("local" or "ssh"):
             # Use _obj_missing instead of callign mkdir directly because
             # file systems mkdir has some kwargs with different name than
             # pathlib.Path's  mkdir, and this is handled in _obj_missing

@@ -168,7 +168,7 @@ def mv(self, other: Union[str, Path, TransparentPath]):
         )
 
     if other.fs_kind != self.fs_kind:
-        # TODO : adapt to s3 -> Isn't it already adapted ?
+        # TODO : adapt to s3 -> Isn't it already adapted ? To be tested
         if self.fs_kind == "local":
             self.put(other)
             self.rm(absent="raise", ignore_kind=True)
@@ -230,8 +230,8 @@ def cp(self, other: Union[str, Path, TransparentPath]):
     # properly
 
     if self.is_file():
-        if self.fs_name == other.fs_name:
-            self.fs.cp(self.__fspath__(), other)
+        if self.fs_kind == other.fs_kind:
+            self.fs.copy(self.__fspath__(), other)
             return
         else:
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=self.suffix)

@@ -51,7 +51,7 @@ def test_mv(clean, fs_kind1, fs_kind2):
         init(fs_kind2)
 
     path1 = TransparentPath("chien.txt", fs_kind=fs_kind1)
-    path2 = TransparentPath("chien2.txt", fs_kind=fs_kind2)
+    path2 = TransparentPath("chien.txt", fs_kind=fs_kind2)
     path1.touch()
     path1.mv(path2)
     assert not path1.is_file()
@@ -73,7 +73,7 @@ def test_cp(clean, fs_kind1, fs_kind2):
         init(fs_kind2)
 
     path1 = TransparentPath("chien.txt", fs_kind=fs_kind1)
-    path2 = TransparentPath("chien2.txt", fs_kind=fs_kind2)
+    path2 = TransparentPath("chien.txt", fs_kind=fs_kind2)
     path1.touch()
     path1.cp(path2)
     assert path1.is_file()
