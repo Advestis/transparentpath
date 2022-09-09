@@ -11,9 +11,10 @@ from inspect import signature
 from pathlib import Path
 from time import time
 from typing import Union, Tuple, Any, Iterator, Optional, Iterable, List, Callable
-from dotenv import load_dotenv
+
 import gcsfs
 import s3fs
+from dotenv import load_dotenv
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.sftp import SFTPFileSystem
 
@@ -216,7 +217,7 @@ def get_fs(
     Parameters
     ----------
     fs_kind: str
-        Returns GCSFileSystem if 'gcs_*', LocalFilsSystem if 'local', S3FileSystem if 's3_*', Ssh.
+        Returns GCSFileSystem if 'gcs_*', LocalFilsSystem if 'local', S3FileSystem if 's3_*', `fsspec.implementations.local.SFTPFileSystem`.
     bucket: str
         bucket name for GCS or scaleway
     token: Optional[Union[str, dict]]
@@ -229,7 +230,7 @@ def get_fs(
 
     Returns
     -------
-    Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem, s3fs.S3FileSystem], Union[None, str], Union[None, str], Union[None, str]]
+    Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem, s3fs.S3FileSystem, `fsspec.implementations.local.SFTPFileSystem`], Union[None, str], Union[None, str], Union[None, str]]
         The FileSystem object, the project if on remote else None, and the bucket if on remote.
     """
 
@@ -666,8 +667,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
     >>> assert issubclass(path.__class__, Path)
     instead.
 
-    Any method or attribute valid in `fsspec.implementations.local.LocalFileSystem`, `gcs.GCSFileSystem`, `pathlib.Path`
-    or `str` can be used on a TransparentPath object.
+    Any method or attribute valid in `fsspec.implementations.local.LocalFileSystem`, `gcs.GCSFileSystem`,
+    `fsspec.implementations.local.SFTPFileSystem`, `pathlib.Path` or `str` can be used on a TransparentPath object.
 
     **Warnings about GCS behaviour**
     if you use GCS:\n
@@ -842,7 +843,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     scaleway_endpoint_url = "https://s3.fr-par.scw.cloud"
     fss = {}
     """Declared filesystems. Keys are 'local' or 'gcs_cred_mail' and values are
-     `fsspec.implementations.local.LocalFileSystem` or `gcsfs.GCSFileSystem` objects"""
+     `fsspec.implementations.local.LocalFileSystem` or `gcsfs.GCSFileSystem` or `fsspec.implementations.local.SFTPFileSystem` objects"""
     buckets_in_project = {}
     """Known buckets. Keys are 'gcs_cred_mail' and values are bucket names (str)"""
     fs_kind = None
@@ -923,7 +924,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         ),
     }
     """To translate method args and kwargs between `fsspec.implementations.local.LocalFileSystem` 
-    and `gcsfs.GCSFileSystem` and `S3.S3FileSystem`"""
+    and `gcsfs.GCSFileSystem` and `S3.S3FileSystem` and `fsspec.implementations.local.SFTPFileSystem`"""
 
     @classmethod
     def set_global_fs(
