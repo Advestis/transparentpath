@@ -1643,7 +1643,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return self.exists()
 
     def exists(self) -> bool:
-        if str(self.path) == "/" and self.fs_kind == ("local" or "ssh"):
+        if str(self.path) == "/" and (self.fs_kind == "local" or self.fs_kind == "ssh"):
             return True
         elif self.path == "gs://" and self.fs_kind == "gcs":
             return True
@@ -2063,7 +2063,25 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
             self.fs.touch(self.__fspath__(), **kwargs)
         else:
-
+            parent = str(self.path).split("/")
+            parent = parent[:-1]
+            parent = "/".join(parent)
+            p = TransparentPath(
+                Path(parent),
+                fs=self.fs_kind,
+                bucket=self.bucket,
+                notupdatecache=self.notupdatecache,
+                nocheck=self.nocheck,
+                when_checked=self.when_checked,
+                when_updated=self.when_updated,
+                update_expire=self.update_expire,
+                check_expire=self.check_expire,
+            )
+            if p.is_file():
+                raise FileExistsError(
+                    f"A parent directory can not be created because there is already a file at {p}")
+            elif not p.exists():
+                p.mkdir()
             self.fs.touch(self.__fspath__(), **kwargs)
 
     def mkdir(self, present: str = "ignore", **kwargs) -> None:
@@ -2098,24 +2116,25 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 raise FileExistsError(f"There is already an object at {self} and it is not a  directory")
             return
 
-        for parent in reversed(self.parents):
-            thefile = TransparentPath(
-                parent,
-                fs=self.fs_kind,
-                bucket=self.bucket,
-                notupdatecache=self.notupdatecache,
-                nocheck=self.nocheck,
-                when_checked=self.when_checked,
-                when_updated=self.when_updated,
-                update_expire=self.update_expire,
-                check_expire=self.check_expire,
-            )
-            if thefile.is_file():
-                raise FileExistsError(
-                    "A parent directory can not be created because there is already a file at" f" {thefile}"
+        if self.fs_kind != "ssh":
+            for parent in reversed(self.parents):
+                thefile = TransparentPath(
+                    parent,
+                    fs=self.fs_kind,
+                    bucket=self.bucket,
+                    notupdatecache=self.notupdatecache,
+                    nocheck=self.nocheck,
+                    when_checked=self.when_checked,
+                    when_updated=self.when_updated,
+                    update_expire=self.update_expire,
+                    check_expire=self.check_expire,
                 )
+                if thefile.is_file():
+                    raise FileExistsError(
+                        "A parent directory can not be created because there is already a file at" f" {thefile}"
+                    )
 
-        if self.fs_kind == ("local" or "ssh"):
+        if self.fs_kind == "local" or self.fs_kind == "ssh":
             # Use _obj_missing instead of callign mkdir directly because
             # file systems mkdir has some kwargs with different name than
             # pathlib.Path's  mkdir, and this is handled in _obj_missing
