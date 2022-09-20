@@ -106,6 +106,10 @@ try:
             jsonified, "w", overwrite=overwrite, present=present, **kwargs,
         )
 
+    def to_plotly_json(self):
+        """ For compatibility with Plotly Dash """
+        return str(self)
+
 
 except ImportError as e:
     raise ImportError(str(e))
