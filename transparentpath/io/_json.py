@@ -31,10 +31,10 @@ try:
                 return dct
             elif isinstance(obj, np.ndarray):
                 return dict(__ndarray__=obj.tolist(), dtype=str(obj.dtype), shape=obj.shape)
-            elif isinstance(obj, date):
-                return obj.strftime("%Y-%m-%d")
             elif isinstance(obj, (datetime, pd.Timestamp)):
                 return obj.strftime("%Y-%m-%d %H:%M:%S")
+            elif isinstance(obj, date):
+                return obj.strftime("%Y-%m-%d")
             elif isinstance(obj, pd.Timedelta):
                 return {"__pd.Timedelta__": str(obj)}
             elif hasattr(obj, "name"):
