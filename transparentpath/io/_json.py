@@ -35,6 +35,10 @@ try:
                 return obj.strftime("%Y-%m-%d")
             elif isinstance(obj, datetime):
                 return obj.strftime("%Y-%m-%d %H:%M:%S")
+            elif isinstance(obj, pd.Timedelta):
+                return {"__pd.Timedelta__": str(obj)}
+            elif hasattr(obj, "name"):
+                return obj.name
             else:
                 return json.JSONEncoder.default(self, obj)
 
@@ -42,6 +46,8 @@ try:
     def json_obj_hook(dct):
         if isinstance(dct, dict) and "__ndarray__" in dct:
             return np.array(dct["__ndarray__"], dct["dtype"]).reshape(dct["shape"])
+        if isinstance(dct, dict) and "__pd.Timedelta__" in dct and len(dict) == 1:
+            return pd.Timedelta(dct["__pd.Timedelta__"])
         elif isinstance(dct, dict) and "columns" in dct and "data" in dct and "datetimeindex" in dct:
             possible_keys = ["data", "index", "dtypes", "columns", "datetimeindex"]
             if len(dct) > 5:  # not a pd.DataFrame
