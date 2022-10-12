@@ -20,7 +20,7 @@ dic = {"animals": {"chien": 4, "bird": 2}, "plants": {"drosera": "miam", "celeri
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["local", "gcs"])
-def test_read_json(clean, fs_kind):
+def test_read_json(clean, fs_kind): # A demander explication
     reload(sys.modules["transparentpath"])
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -44,7 +44,7 @@ def test_read_json(clean, fs_kind):
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "fs_kind", ["local", "gcs"]
+    "fs_kind", ["local", "gcs", "ssh"]
 )
 def test_write_dict(clean, fs_kind):
     if skip_gcs[fs_kind]:
@@ -66,7 +66,7 @@ def test_write_dict(clean, fs_kind):
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "fs_kind", ["local", "gcs"]
+    "fs_kind", ["local", "gcs", "ssh"]
 )
 def test_write_numpy(clean, fs_kind):
     if skip_gcs[fs_kind]:
@@ -88,7 +88,7 @@ def test_write_numpy(clean, fs_kind):
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "fs_kind", ["local", "gcs"]
+    "fs_kind", ["local", "gcs", "ssh"]
 )
 def test_write_pandas(clean, fs_kind):
     if skip_gcs[fs_kind]:

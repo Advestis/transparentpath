@@ -14,7 +14,7 @@ for req in requirements:
 
 
 # noinspection PyUnusedLocal,PyShadowingNames
-@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
+@pytest.mark.parametrize("fs_kind", ["local", "gcs", "ssh"])
 def test_csv(clean, fs_kind):
     if reqs_ok is False:
         pcsv = get_path(fs_kind, ".csv")

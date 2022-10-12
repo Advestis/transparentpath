@@ -27,6 +27,11 @@ for req in requirements:
         ("gcs", None, False),
         ("gcs", [0, 1], True),
         ("gcs", None, True),
+
+        ("ssh", [0, 1], False),
+        ("ssh", None, False),
+        ("ssh", [0, 1], True),
+        ("ssh", None, True),
     ]
 )
 def test_hdf5(clean, fs_kind, data, use_pandas):

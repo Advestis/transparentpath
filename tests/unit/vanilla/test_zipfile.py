@@ -6,8 +6,8 @@ from transparentpath import TransparentPath
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
-def test_zipfile(clean, fs_kind):
+@pytest.mark.parametrize("fs_kind", ["local", "gcs", "ssh"])
+def test_zipfile(clean, fs_kind): # Demander explication
     if skip_gcs[fs_kind]:
         print("skipped")
         return

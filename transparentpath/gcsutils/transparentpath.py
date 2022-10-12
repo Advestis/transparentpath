@@ -471,8 +471,9 @@ def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
 def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, str]:
     is_gcs = False
     is_s3 = False
-    if fs_kind is None and token is None:
-        raise ValueError("Must specify one of 'fs_kind' or 'token'")
+    is_ssh = False
+    if fs_kind is None and token is None and ("SSH_PASSWORD" or "SSH_USERNAME" or "SSH_HOST") is None:
+        raise ValueError("Must specify one of 'fs_kind' or 'token' or 'all ssh information'")
     if fs_kind is not None and token is not None:
         raise ValueError("Can only specify one of 'fs_kind' or 'token'")
 
@@ -499,13 +500,19 @@ def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, str]:
                                  "S3_APPLICATION_CREDENTIALS were found in the environnement variables. I do not know"
                                  " what to do.")
         if not is_gcs and not is_s3:
-            raise ValueError("No token was specified and neither GOOGLE_APPLICATION_CREDENTIALS nor "
-                             "S3_APPLICATION_CREDENTIALS were found in the environnement variables.")
+            if ("SSH_PASSWORD" and "SSH_USERNAME" and "SSH_HOST") is not None:
+                is_ssh = True
+            else:
+                raise ValueError("No token was specified and neither GOOGLE_APPLICATION_CREDENTIALS nor "
+                                 "S3_APPLICATION_CREDENTIALS were found in the environnement variables. and neither "
+                                 "'ssh informations login' are specified")
 
         if is_gcs:
             token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        else:
+        elif is_s3:
             token = os.getenv("S3_APPLICATION_CREDENTIALS")
+        elif is_ssh:
+            token = [os.getenv("SSH_HOST"), os.getenv("SSH_USERNAME"), os.getenv("SSH_PASSWORD")]
 
     token = token.strip()
     if TransparentPath(token, fs_kind="local", nocheck=True, notupdatecache=True).is_file():
@@ -520,7 +527,7 @@ def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, str]:
 
         fs_name = f"gcs_{content['project_id']}_{content['client_email']}"
         TransparentPath.tokens[fs_name] = token
-    else:
+    elif is_s3:
         fs_name = f"s3_{content['project_id']}_{content['user_id']}"
         TransparentPath.tokens[fs_name] = token
     return fs_name, content["project_id"], token

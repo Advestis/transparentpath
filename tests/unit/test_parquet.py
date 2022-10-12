@@ -16,7 +16,7 @@ for req in requirements:
 @pytest.mark.parametrize(
     "fs_kind",
     [
-        "local", "gcs"
+        "local", "gcs", "ssh"
     ]
 )
 def test_parquet(clean, fs_kind):
@@ -40,7 +40,7 @@ def test_parquet(clean, fs_kind):
 @pytest.mark.parametrize(
     "fs_kind",
     [
-        "local", "gcs"
+        "local", "gcs", "ssh"
     ]
 )
 def test_fastparquet(clean, fs_kind):

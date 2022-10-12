@@ -1,7 +1,9 @@
-import pytest
 import importlib.util
-from .functions import get_reqs, get_path
 from pathlib import Path
+
+import pytest
+
+from .functions import get_reqs, get_path
 
 requirements = get_reqs(Path(__file__).stem.split("test_")[1])
 
@@ -34,10 +36,11 @@ for req in requirements:
 @pytest.mark.parametrize(
     "fs_kind, suffix, kwargs",
     [
-        ("local", ".csv", {"index_col": 0}), ("gcs", ".csv", {"index_col": 0}),
-        ("local", ".parquet", {}), ("gcs", ".parquet", {}),
-        ("local", ".xlsx", {"index_col": 0}), ("gcs", ".xlsx", {"index_col": 0}),
+        ("local", ".csv", {"index_col": 0}), ("gcs", ".csv", {"index_col": 0}), ("local", ".csv", {"index_col": 0}),
+        ("local", ".parquet", {}), ("gcs", ".parquet", {}), ("local", ".parquet", {}),
+        ("local", ".xlsx", {"index_col": 0}), ("gcs", ".xlsx", {"index_col": 0}), ("local", ".xlsx", {"index_col": 0}),
         ("local", ".hdf5", {"set_names": "data"}), ("gcs", ".hdf5", {"set_names": "data"}),
+        ("ssh", ".hdf5", {"set_names": "data"}),
     ]
 )
 def test(clean, fs_kind, suffix, kwargs):

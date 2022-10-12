@@ -16,7 +16,7 @@ for req in requirements:
 @pytest.mark.parametrize(
     "fs_kind",
     [
-        "local", "gcs"
+        "local", "gcs", "ssh"
     ]
 )
 def test_csv(clean, fs_kind):
