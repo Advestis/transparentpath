@@ -1,4 +1,5 @@
 import importlib.util
+import os
 from pathlib import Path
 
 import pytest
@@ -220,7 +221,6 @@ def test_isfile(clean, fs_kind, path1, path2, expected):
         ("gcs", "chien", "chat", False),
         ("ssh", "chien", "chat", False),
 
-
     ],
 )
 def test_isdir(clean, fs_kind, path1, path2, expected):
@@ -419,7 +419,8 @@ def test_mkdir(clean, fs_kind, path, expected):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind, to_append", [("local", "chat"), ("gcs", "chat"), ("gcs", "chat")])
+@pytest.mark.parametrize("fs_kind, to_append",
+                         [("local", "chat"), ("gcs", "chat"), ("gcs", "chat")])  # A demander explication
 def test_append(clean, fs_kind, to_append):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -437,7 +438,10 @@ def test_walk(clean, fs_kind):
         return
     init(fs_kind)
 
-    dic = {"chien": "dir", "chien/chat": "file", "chien/cheval": "dir", "chien/cheval/chouette": "file"}
+    if fs_kind != "ssh":
+        dic = {"chien": "dir", "chien/chat": "file", "chien/cheval": "dir", "chien/cheval/chouette": "file"}
+    else:
+        dic = {"chat": "file", "cheval": "dir", "cheval/chouette": "file"}
     expected = [
         (
             TransparentPath("chien"),
@@ -446,7 +450,10 @@ def test_walk(clean, fs_kind):
         ),
         (TransparentPath("chien") / "cheval", [], [TransparentPath("chien") / "cheval" / "chouette"]),
     ]
-    root = TransparentPath()
+    if fs_kind != "ssh":
+        root = TransparentPath()
+    else:
+        root = TransparentPath("chien")
     for word in dic:
         p = root / word
         p.rm(absent="ignore", ignore_kind=True)
@@ -457,7 +464,11 @@ def test_walk(clean, fs_kind):
         else:
             p.mkdir()
 
-    assert list((root / "chien").walk()) == expected
+    if fs_kind != "ssh":
+        assert list((root / "chien").walk()) == expected
+    else:
+        assert list(root.walk()) == expected
+
     for word in dic:
         p = root / word
         p.rm(absent="ignore", ignore_kind=True)
@@ -471,7 +482,11 @@ def test_exists(clean, fs_kind):
         return
     init(fs_kind)
 
-    p = TransparentPath("chien")
+    if fs_kind != "ssh":
+        p = TransparentPath("chien")
+    else:
+        p = TransparentPath("chien/chiot")
+
     p.touch()
     assert p.exist()
     assert p.exists()
@@ -507,9 +522,21 @@ def test_urls(clean, fs_kind):
         print(p.parent.url)
         assert p.parent.download is None
     else:
-        assert p.url == f"file://{str(p).replace(' ', '%20')}"
-        print(p.url)
-        assert p.parent.url == f"file://{str(p.parent).replace(' ', '%20')}"
-        print(p.parent.url)
-        assert p.download is None
-        assert p.parent.download is None
+        if fs_kind == "local":
+            assert p.url == f"file://{str(p).replace(' ', '%20')}"
+            print(p.url)
+            assert p.parent.url == f"file://{str(p.parent).replace(' ', '%20')}"
+            print(p.parent.url)
+            assert p.download is None
+            assert p.parent.download is None
+        else:
+            assert p.url == f"sftp://{os.getenv('SSH_USERNAME')}@{os.getenv('SSH_HOST')}" \
+                            f"/home/{os.getenv('SSH_USERNAME')}/" \
+                            f"{str(p).replace(' ', '%20')}"
+            print(p.url)
+            assert p.parent.url == f"sftp://{os.getenv('SSH_USERNAME')}@{os.getenv('SSH_HOST')}" \
+                                   f"/home/{os.getenv('SSH_USERNAME')}/" \
+                                   f"{str(p).replace(' ', '%20')}"
+            print(p.parent.url)
+            assert p.download is None
+            assert p.parent.download is None

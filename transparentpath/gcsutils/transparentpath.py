@@ -472,7 +472,7 @@ def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, str]:
     is_gcs = False
     is_s3 = False
     is_ssh = False
-    if fs_kind is None and token is None and ("SSH_PASSWORD" or "SSH_USERNAME" or "SSH_HOST") is None:
+    if fs_kind is None and token is None and ("SSH_PASSWORD" or "SSH_USERNAME" or "SSH_HOST") not in os.environ:
         raise ValueError("Must specify one of 'fs_kind' or 'token' or 'all ssh information'")
     if fs_kind is not None and token is not None:
         raise ValueError("Can only specify one of 'fs_kind' or 'token'")
@@ -950,7 +950,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         ----------
         fs: str
             'gcs' will use GCSFileSystem, 'scw' will use S3FileSystem
-            with endpoint 'TransparentPath.scaleway_endpoint_url', 'local' will use LocalFileSystem
+            with endpoint 'TransparentPath.scaleway_endpoint_url', 'local' will use LocalFileSystem, 'ssh' will use SFTPFileSystem
         bucket: str
             The bucket name, only valid if using gcs or scw(Default value =  None)
         nas_dir: Union[TransparentPath, Path, str]
@@ -1002,7 +1002,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             enable_caching: bool = False,
             **kwargs,
     ):
-        """Creator of the TranparentPath object
+        """Creator of the TransparentPath object
 
         Parameters
         ----------
@@ -1307,10 +1307,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return str(self.__path)
 
     def __fspath__(self) -> str:
-        if self.fs_kind == "local" or self.fs_kind == "ssh":
+        if self.fs_kind == "local":
             return str(self.__path)
         else:
-            s = "".join([TransparentPath.remote_prefix, str(self.__path)])
+            s = "".join([TransparentPath.remote_prefix[self.fs_kind], str(self.__path)])
             if TransparentPath.LOCAL_SEP != "/":
                 s = s.replace(TransparentPath.LOCAL_SEP, "/")
             return s
@@ -1650,7 +1650,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return self.exists()
 
     def exists(self) -> bool:
-        if str(self.path) == "/" and (self.fs_kind == "local" or self.fs_kind == "ssh"):
+        if str(self.path) == "/" and (self.fs_kind == "local"):
             return True
         elif self.path == "gs://" and self.fs_kind == "gcs":
             return True
@@ -2634,7 +2634,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         Returns None if the path does not correspond to an existing file or directory.
         """
-        if self.fs_kind != "local":
+        if self.fs_kind != "local" and self.fs_kind != "ssh":
             if self.fs_kind == "gcs":
                 obj = str(self).replace(TransparentPath.remote_prefix["gcs"], "").replace(" ", "%20")
                 project = self.fs.project
@@ -2660,12 +2660,15 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 else:
                     return None
                 pass  # TODO Implement for scaleway
-
+            return f"{prefix}{obj}{postfix}"
         else:
             if not self.exists():
                 return None
-            return f"file://{str(self).replace(' ', '%20')}"
-        return f"{prefix}{obj}{postfix}"
+            if self.fs_kind == "local":
+                return f"file://{str(self).replace(' ', '%20')}"
+            elif self.fs_kind == "ssh":
+                return f"sftp://{os.getenv('SSH_USERNAME')}@{os.getenv('SSH_HOST')}/home/{os.getenv('SSH_USERNAME')}/" \
+                       f"{str(self).replace(' ', '%20')}"
 
     # READ CSV
 
