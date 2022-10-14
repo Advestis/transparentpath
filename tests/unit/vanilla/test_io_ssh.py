@@ -79,40 +79,41 @@ from ..functions import init, skip_gcs
 
 
 # A SUPPRIMER
-# @pytest.mark.parametrize(
-#     "fs_kind, path",
-#     [("ssh", "chien/test1_touche.txt"),
-#      ("ssh", "chien/test_touche.txt")]
-# )
-# def test_touch(clean, fs_kind, path):
-#     if skip_gcs[fs_kind]:
-#         print("skipped")
-#         return
-#     init(fs_kind)
-#     p = TransparentPath(path)
-#     if p.exists():
-#         p.rm(ignore_kind=True)
-#     p.touch()
-#     print(p.is_file(), "TTTTTTTTTTTTTTEEEEEEEEEEEEESSSSSSSSSSTTTTTTTTTTTTTTTTT", p)
-#     assert p.is_file()
-
-# A SUPPRIMER
 @pytest.mark.parametrize(
-    "fs_kind, path, expected",
-    [("ssh", "chien/chat", True)],
+    "fs_kind, path",
+    [("ssh", "chien/chat/test1_touche5.txt"),
+     ("ssh", "chien/chat/test_touche.txt")]
 )
-def test_mkdir(clean, fs_kind, path, expected):
+def test_touch(fs_kind, path):
     if skip_gcs[fs_kind]:
         print("skipped")
         return
     init(fs_kind)
-
     p = TransparentPath(path)
-    # print(p.fs_kind)
-    # p.mkdir()
-    # print("test", p.exists(), "teeeeeeest")
-    print(p.is_dir())
-    # assert p.is_dir() is expected
+    print(p.bucket)
+    # if p.exists():
+    #     p.rm(ignore_kind=True)
+    p.touch()
+#     print(p.is_file(), "TTTTTTTTTTTTTTEEEEEEEEEEEEESSSSSSSSSSTTTTTTTTTTTTTTTTT", p)
+#     assert p.is_file()
+
+# A SUPPRIMER
+# @pytest.mark.parametrize(
+#     "fs_kind, path, expected",
+#     [("ssh", "chien/chat", True)],
+# )
+# def test_mkdir(clean, fs_kind, path, expected):
+#     if skip_gcs[fs_kind]:
+#         print("skipped")
+#         return
+#     init(fs_kind)
+#
+#     p = TransparentPath(path)
+#     # print(p.fs_kind)
+#     # p.mkdir()
+#     # print("test", p.exists(), "teeeeeeest")
+#     # print(p.is_dir())
+#     assert p.is_dir() is True
 
 # A SUPPRIMER
 # @pytest.mark.parametrize("fs_kind", ["ssh"])

@@ -5,7 +5,7 @@ from importlib import reload
 
 bucket = "code_tests_sand"
 skip_gcs = {"local": False, "gcs": False, "ssh": False}
-requirements = {"vanilla": []}
+requirements = {"vanilla": [], "vanilla_ssh": []}
 
 with open("setup.cfg", "r") as setupfile:
     all_reqs_lines = setupfile.read()

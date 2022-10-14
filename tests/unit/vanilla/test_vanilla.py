@@ -42,8 +42,7 @@ def test_collapse_dots(clean):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind, excep", [("local", FileExistsError), ("gcs", TPMultipleExistenceError)],
-                         ("ssh", FileExistsError))
+@pytest.mark.parametrize("fs_kind, excep", [("local", FileExistsError), ("gcs", TPMultipleExistenceError)])
 def test_multipleexistenceerror(clean, fs_kind, excep):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -63,7 +62,7 @@ def test_multipleexistenceerror(clean, fs_kind, excep):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs", "ssh"])
+@pytest.mark.parametrize("fs_kind", ["local", "gcs",])
 def test_equal(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -75,7 +74,7 @@ def test_equal(clean, fs_kind):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs", "ssh"])
+@pytest.mark.parametrize("fs_kind", ["local", "gcs",])
 def test_lt(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -87,7 +86,7 @@ def test_lt(clean, fs_kind):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs", "ssh"])
+@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_gt(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -99,7 +98,7 @@ def test_gt(clean, fs_kind):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs", "ssh"])
+@pytest.mark.parametrize("fs_kind", ["local", "gcs",])
 def test_le(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -113,7 +112,7 @@ def test_le(clean, fs_kind):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs", "ssh"])
+@pytest.mark.parametrize("fs_kind", ["local", "gcs",])
 def test_gt(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -127,7 +126,7 @@ def test_gt(clean, fs_kind):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs", "ssh"])
+@pytest.mark.parametrize("fs_kind", ["local", "gcs",])
 def test_contains(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -138,7 +137,7 @@ def test_contains(clean, fs_kind):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs", "ssh"])
+@pytest.mark.parametrize("fs_kind", ["local", "gcs",])
 def test_add(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -150,7 +149,7 @@ def test_add(clean, fs_kind):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs", "ssh"])
+@pytest.mark.parametrize("fs_kind", ["local", "gcs",])
 def test_truediv(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -162,7 +161,7 @@ def test_truediv(clean, fs_kind):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs", "ssh"])
+@pytest.mark.parametrize("fs_kind", ["local", "gcs",])
 def test_itruediv(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -207,19 +206,14 @@ def test_isfile(clean, fs_kind, path1, path2, expected):
     [
         ("local", "chien/chat", "chien", True),
         ("gcs", "chien/chat", "chien", True),
-        ("ssh", "chien/chat", "chien", True),
         ("local", "chien/chat", "chien", True),
         ("gcs", "chien/chat", "chien", True),
-        ("ssh", "chien/chat", "chien", True),
         ("local", "chien", "chien", False),
         ("gcs", "chien", "chien", False),
-        ("ssh", "chien", "chien", False),
         ("local", "chien", "chien", False),
         ("gcs", "chien", "chien", False),
-        ("ssh", "chien", "chien", False),
         ("local", "chien", "chat", False),
         ("gcs", "chien", "chat", False),
-        ("ssh", "chien", "chat", False),
 
     ],
 )
@@ -240,37 +234,28 @@ def test_isdir(clean, fs_kind, path1, path2, expected):
     [
         ("local", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": False}, None),
         ("gcs", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": False}, None),
-        ("ssh", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": False}, None),  # new
 
         ("local", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),
         ("gcs", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),
-        ("ssh", "chien", "chien", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),
-        # new
 
         ("local", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, IsADirectoryError),
         ("gcs", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, IsADirectoryError),
-        ("ssh", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, IsADirectoryError),
-        # new
+
 
         ("local", "ch/chat", "ch", {"absent": "raise", "ignore_kind": True, "recursive": False}, None),
         ("gcs", "ch/chat", "ch", {"absent": "raise", "ignore_kind": True, "recursive": False}, None),
-        ("ssh", "ch/chat", "ch", {"absent": "raise", "ignore_kind": True, "recursive": False}, None),  # new
 
         ("local", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, None),
         ("gcs", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, None),
-        ("ssh", "ch/chat", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, None),  # new
 
         ("local", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, FileNotFoundError),
         ("gcs", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, FileNotFoundError),
-        ("ssh", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": False}, FileNotFoundError),  # new
 
         ("local", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),
         ("gcs", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),
-        ("ssh", "", "ch", {"absent": "raise", "ignore_kind": False, "recursive": True}, NotADirectoryError),  # new
 
         ("local", "", "ch", {"absent": "ignore", "ignore_kind": False, "recursive": True}, None),
         ("gcs", "", "ch", {"absent": "ignore", "ignore_kind": False, "recursive": True}, None),
-        ("ssh", "", "ch", {"absent": "ignore", "ignore_kind": False, "recursive": True}, None),  # new
     ],
 )
 def test_rm(clean, fs_kind, path1, path2, kwargs, expected):
@@ -298,8 +283,6 @@ def test_rm(clean, fs_kind, path1, path2, kwargs, expected):
         ("local", "chien/**", ["chat", "cheval", "cheval/chouette"]),
         ("gcs", "chien/*", ["chat", "cheval"]),
         ("gcs", "chien/**", ["chat", "cheval", "cheval/chouette"]),
-        ("ssh", "chien/*", ["chat", "chien", "lion"]),
-        ("ssh", "chien/**", ["chat", "cheval", "lion", "cheval/chouette"]),
     ],
 )
 def test_glob(clean, fs_kind, pattern, expected):
@@ -330,8 +313,7 @@ def test_glob(clean, fs_kind, pattern, expected):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
     "fs_kind, suffix, expected",
-    [("local", ".txt", ".txt"), ("local", "txt", ".txt"), ("gcs", ".txt", ".txt"), ("gcs", "txt", ".txt"),
-     ("gcs", ".txt", ".txt"), ("ssh", "txt", ".txt")],
+    [("local", ".txt", ".txt"), ("local", "txt", ".txt"), ("gcs", ".txt", ".txt"), ("gcs", "txt", ".txt")],
 )
 def test_with_suffix(clean, fs_kind, suffix, expected):
     if skip_gcs[fs_kind]:
@@ -344,7 +326,7 @@ def test_with_suffix(clean, fs_kind, suffix, expected):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs", "ssh"])
+@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_ls(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -385,8 +367,7 @@ def test_cd(clean, fs_kind):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
     "fs_kind, path",
-    [("local", "chien/chat"), ("local", "chien"), ("gcs", "chien/chat"), ("gcs", "chien"), ("ssh", "chien/chat"),
-     ("ssh", "chien")]
+    [("local", "chien/chat"), ("local", "chien"), ("gcs", "chien/chat"), ("gcs", "chien")]
 )
 def test_touch(clean, fs_kind, path):
     if skip_gcs[fs_kind]:
@@ -404,8 +385,7 @@ def test_touch(clean, fs_kind, path):
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
     "fs_kind, path, expected",
-    [("local", "chien", True), ("local", "chien/chat", True), ("gcs", "chien", False), ("gcs", "chien/chat", False),
-     ("ssh", "chien", True), ("ssh", "chien/chat", True)],
+    [("local", "chien", True), ("local", "chien/chat", True), ("gcs", "chien", False), ("gcs", "chien/chat", False)],
 )
 def test_mkdir(clean, fs_kind, path, expected):
     if skip_gcs[fs_kind]:
@@ -431,17 +411,15 @@ def test_append(clean, fs_kind, to_append):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs", "ssh"])
+@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_walk(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
         return
     init(fs_kind)
 
-    if fs_kind != "ssh":
-        dic = {"chien": "dir", "chien/chat": "file", "chien/cheval": "dir", "chien/cheval/chouette": "file"}
-    else:
-        dic = {"chat": "file", "cheval": "dir", "cheval/chouette": "file"}
+    dic = {"chien": "dir", "chien/chat": "file", "chien/cheval": "dir", "chien/cheval/chouette": "file"}
+
     expected = [
         (
             TransparentPath("chien"),
@@ -450,10 +428,8 @@ def test_walk(clean, fs_kind):
         ),
         (TransparentPath("chien") / "cheval", [], [TransparentPath("chien") / "cheval" / "chouette"]),
     ]
-    if fs_kind != "ssh":
-        root = TransparentPath()
-    else:
-        root = TransparentPath("chien")
+    root = TransparentPath()
+
     for word in dic:
         p = root / word
         p.rm(absent="ignore", ignore_kind=True)
@@ -464,10 +440,8 @@ def test_walk(clean, fs_kind):
         else:
             p.mkdir()
 
-    if fs_kind != "ssh":
-        assert list((root / "chien").walk()) == expected
-    else:
-        assert list(root.walk()) == expected
+    assert list((root / "chien").walk()) == expected
+
 
     for word in dic:
         p = root / word
@@ -475,17 +449,14 @@ def test_walk(clean, fs_kind):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind, ", ["local", "gcs", "ssh"])
+@pytest.mark.parametrize("fs_kind, ", ["local", "gcs"])
 def test_exists(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
         return
     init(fs_kind)
 
-    if fs_kind != "ssh":
-        p = TransparentPath("chien")
-    else:
-        p = TransparentPath("chien/chiot")
+    p = TransparentPath("chien")
 
     p.touch()
     assert p.exist()
@@ -502,7 +473,7 @@ def test_buckets(clean):
     assert "code_tests_sand/" in TransparentPath().buckets
 
 
-@pytest.mark.parametrize("fs_kind, ", ["local", "gcs", "ssh"])
+@pytest.mark.parametrize("fs_kind, ", ["local", "gcs"])
 def test_urls(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
@@ -522,21 +493,10 @@ def test_urls(clean, fs_kind):
         print(p.parent.url)
         assert p.parent.download is None
     else:
-        if fs_kind == "local":
-            assert p.url == f"file://{str(p).replace(' ', '%20')}"
-            print(p.url)
-            assert p.parent.url == f"file://{str(p.parent).replace(' ', '%20')}"
-            print(p.parent.url)
-            assert p.download is None
-            assert p.parent.download is None
-        else:
-            assert p.url == f"sftp://{os.getenv('SSH_USERNAME')}@{os.getenv('SSH_HOST')}" \
-                            f"/home/{os.getenv('SSH_USERNAME')}/" \
-                            f"{str(p).replace(' ', '%20')}"
-            print(p.url)
-            assert p.parent.url == f"sftp://{os.getenv('SSH_USERNAME')}@{os.getenv('SSH_HOST')}" \
-                                   f"/home/{os.getenv('SSH_USERNAME')}/" \
-                                   f"{str(p).replace(' ', '%20')}"
-            print(p.parent.url)
-            assert p.download is None
-            assert p.parent.download is None
+        assert p.url == f"file://{str(p).replace(' ', '%20')}"
+        print(p.url)
+        assert p.parent.url == f"file://{str(p.parent).replace(' ', '%20')}"
+        print(p.parent.url)
+        assert p.download is None
+        assert p.parent.download is None
+

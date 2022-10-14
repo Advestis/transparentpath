@@ -1134,6 +1134,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if self.fs_kind == "local":
             self.sep = TransparentPath.LOCAL_SEP
             self.__path = self.__path.absolute()
+
         else:
             self.sep = "/"
 
@@ -1147,7 +1148,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if len(self.__path.parts) > 0 and self.__path.parts[0] == "..":
                 raise ValueError("The path can not start with '..'")
 
-        else:
+        elif self.fs_kind == "gcs":
 
             # ON remote
 
@@ -1173,10 +1174,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
             # if len(self.__path.parts) > 1 and self.bucket in self.__path.parts[1:]:
             #     raise ValueError("You should never use your bucket name as a directory or file name.")
 
-        if self.when_checked["created"] and not self.nocheck:
-            self._check_multiplicity()
-        elif self.when_updated["created"] and not self.notupdatecache:  # Else, because called by check_multiplicity
-            self._update_cache()
+        # TODO Ask what these lines are for because it bugs the file creation
+        # if self.when_checked["created"] and not self.nocheck:
+        #     self._check_multiplicity()
+        # elif self.when_updated["created"] and not self.notupdatecache:  # Else, because called by check_multiplicity
+        #     self._update_cache()
 
     @property
     def path(self):
@@ -1692,6 +1694,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if str(self.path) == "/":
                 return True
             return self.__path.is_dir()
+        elif self.fs_kind == "local":
+            if self.info()["type"] == "directory" and self.info()["type"] == "directory":
+                return True
+            else:
+                return False
         else:
             if not self.exists():
                 return False
@@ -2050,7 +2057,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 return
         if self.fs_kind != "ssh":
             for parent in reversed(self.parents):
-                print(parent)
                 p = TransparentPath(
                     parent,
                     fs=self.fs_kind,
@@ -2088,6 +2094,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 raise FileExistsError(
                     f"A parent directory can not be created because there is already a file at {p}")
             elif not p.exists():
+                print("test")
                 p.mkdir()
             self.fs.touch(self.__fspath__(), **kwargs)
 
