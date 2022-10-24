@@ -58,9 +58,13 @@ try:
             if "index" in dct:
                 df.index = dct["index"]
             if "dtypes" in dct:
-                df = df.astype(dct["dtypes"])
+                for column in dct["dtypes"]:
+                    if dct["dtypes"][column].startswith("datetime64") and df[column].dtype in (int, float):
+                        df[column] = pd.to_datetime(df[column], unit="ms")
+                    else:
+                        df[column] = df[column].astype(dct["dtypes"][column])
             if dct["datetimeindex"] is True:
-                if df.index.dtype == int:
+                if df.index.dtype in (int, float):
                     # noinspection PyTypeChecker
                     df.index = pd.to_datetime(df.index, unit="ms")
                 else:
@@ -76,11 +80,14 @@ try:
             if "index" in dct:
                 s.index = dct["index"]
             if "dtype" in dct:
-                s = s.astype(dct["dtype"])
+                if dct["dtype"].startswith("datetime64") and s.dtype in (int, float):
+                    s = pd.to_datetime(s, unit="ms")
+                else:
+                    s = s.astype(dct["dtype"])
             if "name" in dct:
                 s.name = dct["name"]
             if dct["datetimeindex"] is True:
-                if s.index.dtype == int:
+                if s.index.dtype in (int, float):
                     # noinspection PyTypeChecker
                     s.index = pd.to_datetime(s.index, unit="ms")
                 else:
