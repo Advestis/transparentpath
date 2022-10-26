@@ -28,17 +28,17 @@ Please use python >= 3.7.
 [![mail](https://img.shields.io/badge/mail-maintainers-blue)](mailto:pythondev@advestis.com)
 
 
-# TransparentPath
+## TransparentPath
 
 A class that allows one to use a path in a local file system or a Google Cloud Storage (GCS) file system in the
 same way one would use a *pathlib.Path* object. One can use many different GCP projects at once.
 
-## Requirements
+### Requirements
 
 You will need GCP credentials, either as a *.json* file, that you can set in the envvar GOOGLE_APPLICATION_CREDENTIALS, or
 by running directly in a google cloud instance (VM, pods, etc...). 
  
-## Installation
+### Installation
 
 You can install this package with pip :
 
@@ -46,7 +46,7 @@ You can install this package with pip :
 pip install transparentpath
 ```
 
-## Optional packages
+### Optional packages
 
 The vanilla version allows you to declare paths and work with them. You can use them in the builtin `open` method. 
 Optionally, you can also install support for several other packages like pandas, dask, etc... the currently 
@@ -67,7 +67,7 @@ you can install all of those at once
 pip install transparentpath[all]
 ```
 
-## Usage
+### Usage
 
 Create a path that points to GCS, and one that does not:
 ```python
@@ -184,7 +184,7 @@ files = mypath.parent.glob("*.csv")  # Returns a Iterator[TransparentPath], can 
 As you can see from the previous example, all methods returning a path from a TransparentPath return a 
 TransparentPath.
 
-### Dask
+#### Dask
 
 TransparentPath supports writing and reading Dask dataframes from and to csv, excel, parquet and HDF5, both locally and
 remotely. You need to have dask-dataframe and dask-distributed installed, which will be the case if you ran `pip 
@@ -199,7 +199,7 @@ file is actually read, so the file is kept. Up to you to empty your /tmp directo
 by your system.
 
 
-## Behavior
+### Behavior
 
 All instances of TransparentPath are absolute, even if created with relative paths.
 
@@ -232,9 +232,9 @@ instead.
 Any method or attribute valid in fsspec.implementations.local.LocalFileSystem, gcs.GCSFileSystem, pathlib.Path or str
 can be used on a TransparentPath object.
 
-## Warnings
+### Warnings
 
-### Warnings about GCS behaviour
+#### Warnings about GCS behaviour
 if you use GCS:
 
   1. Remember that directories are not a thing on GCS.
@@ -254,7 +254,7 @@ if you use GCS:
   creation), or for glob and ls by passing fast=True as additional argument.
 
 
-### Speed
+#### Speed
 
 TransparentPath on GCS is slow because of the verification for multiple existance and the cache updating.
 However one can tweak those a bit. As mentionned earlier, cache updating and multiple existence check can be
@@ -302,7 +302,7 @@ p.ls("", fast=True)
 Basically, `fast=True` means "do not check and do not update the cache" for all the items found by the method.
 
 
-### builtin open
+#### builtin open
 
 Builtin `open()` is overloaded by TransparentPath to support giving a TransparentPath to it. If a method in a package you did 
 not create uses `open()` in a *with* statement, everything should work out of the box with a TransparentPath. 
