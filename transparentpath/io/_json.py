@@ -29,18 +29,23 @@ try:
                     dct["dtype"] = str(obj.dtype)
                 dct["datetimeindex"] = isinstance(obj.index, pd.DatetimeIndex)
                 return dct
-            elif isinstance(obj, np.ndarray):
-                return dict(__ndarray__=obj.tolist(), dtype=str(obj.dtype), shape=obj.shape)
-            elif isinstance(obj, (datetime, pd.Timestamp)):
-                return obj.strftime("%Y-%m-%d %H:%M:%S")
-            elif isinstance(obj, date):
-                return obj.strftime("%Y-%m-%d")
-            elif isinstance(obj, pd.Timedelta):
-                return {"__pd.Timedelta__": str(obj)}
-            elif hasattr(obj, "name"):
+            if isinstance(obj, np.ndarray):
+              return dict(__ndarray__=obj.tolist(), dtype=str(obj.dtype), shape=obj.shape)
+            if isinstance(obj, (datetime, pd.Timestamp)):
+              return obj.strftime("%Y-%m-%d %H:%M:%S")
+            if isinstance(obj, date):
+              return obj.strftime("%Y-%m-%d")
+            if isinstance(obj, pd.Timedelta):
+              return {"__pd.Timedelta__": str(obj)}
+            if hasattr(obj, "name"):
                 return obj.name
-            else:
-                return json.JSONEncoder.default(self, obj)
+            if isinstance(obj, np.integer):
+                return int(obj)
+            if isinstance(obj, np.floating):
+                return float(obj)
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            return super(JSONEncoder, self).default(self, obj)
 
 
     def json_obj_hook(dct):
