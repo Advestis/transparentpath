@@ -30,13 +30,13 @@ try:
                 dct["datetimeindex"] = isinstance(obj.index, pd.DatetimeIndex)
                 return dct
             if isinstance(obj, np.ndarray):
-              return dict(__ndarray__=obj.tolist(), dtype=str(obj.dtype), shape=obj.shape)
+                return dict(__ndarray__=obj.tolist(), dtype=str(obj.dtype), shape=obj.shape)
             if isinstance(obj, (datetime, pd.Timestamp)):
-              return obj.strftime("%Y-%m-%d %H:%M:%S")
+                return obj.strftime("%Y-%m-%d %H:%M:%S")
             if isinstance(obj, date):
-              return obj.strftime("%Y-%m-%d")
+                return obj.strftime("%Y-%m-%d")
             if isinstance(obj, pd.Timedelta):
-              return {"__pd.Timedelta__": str(obj)}
+                return {"__pd.Timedelta__": str(obj)}
             if hasattr(obj, "name"):
                 return obj.name
             if isinstance(obj, np.integer):
@@ -46,7 +46,6 @@ try:
             if isinstance(obj, np.ndarray):
                 return obj.tolist()
             return super(JSONEncoder, self).default(self, obj)
-
 
     def json_obj_hook(dct):
         if isinstance(dct, dict) and "__ndarray__" in dct:
@@ -121,11 +120,15 @@ try:
             self.change_suffix(".json")
         jsonified = json.dumps(data, cls=JSONEncoder)
         self.write_stuff(
-            jsonified, "w", overwrite=overwrite, present=present, **kwargs,
+            jsonified,
+            "w",
+            overwrite=overwrite,
+            present=present,
+            **kwargs,
         )
 
     def to_plotly_json(self):
-        """ For compatibility with Plotly Dash """
+        """For compatibility with Plotly Dash"""
         return str(self)
 
 
