@@ -1175,10 +1175,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
             #     raise ValueError("You should never use your bucket name as a directory or file name.")
 
         # TODO Ask what these lines are for because it bugs the file creation
-        # if self.when_checked["created"] and not self.nocheck:
-        #     self._check_multiplicity()
-        # elif self.when_updated["created"] and not self.notupdatecache:  # Else, because called by check_multiplicity
-        #     self._update_cache()
+        if self.fs_kind != "ssh":
+            if self.when_checked["created"] and not self.nocheck:
+                self._check_multiplicity()
+            elif self.when_updated["created"] and not self.notupdatecache:  # Else, because called by check_multiplicity
+                self._update_cache()
 
     @property
     def path(self):

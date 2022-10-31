@@ -44,7 +44,6 @@ def test_equal(fs_kind):
     p2 = TransparentPath("chien/chat")
     assert p1 == p2
 
-
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["ssh"])
 def test_lt(fs_kind):
@@ -167,7 +166,6 @@ def test_isfile(fs_kind, path1, path2, expected):
     p2 = TransparentPath(path2)
     assert p2.is_file() == expected
 
-
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
     "fs_kind, path1, path2, expected",
@@ -220,7 +218,7 @@ def test_rm(fs_kind, path1, path2, kwargs, expected):
     else:
         p2.rm(**kwargs)
         assert not p2.exists()
-
+#
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
     "fs_kind, pattern, expected",
@@ -269,7 +267,6 @@ def test_with_suffix(fs_kind, suffix, expected):
     p = TransparentPath("chien").with_suffix(suffix)
     assert p.suffix == expected
 
-
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["ssh"])
 def test_ls(fs_kind):
@@ -289,7 +286,6 @@ def test_ls(fs_kind):
     expected.sort()
     assert res == expected
 
-
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["ssh"])
 def test_cd(fs_kind):
@@ -308,7 +304,6 @@ def test_cd(fs_kind):
     root.cd("..")
     assert root == TransparentPath("chien")
 
-
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
     "fs_kind, path",
@@ -326,7 +321,6 @@ def test_touch(fs_kind, path):
     p.touch()
     assert p.is_file()
 
-
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
     "fs_kind, path, expected",
@@ -343,52 +337,53 @@ def test_mkdir(fs_kind, path, expected):
     assert p.is_dir() is expected
 
 
-# # noinspection PyUnusedLocal
-# @pytest.mark.parametrize("fs_kind, to_append",
-#                          [("local", "chat"), ("gcs", "chat"), ("gcs", "chat")])  # A demander explication
-# def test_append(fs_kind, to_append):
-#     if skip_gcs[fs_kind]:
-#         print("skipped")
-#         return
-#     init(fs_kind)
-#
-#     assert str(TransparentPath("chien").append(to_append)) == str(TransparentPath(f"chien{to_append}"))
+# noinspection PyUnusedLocal
+@pytest.mark.parametrize("fs_kind, to_append",
+                         [("ssh", "chat")])
+def test_append(fs_kind, to_append):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+
+    assert str(TransparentPath("chien").append(to_append)) == str(TransparentPath(f"chien{to_append}"))
 
 # noinspection PyUnusedLocal
-# @pytest.mark.parametrize("fs_kind", ["ssh"])
-# def test_walk(fs_kind):
-#     if skip_gcs[fs_kind]:
-#         print("skipped")
-#         return
-#     init(fs_kind)
-#
-#     dic = {"chat": "file", "cheval": "dir", "cheval/chouette": "file"}
-#     expected = [
-#         (
-#             TransparentPath("chien"),
-#             [TransparentPath("chien") / "cheval"],
-#             [TransparentPath("chien") / "chat"],
-#         ),
-#         (TransparentPath("chien") / "cheval", [], [TransparentPath("chien") / "cheval" / "chouette"]),
-#     ]
-#     print(expected)
-#     root = TransparentPath("chien")
-#     for word in dic:
-#         p = root / word
-#         print(p)
-#         p.rm(absent="ignore", ignore_kind=True)
-#     for word in dic:
-#         p = root / word
-#         if dic[word] == "file":
-#             p.touch()
-#         else:
-#             p.mkdir()
-#
-#     print("tessst", list(root.walk()), "tessst")
-#     assert list(root.walk()) == expected
-#     for word in dic:
-#         p = root / word
-#         p.rm(absent="ignore", ignore_kind=True)
+@pytest.mark.parametrize("fs_kind", ["ssh"])
+def test_walk(fs_kind):
+    if skip_gcs[fs_kind]:
+        print("skipped")
+        return
+    init(fs_kind)
+
+    dic = {"chien": "dir", "chat": "file", "cheval": "dir", "cheval/chouette": "file"}
+    expected = [
+        (
+            TransparentPath("chien"),
+            [TransparentPath("chien") / "cheval", TransparentPath("chien/chien")],
+            [TransparentPath("chien") / "chat"],
+
+        ),
+        (TransparentPath("chien") / "cheval",
+         [],
+         [TransparentPath("chien") / "cheval" / "chouette"]),
+        (TransparentPath("chien/chien"), [], [])
+    ]
+    root = TransparentPath("chien")
+    for word in dic:
+        p = root / word
+        p.rm(absent="ignore", ignore_kind=True)
+    for word in dic:
+        p = root / word
+        if dic[word] == "file":
+            p.touch()
+        else:
+            p.mkdir()
+
+    assert list(root.walk()) == expected
+    for word in dic:
+        p = root / word
+        p.rm(absent="ignore", ignore_kind=True)
 
 
 # noinspection PyUnusedLocal
