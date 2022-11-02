@@ -1,5 +1,8 @@
 Module methodtranslator
-=======================
+========================
 
-.. autoclass:: gcsutils.methodtranslator.MethodTranslator
+.. autoclass:: transparentpath.gcsutils.methodtranslator.MethodTranslator
+    :members:
+
+.. autoclass:: transparentpath.gcsutils.methodtranslator.MultiMethodTranslator
     :members:

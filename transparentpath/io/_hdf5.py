@@ -38,6 +38,7 @@ try:
         """Class to override h5py.File to handle files on remote.
 
         This allows to do :
+
         >>> from transparentpath import TransparentPath  # doctest: +SKIP
         >>> # noinspection PyUnresolvedReferences
         >>> import numpy as np  # doctest: +SKIP

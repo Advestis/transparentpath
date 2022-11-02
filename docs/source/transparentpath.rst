@@ -1,6 +1,7 @@
 Class transparentpath
 ======================
 
-.. autoclass:: transparentpath.TransparentPath
+.. autoclass:: transparentpath.gcsutils.transparentpath.TransparentPath
     :members:
+
 
