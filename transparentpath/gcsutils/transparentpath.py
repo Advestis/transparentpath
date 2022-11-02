@@ -2860,6 +2860,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """Overloaded in `transparentpath.io.json.write`"""
         raise ImportError(errormessage("json"))
 
+    def to_plotly_json(self):
+        """Overloaded in `transparentpath.io.json.to_plotly_json`"""
+        raise ImportError(errormessage("json"))
+
 
 # Do imports from detached files here because some of them import TransparentPath and need it fully declared.
 
@@ -2888,10 +2892,11 @@ except ImportError:
 
 try:
     # noinspection PyUnresolvedReferences,PyProtectedMember
-    from transparentpath.io._json import read, write
+    from transparentpath.io._json import read, write, to_plotly_json
 
     setattr(TransparentPath, "read_json", read)
     setattr(TransparentPath, "to_json", write)
+    setattr(TransparentPath, "to_plotly_json", to_plotly_json)
 except ImportError:
     pass
 

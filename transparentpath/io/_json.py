@@ -29,19 +29,29 @@ try:
                     dct["dtype"] = str(obj.dtype)
                 dct["datetimeindex"] = isinstance(obj.index, pd.DatetimeIndex)
                 return dct
-            elif isinstance(obj, np.ndarray):
+            if isinstance(obj, np.ndarray):
                 return dict(__ndarray__=obj.tolist(), dtype=str(obj.dtype), shape=obj.shape)
-            elif isinstance(obj, date):
-                return obj.strftime("%Y-%m-%d")
-            elif isinstance(obj, datetime):
+            if isinstance(obj, (datetime, pd.Timestamp)):
                 return obj.strftime("%Y-%m-%d %H:%M:%S")
-            else:
-                return json.JSONEncoder.default(self, obj)
-
+            if isinstance(obj, date):
+                return obj.strftime("%Y-%m-%d")
+            if isinstance(obj, pd.Timedelta):
+                return {"__pd.Timedelta__": str(obj)}
+            if hasattr(obj, "name"):
+                return obj.name
+            if isinstance(obj, np.integer):
+                return int(obj)
+            if isinstance(obj, np.floating):
+                return float(obj)
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            return super(JSONEncoder, self).default(self, obj)
 
     def json_obj_hook(dct):
         if isinstance(dct, dict) and "__ndarray__" in dct:
             return np.array(dct["__ndarray__"], dct["dtype"]).reshape(dct["shape"])
+        if isinstance(dct, dict) and "__pd.Timedelta__" in dct and len(dct) == 1:
+            return pd.Timedelta(dct["__pd.Timedelta__"])
         elif isinstance(dct, dict) and "columns" in dct and "data" in dct and "datetimeindex" in dct:
             possible_keys = ["data", "index", "dtypes", "columns", "datetimeindex"]
             if len(dct) > 5:  # not a pd.DataFrame
@@ -52,9 +62,13 @@ try:
             if "index" in dct:
                 df.index = dct["index"]
             if "dtypes" in dct:
-                df = df.astype(dct["dtypes"])
+                for column in dct["dtypes"]:
+                    if dct["dtypes"][column].startswith("datetime64") and df[column].dtype in (int, float):
+                        df[column] = pd.to_datetime(df[column], unit="ms")
+                    else:
+                        df[column] = df[column].astype(dct["dtypes"][column])
             if dct["datetimeindex"] is True:
-                if df.index.dtype == int:
+                if df.index.dtype in (int, float):
                     # noinspection PyTypeChecker
                     df.index = pd.to_datetime(df.index, unit="ms")
                 else:
@@ -70,11 +84,14 @@ try:
             if "index" in dct:
                 s.index = dct["index"]
             if "dtype" in dct:
-                s = s.astype(dct["dtype"])
+                if dct["dtype"].startswith("datetime64") and s.dtype in (int, float):
+                    s = pd.to_datetime(s, unit="ms")
+                else:
+                    s = s.astype(dct["dtype"])
             if "name" in dct:
                 s.name = dct["name"]
             if dct["datetimeindex"] is True:
-                if s.index.dtype == int:
+                if s.index.dtype in (int, float):
                     # noinspection PyTypeChecker
                     s.index = pd.to_datetime(s.index, unit="ms")
                 else:
@@ -103,8 +120,16 @@ try:
             self.change_suffix(".json")
         jsonified = json.dumps(data, cls=JSONEncoder)
         self.write_stuff(
-            jsonified, "w", overwrite=overwrite, present=present, **kwargs,
+            jsonified,
+            "w",
+            overwrite=overwrite,
+            present=present,
+            **kwargs,
         )
+
+    def to_plotly_json(self):
+        """For compatibility with Plotly Dash"""
+        return str(self)
 
 
 except ImportError as e:
