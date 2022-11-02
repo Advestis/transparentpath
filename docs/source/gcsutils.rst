@@ -1,4 +1,4 @@
-Gcsutils
+gcsutils
 =========
 
 .. toctree::

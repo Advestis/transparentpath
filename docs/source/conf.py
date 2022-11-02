@@ -53,6 +53,8 @@ html_theme_options = {
             "icon": "fab fa-google",
         }, ],
     "github_url": "https://github.com/Advestis",
+    "navigation_depth": 2,
+
     "collapse_navigation": True,
 }
 

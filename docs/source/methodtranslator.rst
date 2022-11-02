@@ -9,7 +9,7 @@ Class methodtranslator
     :members:
 
 Class MultiMethodTranslator
-----------------------
+---------------------------
 
 .. autoclass:: transparentpath.gcsutils.methodtranslator.MultiMethodTranslator
     :members:

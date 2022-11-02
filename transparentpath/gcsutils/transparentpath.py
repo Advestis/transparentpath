@@ -2414,14 +2414,15 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
         Will raise FileNotFound error if there is no file. Calls a specific method to read self based on the suffix
         of self.path:
-            1: .csv : will use pandas's read_csv
-            2: .parquet : will use pandas's read_parquet with pyarrow engine
-            3: .hdf5 or .h5 : will use h5py.File or pd.HDFStore (if use_pandas = True). Since it does not support
-            remote file systems, the file will be downloaded localy in a tmp file read, then removed.
-            4: .json : will use open() method to get file content then json.loads to get a dict
-            5: .xlsx : will use pd.read_excel
-            6: any other suffix : will return a IO buffer to read from, or the string contained in the file if
-            get_obj is False.
+
+            1. .csv : will use pandas's read_csv\n
+            2. .parquet : will use pandas's read_parquet with pyarrow engine\n
+            3. .hdf5 or .h5 : will use h5py.File or pd.HDFStore (if use_pandas = True). Since it does not support
+               remote file systems, the file will be downloaded localy in a tmp file read, then removed.\n
+            4. .json : will use open() method to get file content then json.loads to get a dict\n
+            5. .xlsx : will use pd.read_excel\n
+            6. any other suffix : will return a IO buffer to read from, or the string contained in the file if
+               get_obj is False.\n
 
         For any of the reading method, the appropriate packages need to have been installed by calling
         `pip install transparentpath[something]`
@@ -2521,14 +2522,16 @@ class TransparentPath(os.PathLike):  # noqa : F811
             **kwargs,
     ) -> Union[None, "pd.HDFStore", "h5py.File"]:
         """Method used to write the content of the file located at self
-        Calls a specific method to write data based on the suffix of self.path:
-            1: .csv : will use pandas's to_csv
-            2: .parquet : will use pandas's to_parquet with pyarrow engine
-            3: .hdf5 or .h5 : will use h5py.File. Since it does not support remote file systems, the file will be
-            created localy in a tmp filen written to, then uploaded and removed localy.
-            4: .json : will use jsonencoder.JSONEncoder class. Works with DataFrames and np.ndarrays too.
-            5: .xlsx : will use pandas's to_excel
-            5: any other suffix : uses self.open to write to an IO Buffer
+
+        Calls a specific method to write data based on the suffix of self.path:\n
+            1. .csv : will use pandas's to_csv\n
+            2. .parquet : will use pandas's to_parquet with pyarrow engine\n
+            3. .hdf5 or .h5 : will use h5py.File. Since it does not support remote file systems, the file will be
+               created localy in a tmp filen written to, then uploaded and removed localy.\n
+            4. .json : will use jsonencoder.JSONEncoder class. Works with DataFrames and np.ndarrays too.\n
+            5. .xlsx : will use pandas's to_excel\n
+            6. any other suffix : uses self.open to write to an IO Buffer\n
+
         Parameters
         ----------
         data: Any
