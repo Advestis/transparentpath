@@ -53,8 +53,12 @@ html_theme_options = {
             "icon": "fab fa-google",
         }, ],
     "github_url": "https://github.com/Advestis",
-    "collapse_navigation": False,
-    'navigation_depth': 4,
+    "collapse_navigation": True,
+}
+
+autodoc_mock_imports = ["pandas"]
+html_context = {
+   "default_mode": "light"
 }
 
 
@@ -62,9 +66,9 @@ intersphinx_mapping = {'pandas': ('https://pandas.pydata.org/docs/', None),
                        'numpy': ('https://numpy.org/doc/stable/', None)}
 
 napoleon_numpy_docstring = True
-napoleon_include_init_with_doc = False
+napoleon_include_init_with_doc = True
 napoleon_include_private_with_doc = False
-napoleon_include_special_with_doc = False
+napoleon_include_special_with_doc = True
 napoleon_use_admonition_for_examples = False
 napoleon_use_admonition_for_notes = False
 napoleon_use_admonition_for_references = False

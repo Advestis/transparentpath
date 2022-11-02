@@ -10,6 +10,9 @@ transparentpath documentation
 A class that allows one to use a path in a local file system or a Google Cloud Storage (GCS) file system or SFTP file system in the same way one would use a pathlib.Path object.
 One can use many different GCP projects at once.
 
+
+Contents
+---------
 .. toctree::
    :maxdepth: 1
 
