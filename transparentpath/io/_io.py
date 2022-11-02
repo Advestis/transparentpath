@@ -251,7 +251,7 @@ def cp(self, other: Union[str, Path, TransparentPath]):
         self.fs.cp(stuff.__fspath__(), newpath)
 
 
-def read_text(self, *args, get_obj: bool = False, **kwargs) -> Union[str, IO]:
+def read_text(self, *args, size: int = -1, get_obj: bool = False, **kwargs) -> Union[str, IO]:
     if not self.is_file():
         raise FileNotFoundError(f"Could not find file {self}")
 
@@ -266,7 +266,7 @@ def read_text(self, *args, get_obj: bool = False, **kwargs) -> Union[str, IO]:
         return self.open(*args, **kwargs)
 
     with self.open(*args, **kwargs) as f:
-        to_ret = f.read()
+        to_ret = f.read(size)
         if not byte_mode:
             to_ret = to_ret.decode()
     return to_ret
