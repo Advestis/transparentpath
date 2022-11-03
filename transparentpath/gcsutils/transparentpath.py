@@ -297,84 +297,8 @@ def get_fs(
             return fs, fs_name, bucket
         else:
             return fs, fs_name, ""
-
-    elif "scw" in fs_kind:
-
-        # If bucket is specified, get the filesystem that contains it if it already exists. Else, create the filesystem.
-        if bucket is not None:
-            fs_name = check_bucket(bucket)
-            if fs_name is not None:
-                fs = copy(TransparentPath.fss[fs_name])
-                return fs, fs_name, ""
-
-        fs_name, project, token = extract_fs_name(fs_kind, token)
-        if fs_name in TransparentPath.fss:
-            pass
-        elif endpoint_url is not None and token is not None:
-            fs = s3fs.S3FileSystem(
-                anon=False,
-                token=token,
-                client_kwargs={
-                    "endpoint_url": endpoint_url
-                },
-            )
-
-            TransparentPath.buckets_in_project[fs_name] = get_buckets(fs)
-            TransparentPath.fss[fs_name] = fs
-
-        elif endpoint_url is not None and token is None:
-            fs = s3fs.S3FileSystem(
-                anon=False,
-                client_kwargs={
-                    "endpoint_url": endpoint_url
-                },
-            )
-
-            TransparentPath.buckets_in_project[fs_name] = get_buckets(fs)
-            TransparentPath.fss[fs_name] = fs
-
-        elif endpoint_url is not None and token is None:
-            fs = s3fs.S3FileSystem(
-                anon=False,
-                client_kwargs={
-                    "endpoint_url": endpoint_url
-                },
-            )
-
-            TransparentPath.buckets_in_project[fs_name] = get_buckets(fs)
-            TransparentPath.fss[fs_name] = fs
-
-        else:
-            fs = s3fs.S3FileSystem(
-                anon=False,
-                token=token,
-            )
-
-            TransparentPath.buckets_in_project[fs_name] = get_buckets(fs)
-            TransparentPath.fss[fs_name] = fs
-
-        ret_bucket = False
-        if bucket is None and path is not None and len(path.parts) > 0:
-            bucket = path.parts[0]
-            ret_bucket = True
-        if bucket is not None:
-            if not bucket.endswith("/"):
-                bucket += "/"
-            if bucket not in TransparentPath.buckets_in_project[fs_name]:
-                raise NotADirectoryError(f"Bucket {bucket} does not exist in any loaded projects")
-
-        fs = copy(TransparentPath.fss[fs_name])
-        if ret_bucket:
-            return fs, fs_name, bucket
-        else:
-            return fs, fs_name, ""
-
     else:
-        if "local" in fs_kind :
-            if "local" not in TransparentPath.fss:
-                TransparentPath.fss["local"] = LocalFileSystem()
-            return copy(TransparentPath.fss["local"]), "local", ""
-        elif "ssh" in fs_kind:
+        if "ssh" in fs_kind:
             if "ssh" not in TransparentPath.fss:
                 load_dotenv()
                 host = os.getenv("SSH_HOST")
@@ -383,6 +307,10 @@ def get_fs(
                 TransparentPath.fss["ssh"] = SFTPFileSystem(host=host, username=usename,
                                                             password=password)
             return copy(TransparentPath.fss["ssh"]), "ssh", ""
+        else:
+            if "local" not in TransparentPath.fss:
+                TransparentPath.fss["local"] = LocalFileSystem()
+            return copy(TransparentPath.fss["local"]), "local", ""
 
 
 def get_buckets(fs: Union[gcsfs.GCSFileSystem, s3fs.S3FileSystem]) -> List[str]:
@@ -1068,10 +996,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.enable_caching = enable_caching
 
         if path is None:
-            # if fs != "ssh":
             path = "."
-            # else:
-            #     path = ""
 
         if (
                 not (type(path) == type(Path("dummy")))  # noqa: E721
