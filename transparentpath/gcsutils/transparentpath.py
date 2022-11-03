@@ -370,11 +370,11 @@ def get_fs(
             return fs, fs_name, ""
 
     else:
-        if fs_kind == "local":
+        if "local" in fs_kind :
             if "local" not in TransparentPath.fss:
                 TransparentPath.fss["local"] = LocalFileSystem()
             return copy(TransparentPath.fss["local"]), "local", ""
-        else:
+        elif "ssh" in fs_kind:
             if "ssh" not in TransparentPath.fss:
                 load_dotenv()
                 host = os.getenv("SSH_HOST")
