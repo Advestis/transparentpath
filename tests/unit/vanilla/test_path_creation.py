@@ -24,7 +24,7 @@ def test_set_global_fs_then_root_path(clean, fs_kind):
     p2 = TransparentPath()
     assert str(p2) == str_prefix
     p2 = TransparentPath("/")
-    if fs_kind == "local" or fs_kind == "ssh" :
+    if fs_kind == "local" or fs_kind == "ssh":
         assert str(p2) == "/"
     else:
         assert str(p2) == str_prefix

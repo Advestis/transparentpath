@@ -869,7 +869,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     so there are gs:// and s3:// """
     scaleway_endpoint_url = "https://s3.fr-par.scw.cloud"
     fss = {}
-    """Declared filesystems. Keys are 'local' or 'gcs_cred_mail' and values are
+    """Declared filesystems. Keys are 'local' or 'gcs_cred_mail' or 'ssh' and values are
      `fsspec.implementations.local.LocalFileSystem` or `gcsfs.GCSFileSystem` or `
      fsspec.implementations.sftp.SFTPFileSystem` objects"""
     buckets_in_project = {}
@@ -1068,7 +1068,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.enable_caching = enable_caching
 
         if path is None:
+            # if fs != "ssh":
             path = "."
+            # else:
+            #     path = ""
 
         if (
                 not (type(path) == type(Path("dummy")))  # noqa: E721

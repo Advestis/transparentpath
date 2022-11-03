@@ -36,9 +36,9 @@ for req in requirements:
 @pytest.mark.parametrize(
     "fs_kind, suffix, kwargs",
     [
-        ("local", ".csv", {"index_col": 0}), ("gcs", ".csv", {"index_col": 0}), ("local", ".csv", {"index_col": 0}),
-        ("local", ".parquet", {}), ("gcs", ".parquet", {}), ("local", ".parquet", {}),
-        ("local", ".xlsx", {"index_col": 0}), ("gcs", ".xlsx", {"index_col": 0}), ("local", ".xlsx", {"index_col": 0}),
+        ("local", ".csv", {"index_col": 0}), ("gcs", ".csv", {"index_col": 0}), ("ssh", ".csv", {"index_col": 0}),
+        ("local", ".parquet", {}), ("gcs", ".parquet", {}), ("ssh", ".parquet", {}),
+        ("local", ".xlsx", {"index_col": 0}), ("gcs", ".xlsx", {"index_col": 0}), ("ssh", ".xlsx", {"index_col": 0}),
         ("local", ".hdf5", {"set_names": "data"}), ("gcs", ".hdf5", {"set_names": "data"}),
         ("ssh", ".hdf5", {"set_names": "data"}),
     ]
