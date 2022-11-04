@@ -74,7 +74,7 @@ def test_equal(clean, fs_kind):
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs",])
+@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
 def test_lt(clean, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")

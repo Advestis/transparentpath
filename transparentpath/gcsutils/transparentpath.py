@@ -13,7 +13,6 @@ from time import time
 from typing import Union, Tuple, Any, Iterator, Optional, Iterable, List, Callable
 
 import gcsfs
-import s3fs
 from dotenv import load_dotenv
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.sftp import SFTPFileSystem
@@ -206,8 +205,7 @@ def get_fs(
         bucket: Union[str, None] = None,
         token: Optional[Union[str, dict]] = None,
         path: Union[Path, None] = None,
-        endpoint_url: Optional[str] = None,
-) -> Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem, s3fs.S3FileSystem, SFTPFileSystem], str, str]:
+) -> Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem, SFTPFileSystem], str, str]:
     """Gets the FileSystem object of either remote or local (Default)
 
     If remote is asked and bucket is specified, will check that it exists and is accessible.
@@ -216,16 +214,15 @@ def get_fs(
 
     Parameters
     ----------
-     fs_kind: str Returns GCSFileSystem if 'gcs_*', LocalFilsSystem if 'local', S3FileSystem if
-    's3_*', `fsspec.implementations.local.SFTPFileSystem`.
-    bucket: str bucket name for GCS or scaleway token: Optional[Union[str, dict]] credentials (default value = None)
+     fs_kind: str Returns GCSFileSystem if 'gcs_*', LocalFilsSystem if 'local', `fsspec.implementations.local.SFTPFileSystem`.
+    bucket: str bucket name for GCS
+    token: Optional[Union[str, dict]] credentials (default value = None)
     path: Pathlib.Path Only relevant if the method was called from TransparentPath.__init__() : will attempts to fetch
     the bucket from the path if bucket is not given
-    endpoint_url: str If using Scaleway, the endpoint url for AWS
 
     Returns
     -------
-    Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem, s3fs.S3FileSystem,
+    Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem,
     `fsspec.implementations.local.SFTPFileSystem`], Union[None, str], Union[None, str], Union[None, str]] The
     FileSystem object, the project if on remote else None, and the bucket if on remote.
     """
@@ -235,8 +232,6 @@ def get_fs(
     if fs_kind == "" and token is not None:
         if "google" in json.load(open(token)):
             fs_kind = "gcs"
-        if "google" not in json.load(open(token)):
-            fs_kind = "scw"
 
     fs_name = None
     if fs_kind == "local" or fs_kind == "ssh":
@@ -299,21 +294,22 @@ def get_fs(
             return fs, fs_name, ""
     else:
         if "ssh" in fs_kind:
-            if "ssh" not in TransparentPath.fss:
-                load_dotenv()
-                host = os.getenv("SSH_HOST")
-                usename = os.getenv("SSH_USERNAME")
-                password = os.getenv("SSH_PASSWORD")
-                TransparentPath.fss["ssh"] = SFTPFileSystem(host=host, username=usename,
-                                                            password=password)
-            return copy(TransparentPath.fss["ssh"]), "ssh", ""
+            fs_name, project, token = extract_fs_name(fs_kind, token)
+            # if "ssh" not in TransparentPath.fss:
+            load_dotenv()
+            host = os.getenv("SSH_HOST")
+            usename = os.getenv("SSH_USERNAME")
+            password = os.getenv("SSH_PASSWORD")
+            TransparentPath.fss[fs_name] = SFTPFileSystem(host=host, username=usename,
+                                                        password=password)
+            return copy(TransparentPath.fss[fs_name]), "ssh", token
         else:
             if "local" not in TransparentPath.fss:
                 TransparentPath.fss["local"] = LocalFileSystem()
             return copy(TransparentPath.fss["local"]), "local", ""
 
 
-def get_buckets(fs: Union[gcsfs.GCSFileSystem, s3fs.S3FileSystem]) -> List[str]:
+def get_buckets(fs: Union[gcsfs.GCSFileSystem]) -> List[str]:
     """Return list of all buckets in the file system."""
     if "" not in fs.dircache:
         items = []
@@ -392,9 +388,8 @@ def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
     return index_col, parse_dates, kwargs
 
 
-def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, str]:
+def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, Union[str, None]]:
     is_gcs = False
-    is_s3 = False
     is_ssh = False
     if fs_kind is None and token is None and ("SSH_PASSWORD" or "SSH_USERNAME" or "SSH_HOST") not in os.environ:
         raise ValueError("Must specify one of 'fs_kind' or 'token' or 'all ssh information'")
@@ -403,49 +398,41 @@ def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, str]:
 
     if fs_kind is not None and not (
             fs_kind == "gcs"
-            or fs_kind == "scw"
             or fs_kind == "local"
             or fs_kind == "ssh"
     ):
         raise ValueError(f"Unknown value {fs_kind} for parameter 'fs_kind'")
 
+    if fs_kind is None:
+        raise ValueError("Please specify your fs_kind")
+
     if token is None:
-        if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
+        if fs_kind == "gcs":
             is_gcs = True
-        if "S3_APPLICATION_CREDENTIALS" in os.environ:
-            is_s3 = True
-        if is_s3 and is_gcs:
-            if fs_kind == "gcs":
-                is_s3 = False
-            elif fs_kind == "scw":
-                is_gcs = False
-            else:
-                raise ValueError("No token was specified and both GOOGLE_APPLICATION_CREDENTIALS and "
-                                 "S3_APPLICATION_CREDENTIALS were found in the environnement variables. I do not know"
-                                 " what to do.")
-        if not is_gcs and not is_s3:
-            if ("SSH_PASSWORD" and "SSH_USERNAME" and "SSH_HOST") is not None:
+        if fs_kind == "ssh":
+            load_dotenv()
+            if (os.getenv("SSH_PASSWORD") and os.getenv("SSH_USERNAME") and os.getenv("SSH_HOST")) is not None:
                 is_ssh = True
             else:
-                raise ValueError("No token was specified and neither GOOGLE_APPLICATION_CREDENTIALS nor "
-                                 "S3_APPLICATION_CREDENTIALS were found in the environnement variables. and neither "
+                raise ValueError("No token was specified and neither GOOGLE_APPLICATION_CREDENTIALS "
+                                 "and neither "
                                  "'ssh informations login' are specified")
 
         if is_gcs:
             token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        elif is_s3:
-            token = os.getenv("S3_APPLICATION_CREDENTIALS")
         elif is_ssh:
-            token = [os.getenv("SSH_HOST"), os.getenv("SSH_USERNAME"), os.getenv("SSH_PASSWORD")]
+            if token is None:
+                token = os.getenv("SSH_PASSWORD")
+            fs_name = f"ssh_{os.getenv('SSH_HOST')}_{os.getenv('SSH_USERNAME')}"
+            TransparentPath.tokens[fs_name] = token
+            return fs_name, os.getenv('SSH_HOST'), token
 
     token = token.strip()
-    if TransparentPath(token, fs_kind="local", nocheck=True, notupdatecache=True).is_file():
-        raise FileNotFoundError(f"Crendential file {token} not found")
-    if TransparentPath(token, fs_kind="ssh", nocheck=True, notupdatecache=True).is_file():
-        raise FileNotFoundError(f"Crendential file {token} not found")
-    content = json.load(open(token))
-
     if is_gcs:
+        if not TransparentPath(token, fs="local", nocheck=True, notupdatecache=True).is_file():
+            raise FileNotFoundError(f"Crendential file {token} not found")
+        content = json.load(open(token))
+
         if "project_id" not in content:
             raise ValueError(f"Credential file {token} does not contain project_id key.")
         if "client_email" not in content:
@@ -453,10 +440,7 @@ def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, str]:
 
         fs_name = f"gcs_{content['project_id']}_{content['client_email']}"
         TransparentPath.tokens[fs_name] = token
-    elif is_s3:
-        fs_name = f"s3_{content['project_id']}_{content['user_id']}"
-        TransparentPath.tokens[fs_name] = token
-    return fs_name, content["project_id"], token
+        return fs_name, content["project_id"], token
 
 
 class TransparentPath(os.PathLike):  # noqa : F811
@@ -719,8 +703,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     @classmethod
     def reinit(cls):
         """Reinit all class attributes to their default values"""
-        cls.remote_prefix = {"local": "", "gcs": "gs://", "scw": "s3://", "ssh": ""}
-        cls.scaleway_endpoint_url = "https://s3.fr-par.scw.cloud"
+        cls.remote_prefix = {"local": "", "gcs": "gs://", "ssh": ""}
         cls.fss = {}
         cls.buckets_in_project = {}
         cls.fs_kind = None
@@ -745,7 +728,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
     def show_state(cls):
         """Prints the state of the TransparentPath class"""
         print(f"remote_prefix: {cls.remote_prefix}")
-        print(f"scaleway_endpoint_url: {cls.scaleway_endpoint_url}")
         print(f"fss: {cls.fss}")
         print(f"buckets_in_project: {cls.buckets_in_project}")
         print(f"fs_kind: {cls.fs_kind}")
@@ -792,10 +774,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
         }
         return state
 
-    remote_prefix = {"local": "", "gcs": "gs://", "scw": "s3://", "ssh": ""}
-    """remote prefix of the known possible remote file system. For now, only GCS and scaleway is supported, 
-    so there are gs:// and s3:// """
-    scaleway_endpoint_url = "https://s3.fr-par.scw.cloud"
+    remote_prefix = {"local": "", "gcs": "gs://", "ssh": ""}
+    """remote prefix of the known possible remote file system. For now, only GCS and ssh is supported, 
+    so there are gs:// """
     fss = {}
     """Declared filesystems. Keys are 'local' or 'gcs_cred_mail' or 'ssh' and values are
      `fsspec.implementations.local.LocalFileSystem` or `gcsfs.GCSFileSystem` or `
@@ -874,13 +855,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
     translations = {
         "mkdir": MultiMethodTranslator(
             "mkdir",
-            ["local", "gcs", "s3", "ssh"],
-            ["mkdir", "self._do_nothing", "self._do_nothing", "mkdir"],
-            [{"parents": "create_parents"}, {"parents": ""}, {"parents": ""}, {"parents": "create_parents"}],
+            ["local", "gcs", "ssh"],
+            ["mkdir", "self._do_nothing", "mkdir"],
+            [{"parents": "create_parents"}, {"parents": ""}, {"parents": "create_parents"}],
         ),
     }
     """To translate method args and kwargs between `fsspec.implementations.local.LocalFileSystem` 
-    and `gcsfs.GCSFileSystem` and `S3.S3FileSystem` and `fsspec.implementations.sftp.SFTPFileSystem`"""
+    and `gcsfs.GCSFileSystem` and `fsspec.implementations.sftp.SFTPFileSystem`"""
 
     @classmethod
     def set_global_fs(
@@ -893,23 +874,21 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """To call before creating any instance to set the file system.
 
         If not called, default file system is local. If the first parameter is 'local', the file system is local. If
-        the first parameter is 'gcs', file system is GCS. If the first parameter is 'scw', the file system if S3 with
-        endpoint URL being 'endpoint_url'. If the first parameter is 'ssh', the file system is ssh.
+        the first parameter is 'gcs', file system is GCS. If the first parameter is 'ssh', the file system is ssh.
 
         Parameters
         ----------
         fs: str
-            'gcs' will use GCSFileSystem, 'scw' will use S3FileSystem
-            with endpoint 'TransparentPath.scaleway_endpoint_url', 'local' will use LocalFileSystem,
+            'gcs' will use GCSFileSystem, 'local' will use LocalFileSystem,
             'ssh' will use SFTPFileSystem
         bucket: str
-            The bucket name, only valid if using gcs or scw(Default value =  None)
+            The bucket name, only valid if using gcs (Default value =  None)
         nas_dir: Union[TransparentPath, Path, str]
             If specified, TransparentPath will delete any occurence of 'nas_dir' at the beginning of created paths if fs
-            is gcs or scw(Default value = None).
+            is gcs (Default value = None).
         token: Optional[Union[dict, str]]
             credentials (default value = None). If not specified, will use envvar GOOGLE_APPLICATION_CREDENTIALS. If not
-            specified either, will try to log with default account, which will work is using a machine on GCP or scw
+            specified either, will try to log with default account, which will work is using a machine on GCP
             (VM, cluster...)
 
         Returns
@@ -918,7 +897,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
         if not (
                 fs == "gcs"
-                or fs == "scw"
                 or fs == "local"
                 or fs == "ssh"
         ):
@@ -928,13 +906,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         cls.bucket = bucket
 
         TransparentPath._set_nas_dir(cls, nas_dir)
-        if fs == "scw":
-            if token:
-                get_fs(cls.fs_kind, cls.bucket, token=token, endpoint_url=TransparentPath.scaleway_endpoint_url)
-            else:
-                get_fs(cls.fs_kind, cls.bucket, endpoint_url=TransparentPath.scaleway_endpoint_url)
-        else:
-            get_fs(cls.fs_kind, cls.bucket, token)
+        get_fs(cls.fs_kind, cls.bucket, token)
         TransparentPath.unset = False
 
     def __init__(
@@ -944,6 +916,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
             fs: Optional[str] = "",
             bucket: Optional[str] = None,
             token: Optional[Union[dict, str]] = None,
+            username: Optional[str] = None,
+            host: Optional[str] = None,
             nocheck: Optional[bool] = None,
             notupdatecache: Optional[bool] = None,
             update_expire: Optional[int] = None,
@@ -968,7 +942,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             The bucket name if using remote and if path is not '<remote prefix>bucket/...'
         token: Optional[Union[dict, str]]
             The path to google application credentials json file to use, if envvar GOOGLE_APPLICATION_CREDENTIALS
-            is not set and the code is not running on a GCP or scw machine.
+            is not set and the code is not running on a GCP machine.
         nocheck: bool
             If True, will not call check_multiplicity (quicker but less secure). Takes the value of
             not Transparentpath._do_check if None (Default value = None)
@@ -1085,6 +1059,18 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if self.fs_kind == "local":
             self.sep = TransparentPath.LOCAL_SEP
             self.__path = self.__path.absolute()
+
+        elif self.fs_kind == "ssh":
+            self.sep = "/"
+            if username is None:
+                username = os.getenv("SSH_USERNAME")
+            if not str(path).startswith("/"):
+                root_path = Path("/", fs="ssh")
+                if (root_path/"home").is_dir():
+                    path = root_path/"home"/username/str(path)
+                    self.__path = path
+                else:
+                    raise NotADirectoryError("/home is not a directory")
 
         else:
             self.sep = "/"
@@ -1431,7 +1417,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
 
         # Append the absolute path to self.path according to whether the object
-        # needs it and whether we are in gcs, scw or local
+        # needs it and whether we are in gcs, or local or ssh
         new_args = self._transform_path(obj_name, *args)
 
         # Object is a method and exists in FileSystem object but has a
@@ -1609,8 +1595,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if str(self.path) == "/" and (self.fs_kind == "local"):
             return True
         elif self.path == "gs://" and self.fs_kind == "gcs":
-            return True
-        elif self.path == "s3://" and self.fs_kind == "scw":
             return True
         updated = False
         if self.when_checked["used"] and not self.nocheck:
@@ -2579,15 +2563,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if self.fs_kind == "gcs":
                 obj = str(self).replace(TransparentPath.remote_prefix["gcs"], "").replace(" ", "%20")
                 return f"https://storage.cloud.google.com/{obj}"
-            elif self.fs_kind == "scw":  # TODO implement -> to verif
-                # endpoint = TransparentPath.scaleway_endpoint_url
-                obj = str(self).replace(TransparentPath.remote_prefix["scw"], "".replace(" ", "%20"))
-                res = obj.split('/')
-                bucket = res[0]
-                res.remove(bucket)
-                obj = "/".join(res)
-                return f"https://{bucket}.s3.fr-par.scw.cloud/{obj}"
-
             else:
                 ValueError(f"{self.fs_kind} does not exist ")
         return None
@@ -2611,19 +2586,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     postfix = f";tab=objects?project={project}"
                 else:
                     return None
-            else:
-                obj = str(self).replace(TransparentPath.remote_prefix["scw"], "").replace(" ", "%20")
-                endpoint = TransparentPath.scaleway_endpoint_url
-
-                if self.is_file():
-                    prefix = "https://console.scaleway.com/object-storage/buckets/"
-                    postfix = f";tab=live_object?project={endpoint}"
-                elif self.is_dir():
-                    prefix = "https://console.scaleway.com/object-storage/buckets/"
-                    postfix = f";tab=objects?project={endpoint}"
-                else:
-                    return None
-                pass  # TODO Implement for scaleway
             return f"{prefix}{obj}{postfix}"
         else:
             if not self.exists():

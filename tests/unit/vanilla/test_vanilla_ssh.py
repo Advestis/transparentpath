@@ -44,6 +44,7 @@ def test_equal(fs_kind):
     p2 = TransparentPath("chien/chat")
     assert p1 == p2
 
+
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["ssh"])
 def test_lt(fs_kind):
@@ -166,6 +167,7 @@ def test_isfile(fs_kind, path1, path2, expected):
     p2 = TransparentPath(path2)
     assert p2.is_file() == expected
 
+
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
     "fs_kind, path1, path2, expected",
@@ -218,13 +220,15 @@ def test_rm(fs_kind, path1, path2, kwargs, expected):
     else:
         p2.rm(**kwargs)
         assert not p2.exists()
+
+
 #
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
     "fs_kind, pattern, expected",
     [
-        ("ssh", "chien/*",["chien", "chat", "cheval"]),
-        ("ssh", "chien/**", [ "cheval/chouette"]),
+        ("ssh", "chien/*", ["chien", "chat", "cheval"]),
+        ("ssh", "chien/**", ["cheval/chouette"]),
     ],
 )
 def test_glob(fs_kind, pattern, expected):
@@ -256,7 +260,7 @@ def test_glob(fs_kind, pattern, expected):
 @pytest.mark.parametrize(
     "fs_kind, suffix, expected",
     [
-     ("ssh", ".txt", ".txt"), ("ssh", "txt", ".txt")],
+        ("ssh", ".txt", ".txt"), ("ssh", "txt", ".txt")],
 )
 def test_with_suffix(fs_kind, suffix, expected):
     if skip_gcs[fs_kind]:
@@ -266,6 +270,7 @@ def test_with_suffix(fs_kind, suffix, expected):
 
     p = TransparentPath("chien").with_suffix(suffix)
     assert p.suffix == expected
+
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["ssh"])
@@ -279,12 +284,13 @@ def test_ls(fs_kind):
     (root / "chien").mkdir()
     (root / "chat").touch()
     (root / "cheval").mkdir()
-    (root /  "cheval" / "chouette").touch()
+    (root / "cheval" / "chouette").touch()
     res = [str(p).split("chien/")[1] for p in (root).ls()]
     res.sort()
     expected = ["chien", "chat", "cheval"]
     expected.sort()
     assert res == expected
+
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["ssh"])
@@ -304,6 +310,7 @@ def test_cd(fs_kind):
     root.cd("..")
     assert root == TransparentPath("chien")
 
+
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
     "fs_kind, path",
@@ -320,6 +327,7 @@ def test_touch(fs_kind, path):
         p.rm(ignore_kind=True)
     p.touch()
     assert p.is_file()
+
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
@@ -347,6 +355,7 @@ def test_append(fs_kind, to_append):
     init(fs_kind)
 
     assert str(TransparentPath("chien").append(to_append)) == str(TransparentPath(f"chien{to_append}"))
+
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["ssh"])
@@ -401,7 +410,7 @@ def test_exists(fs_kind):
     assert p.exists()
 
 
-@pytest.mark.parametrize("fs_kind",["ssh"])
+@pytest.mark.parametrize("fs_kind", ["ssh"])
 def test_urls(fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
