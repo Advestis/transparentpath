@@ -424,7 +424,7 @@ def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, Union[st
             if token is None:
                 token = os.getenv("SSH_PASSWORD")
             fs_name = f"ssh_{os.getenv('SSH_HOST')}_{os.getenv('SSH_USERNAME')}"
-            TransparentPath.tokens[fs_name] = token
+            TransparentPath.tokens[fs_name] = "hidden"
             return fs_name, os.getenv('SSH_HOST'), token
 
     token = token.strip()
