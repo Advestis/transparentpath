@@ -300,8 +300,7 @@ def get_fs(
             host = os.getenv("SSH_HOST")
             usename = os.getenv("SSH_USERNAME")
             password = os.getenv("SSH_PASSWORD")
-            TransparentPath.fss[fs_name] = SFTPFileSystem(host=host, username=usename,
-                                                        password=password)
+            TransparentPath.fss[fs_name] = SFTPFileSystem(host=host, username=usename, password=password)
             return copy(TransparentPath.fss[fs_name]), "ssh", token
         else:
             if "local" not in TransparentPath.fss:
@@ -1064,8 +1063,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 username = os.getenv("SSH_USERNAME")
             if not str(path).startswith("/"):
                 root_path = Path("/", fs="ssh")
-                if (root_path/"home").is_dir():
-                    path = root_path/"home"/username/str(path)
+                if (root_path / "home").is_dir():
+                    path = root_path / "home" / username / str(path)
                     self.__path = path
                 else:
                     raise NotADirectoryError("/home is not a directory")
@@ -1102,8 +1101,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                     self.__path = Path(str(self.__path)[1:])
 
                 if not str(self.__path.parts[0]) == self.bucket:
-                    if self.bucket is not None:
-                        self.__path = Path(self.bucket) / self.__path
+                    self.__path = Path(self.bucket) / self.__path
             else:
                 self.__path = Path(self.bucket) / self.__path
             # if len(self.__path.parts) > 1 and self.bucket in self.__path.parts[1:]:
@@ -1921,7 +1919,8 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if path.startswith(prefix):
                 path = path.replace(prefix, "", 1)
 
-        if self.fs_kind != "local" and self.fs_kind != "ssh" and str(path) == self.bucket or path == "" or str(path) == "/":
+        if self.fs_kind != "local" and self.fs_kind != "ssh" and str(path) == self.bucket or path == "" or str(
+                path) == "/":
             self.__path = Path(self.bucket)
             return
 
