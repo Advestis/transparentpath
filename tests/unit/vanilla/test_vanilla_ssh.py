@@ -152,7 +152,6 @@ def test_itruediv(fs_kind):
     "fs_kind, path1, path2, expected",
     [
         ("ssh", "chien/chat/chat", "chien/chat/chat", True),
-
         ("ssh", "chien/chat/chat", "chien/chat", False),
 
     ],
@@ -423,10 +422,8 @@ def test_urls(fs_kind):
     assert p.url == f"sftp://{os.getenv('SSH_USERNAME')}@{os.getenv('SSH_HOST')}" \
                     f"/home/{os.getenv('SSH_USERNAME')}/" \
                     f"{str(p).replace(' ', '%20')}"
-    print(p.url, "testttt")
     assert p.parent.url == f"sftp://{os.getenv('SSH_USERNAME')}@{os.getenv('SSH_HOST')}" \
                            f"/home/{os.getenv('SSH_USERNAME')}/" \
                            f"{str(p.parent).replace(' ', '%20')}"
-    print(p.parent.url)
     assert p.download is None
     assert p.parent.download is None

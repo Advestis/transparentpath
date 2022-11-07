@@ -44,10 +44,13 @@ def test_mv(fs_kind1, fs_kind2):
         init(fs_kind2)
     if fs_kind1 == "local":
         path1 = TransparentPath("chien.txt", fs_kind=fs_kind1)
-        path2 = TransparentPath("chien2.txt", fs_kind=fs_kind2)
+        path2 = TransparentPath("chien/chien2.txt", fs_kind=fs_kind2)
+    elif fs_kind2 == "local":
+        path1 = TransparentPath("chien/chien2.txt", fs_kind=fs_kind1)
+        path2 = TransparentPath("chien.txt", fs_kind=fs_kind2)
     else:
-        path1 = TransparentPath("chien/chien2.txt", fs_kind=fs_kind2)
-        path2 = TransparentPath("chien.txt", fs_kind=fs_kind1)
+        path1 = TransparentPath("chien/chien2.txt", fs_kind=fs_kind1)
+        path2 = TransparentPath("chien/chien3.txt", fs_kind=fs_kind2)
 
     path1.touch()
     path1.mv(path2)
