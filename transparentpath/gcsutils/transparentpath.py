@@ -2032,7 +2032,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 raise FileExistsError(
                     f"A parent directory can not be created because there is already a file at {p}")
             elif not p.exists():
-                print("test")
                 p.mkdir()
             self.fs.touch(self.__fspath__(), **kwargs)
 

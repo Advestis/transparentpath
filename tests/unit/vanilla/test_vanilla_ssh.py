@@ -284,7 +284,7 @@ def test_ls(fs_kind):
     (root / "chat").touch()
     (root / "cheval").mkdir()
     (root / "cheval" / "chouette").touch()
-    res = [str(p).split("chien/")[1] for p in (root).ls()]
+    res = [str(p).split("chien/")[1] for p in root.ls()]
     res.sort()
     expected = ["chien", "chat", "cheval"]
     expected.sort()
@@ -418,7 +418,6 @@ def test_urls(fs_kind):
 
     p = TransparentPath("chien/chat chat/chien chien")
     p.touch()
-    print(p)
     assert p.url == f"sftp://{os.getenv('SSH_USERNAME')}@{os.getenv('SSH_HOST')}" \
                     f"/home/{os.getenv('SSH_USERNAME')}/" \
                     f"{str(p).replace(' ', '%20')}"
