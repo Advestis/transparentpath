@@ -1,10 +1,12 @@
-import pytest
-import sys
 import importlib.util
+import sys
 from importlib import reload
+from pathlib import Path
+
+import pytest
+
 from transparentpath import TransparentPath
 from .functions import init, skip_gcs, get_reqs
-from pathlib import Path
 
 requirements = get_reqs(Path(__file__).stem.split("test_")[1])
 
@@ -14,25 +16,21 @@ for req in requirements:
         reqs_ok = False
         break
 
-
 dic = {"animals": {"chien": 4, "bird": 2}, "plants": {"drosera": "miam", "celeri": "beurk"}}
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
-def test_read_json(clean, fs_kind): # A demander explication
+@pytest.mark.parametrize("fs_kind", ["ssh"])
+def test_read_json(fs_kind):  # A demander explication
     reload(sys.modules["transparentpath"])
     if skip_gcs[fs_kind]:
         print("skipped")
         return
     init(fs_kind)
 
-    if fs_kind == "local":
-        data_path = TransparentPath("tests/data/chien.json")
-    else:
-        local_path = TransparentPath("tests/data/chien.json", fs_kind="local")
-        data_path = TransparentPath("chien.json")
-        local_path.put(data_path)
+    local_path = TransparentPath("tests/data/chien.json", fs_kind="local")
+    data_path = TransparentPath("chien/chien.json")
+    local_path.put(data_path)
 
     if reqs_ok:
         res = data_path.read()
@@ -44,9 +42,9 @@ def test_read_json(clean, fs_kind): # A demander explication
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "fs_kind", ["local", "gcs"]
+    "fs_kind", ["ssh"]
 )
-def test_write_dict(clean, fs_kind):
+def test_write_dict(fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -66,9 +64,9 @@ def test_write_dict(clean, fs_kind):
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "fs_kind", ["local", "gcs"]
+    "fs_kind", ["ssh"]
 )
-def test_write_numpy(clean, fs_kind):
+def test_write_numpy(fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -88,9 +86,9 @@ def test_write_numpy(clean, fs_kind):
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "fs_kind", ["local", "gcs"]
+    "fs_kind", ["ssh"]
 )
-def test_write_pandas(clean, fs_kind):
+def test_write_pandas(fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
         return
@@ -121,7 +119,7 @@ def get_path(fs_kind):
         return "skipped"
     init(fs_kind)
 
-    pcsv = TransparentPath("chien.json")
+    pcsv = TransparentPath("chien/chien.json")
     pcsv.rm(absent="ignore", ignore_kind=True)
     assert not pcsv.is_file()
     return pcsv

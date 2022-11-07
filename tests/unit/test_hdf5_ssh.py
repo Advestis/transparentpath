@@ -1,10 +1,12 @@
-import sys
-import pytest
 import importlib.util
+import sys
 from importlib import reload
+from pathlib import Path
+
+import pytest
+
 from transparentpath import TransparentPath
 from .functions import init, skip_gcs, get_reqs
-from pathlib import Path
 
 requirements = get_reqs(Path(__file__).stem.split("test_")[1])
 
@@ -19,18 +21,13 @@ for req in requirements:
 @pytest.mark.parametrize(
     "fs_kind, data, use_pandas",
     [
-        ("local", [0, 1], False),
-        ("local", None, False),
-        ("local", [0, 1], True),
-        ("local", None, True),
-        ("gcs", [0, 1], False),
-        ("gcs", None, False),
-        ("gcs", [0, 1], True),
-        ("gcs", None, True),
+        ("ssh", [0, 1], False),
+        ("ssh", None, False),
+        ("ssh", [0, 1], True),
+        ("ssh", None, True),
     ]
 )
-def test_hdf5(clean, fs_kind, data, use_pandas):
-
+def test_hdf5(fs_kind, data, use_pandas):
     # No H5PY module
     if not reqs_ok:
         phdf5 = get_path(fs_kind, use_pandas, data is None)
@@ -107,13 +104,10 @@ def get_path(fs_kind, use_pandas, simple):
     if not simple:
         to_add = f"{to_add}_multi"
 
-    if fs_kind == "local":
+    if fs_kind == "ssh":
         local_path = TransparentPath(f"tests/data/chien{to_add}.hdf5")
-        phdf5 = TransparentPath(f"chien.hdf5")
+        phdf5 = TransparentPath(f"chien/chien.hdf5")
         local_path.cp(phdf5)
-    else:
-        local_path = TransparentPath(f"tests/data/chien{to_add}.hdf5", fs_kind="local")
-        phdf5 = TransparentPath(f"chien.hdf5")
-        local_path.put(phdf5)
+
     assert phdf5.is_file()
     return phdf5

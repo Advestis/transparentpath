@@ -9,7 +9,7 @@ from ..functions import init, reinit, skip_gcs, get_prefixes, bucket
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "fs_kind", ["local", "gcs", "ssh"],
+    "fs_kind", ["local", "gcs"],
 )
 def test_set_global_fs_then_root_path(clean, fs_kind):
     if skip_gcs[fs_kind]:
@@ -24,7 +24,7 @@ def test_set_global_fs_then_root_path(clean, fs_kind):
     p2 = TransparentPath()
     assert str(p2) == str_prefix
     p2 = TransparentPath("/")
-    if fs_kind == "local" or fs_kind == "ssh":
+    if fs_kind == "local":
         assert str(p2) == "/"
     else:
         assert str(p2) == str_prefix
@@ -61,10 +61,6 @@ def test_set_global_fs_then_path_with_gs_failed(clean):
         ("gcs", True, "gcs_sandbox-281209", gcsfs.GCSFileSystem, (f"gs://{bucket}/chien",), {}),
         ("gcs", False, "gcs_sandbox-281209", gcsfs.GCSFileSystem, ("chien",), {"fs": "gcs", "bucket": bucket}),
         ("gcs", False, "gcs_sandbox-281209", gcsfs.GCSFileSystem, (f"gs://{bucket}/chien",), {}),
-        ("ssh", True, "ssh", FTPFileSystem, ("chien/lion",), {"fs": "ssh"}),
-        ("ssh", True, "ssh", FTPFileSystem, ("chien/lion",), {}),
-        ("ssh", False, "ssh", FTPFileSystem, ("chien/lion",), {"fs": "ssh"}),
-        ("ssh", False, "ssh", FTPFileSystem, ("chien/lion",), {}),
     ],
 )
 def test_path_success(clean, fs_kind, global_init, expected_fs_kind, expected_fs_type, args, kwargs):
@@ -95,7 +91,7 @@ def test_path_success(clean, fs_kind, global_init, expected_fs_kind, expected_fs
                 break
         assert p.fs == TransparentPath.fss[expected_fs_kind]
         assert not TransparentPath.unset
-        if expected_fs_kind == "local" or expected_fs_kind == "ssh":
+        if expected_fs_kind == "local":
             assert len(TransparentPath.fss) == 1
         else:
             assert len(TransparentPath.fss) == 2

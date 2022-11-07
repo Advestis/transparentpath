@@ -13,8 +13,8 @@ for req in requirements:
 
 
 # noinspection PyUnusedLocal,PyShadowingNames
-@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
-def test_joblib(clean, fs_kind):
+@pytest.mark.parametrize("fs_kind", ["ssh"])
+def test_joblib(fs_kind):
     if reqs_ok is False:
         pparquet = get_path(fs_kind, ".joblib")
         with pytest.raises(ImportError):

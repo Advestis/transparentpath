@@ -14,8 +14,8 @@ for req in requirements:
 
 
 # noinspection PyUnusedLocal,PyShadowingNames
-@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
-def test_csv(clean, fs_kind):
+@pytest.mark.parametrize("fs_kind", ["ssh"])
+def test_csv(fs_kind):
     if reqs_ok is False:
         pcsv = get_path(fs_kind, ".csv")
         with pytest.raises(ImportError):
@@ -36,47 +36,12 @@ def test_csv(clean, fs_kind):
 
 # noinspection PyUnusedLocal,PyShadowingNames
 @pytest.mark.parametrize(
-    "suffix,kwargs", [(".csv", {"index_col": 0})],
-)
-def test_caching_ram(clean, suffix, kwargs):
-    if reqs_ok:
-        import pandas as pd
-
-        data = pd.DataFrame(columns=["foo", "bar"], index=["a", "b"], data=[[1, 2], [3, 4]])
-        TransparentPath.caching = "ram"
-        path = TransparentPath(f"tests/data/chien{suffix}", enable_caching=True, fs="local")
-        path.read(**kwargs)
-        assert all(TransparentPath.cached_data_dict[path.__hash__()]["data"] == data)
-        assert all(TransparentPath(f"tests/data/chien{suffix}", enable_caching=True, fs="local").read() == data)
-
-
-# noinspection PyUnusedLocal,PyShadowingNames
-def test_max_size(clean):
-    """
-    testing behavior when reatching maximum size
-    """
-    TransparentPath.caching_max_memory = 0.000070
-    TransparentPath.caching = "ram"
-    TransparentPath("tests/data/chat.txt", enable_caching=True, fs="local").read()
-    path = TransparentPath("tests/data/groschat.txt", enable_caching=True, fs="local")
-    path.read()
-    ret = list(TransparentPath.cached_data_dict.keys())
-    retdata = list(TransparentPath.cached_data_dict.values())
-    assert len(ret) == 1
-    assert ret[0] == path.__hash__()
-    assert retdata[0]["data"] == "grostest"
-
-
-# noinspection PyUnusedLocal,PyShadowingNames
-@pytest.mark.parametrize(
     "path,enable_caching,fs,bucket,mod",
     [
-        ("tests/data/chat.csv", True, "local", None, "ram"),
-        ("chat.csv", True, "gcs", "code_tests_sand", "tmpfile"),
-        ("chat.csv", True, "gcs", "code_tests_sand", "ram"),
+        ("chien/chat.csv", True, "ssh", None, "ram"),
     ],
 )
-def test_reload_from_write(clean, path, enable_caching, fs, bucket, mod):
+def test_reload_from_write(path, enable_caching, fs, bucket, mod):
     """
     testing unload and read with args/kwargs
     """

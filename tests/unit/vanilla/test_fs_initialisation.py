@@ -23,7 +23,7 @@ def test_init(clean, fs_kind, bucket, expected_fs_name, expected_fs_kind, expect
         return
     init(fs_kind, bucket_=bucket)
     assert not TransparentPath.unset
-    if expected_fs_kind == "local" or expected_fs_kind == "ssh":
+    if expected_fs_kind == "local":
         assert len(TransparentPath.fss) == 1
     else:
         assert len(TransparentPath.fss) == 2

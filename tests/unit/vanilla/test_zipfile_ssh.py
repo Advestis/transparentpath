@@ -6,18 +6,15 @@ from transparentpath import TransparentPath
 
 
 # noinspection PyUnusedLocal
-@pytest.mark.parametrize("fs_kind", ["local", "gcs"])
-def test_zipfile(clean, fs_kind):  # Demander explication
+@pytest.mark.parametrize("fs_kind", ["ssh"])
+def test_zipfile(fs_kind):  # Demander explication
     if skip_gcs[fs_kind]:
         print("skipped")
         return
     init(fs_kind)
-    if fs_kind == "local":
-        data_path = TransparentPath("tests/data/chien.zip")
-    else:
-        local_path = TransparentPath("tests/data/chien.zip", fs_kind="local")
-        data_path = TransparentPath("chien.zip")
-        local_path.put(data_path)
+    local_path = TransparentPath("tests/data/chien.zip", fs_kind="local")
+    data_path = TransparentPath("chien/chien.zip")
+    local_path.put(data_path)
 
     zf = zipfile.ZipFile(data_path)
     text1 = zf.open("text.txt")
