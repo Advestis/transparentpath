@@ -252,7 +252,7 @@ def get_fs(
             fs_name = check_bucket(bucket)
 
         if fs_name is not None:
-            return copy(TransparentPath.fss[fs_name]), fs_name, bucket
+            return copy(TransparentPath.fss[fs_name]), "gcs", bucket
 
     if "gcs" in fs_kind:
 
@@ -261,7 +261,7 @@ def get_fs(
             fs_name = check_bucket(bucket)
             if fs_name is not None:
                 fs = copy(TransparentPath.fss[fs_name])
-                return fs, fs_name, ""
+                return fs, "gcs", ""
 
         fs_name, project, token = extract_fs_name(fs_kind, token)
         if fs_name in TransparentPath.fss:
@@ -287,9 +287,9 @@ def get_fs(
 
         fs = copy(TransparentPath.fss[fs_name])
         if ret_bucket:
-            return fs, fs_name, bucket
+            return fs, "gcs", bucket
         else:
-            return fs, fs_name, ""
+            return fs, 'gcs', ""
     else:
         if "ssh" in fs_kind:
             fs_name, project, token = extract_fs_name(fs_kind, token)
