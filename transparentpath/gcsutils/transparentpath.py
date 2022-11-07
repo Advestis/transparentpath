@@ -227,11 +227,11 @@ def get_fs(
     FileSystem object, the project if on remote else None, and the bucket if on remote.
     """
 
-    if fs_kind is None:
-        fs_kind = ""
-    if fs_kind == "" and token is not None:
-        if "google" in json.load(open(token)):
-            fs_kind = "gcs"
+    # if fs_kind is None:
+    #     fs_kind = ""
+    # if fs_kind == "" and token is not None:
+    #     if "google" in json.load(open(token)):
+    #         fs_kind = "gcs"
 
     fs_name = None
     if fs_kind == "local" or fs_kind == "ssh":

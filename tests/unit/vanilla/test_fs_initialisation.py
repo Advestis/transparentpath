@@ -12,7 +12,7 @@ from ..functions import init, skip_gcs, reinit
     "fs_kind, bucket, expected_fs_name, expected_fs_kind, expected_fs_type",
     [
         ("local", None, "local", "local", LocalFileSystem),
-        ("gcs", "code_tests_sand", "gcs_sandbox-281209", "gcs", gcsfs.GCSFileSystem),
+        # ("gcs", "code_tests_sand", "gcs_sandbox-281209", "gcs", gcsfs.GCSFileSystem),
         ("gcs", None, "gcs_sandbox-281209", "gcs", gcsfs.GCSFileSystem),
     ],
 )
