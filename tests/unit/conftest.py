@@ -48,3 +48,6 @@ def clean(pytestconfig):
 def pytest_addoption(parser):
     parser.addoption("--token", action="store", default=None)
     parser.addoption("--token2", action="store", default=None)
+    parser.addoption("--SSH_USERNAME", action="store", default=None)
+    parser.addoption("--SSH_HOST", action="store", default=None)
+    parser.addoption("--SSH_PASSWORD", action="store", default=None)

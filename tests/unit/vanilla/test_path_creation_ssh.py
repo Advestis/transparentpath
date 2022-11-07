@@ -34,10 +34,10 @@ def test_set_global_fs_then_root_path(fs_kind):
 @pytest.mark.parametrize(
     "fs_kind, global_init, expected_fs_kind, expected_fs_type, args, kwargs",
     [
-        ("ssh", True, "ssh", FTPFileSystem, ("chien/lion",), {"fs": "ssh"}),
-        ("ssh", True, "ssh", FTPFileSystem, ("chien/lion",), {}),
-        ("ssh", False, "ssh", FTPFileSystem, ("chien/lion",), {"fs": "ssh"}),
-        ("ssh", False, "ssh", FTPFileSystem, ("chien/lion",), {}),
+        ("ssh", True, "ssh", FTPFileSystem, "chien/lion", {"fs": "ssh"}),
+        ("ssh", True, "ssh", FTPFileSystem, "chien/lion", {}),
+        ("ssh", False, "ssh", FTPFileSystem, "chien/lion", {"fs": "ssh"}),
+        ("ssh", False, "ssh", FTPFileSystem, "chien/lion", {}),
     ],
 )
 def test_path_success(fs_kind, global_init, expected_fs_kind, expected_fs_type, args, kwargs):
@@ -51,9 +51,9 @@ def test_path_success(fs_kind, global_init, expected_fs_kind, expected_fs_type, 
     str_prefix, pathlib_prefix = get_prefixes(fs_kind)
 
     p = TransparentPath(*args, **kwargs)
-    assert str(p.path) == f"{pathlib_prefix}/{args[0]}"
-    assert str(p) == f"{str_prefix}/{args[0]}"
-    assert p.__fspath__() == f"{str_prefix}/{args[0]}"
+    assert str(p.path) == f"{pathlib_prefix}/{args.split('/')[0]}"
+    assert str(p) == f"{str_prefix}/{args.split('/')[0]}"
+    assert p.__fspath__() == f"{str_prefix}/{args.split('/')[0]}"
 
     assert fs_kind in p.fs_kind
     if global_init:

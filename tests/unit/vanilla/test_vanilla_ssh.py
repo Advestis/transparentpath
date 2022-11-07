@@ -221,7 +221,6 @@ def test_rm(fs_kind, path1, path2, kwargs, expected):
         assert not p2.exists()
 
 
-#
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
     "fs_kind, pattern, expected",
