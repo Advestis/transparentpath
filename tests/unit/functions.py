@@ -93,7 +93,7 @@ def get_path(fs_kind, suffix):
         local_path.put(pfile)
     else:
         local_path = TransparentPath(f"tests/data/chien{suffix}", fs_kind="local")
-        pfile = TransparentPath(f"chien/chien{suffix}")
+        pfile = TransparentPath(f"chien{suffix}")
         local_path.put(pfile)
 
     return pfile

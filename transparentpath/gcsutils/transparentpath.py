@@ -391,10 +391,6 @@ def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
 def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, Union[str, None]]:
     is_gcs = False
     is_ssh = False
-    if fs_kind is None and token is None and ("SSH_PASSWORD" or "SSH_USERNAME" or "SSH_HOST") not in os.environ:
-        raise ValueError("Must specify one of 'fs_kind' or 'token' or 'all ssh information'")
-    if fs_kind is not None and token is not None:
-        raise ValueError("Can only specify one of 'fs_kind' or 'token'")
 
     if fs_kind is not None and not (
             fs_kind == "gcs"
@@ -406,26 +402,28 @@ def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, Union[st
     if fs_kind is None:
         raise ValueError("Please specify your fs_kind")
 
-    if token is None:
-        if fs_kind == "gcs":
-            is_gcs = True
-        if fs_kind == "ssh":
-            load_dotenv()
-            if (os.getenv("SSH_PASSWORD") and os.getenv("SSH_USERNAME") and os.getenv("SSH_HOST")) is not None:
-                is_ssh = True
-            else:
-                raise ValueError("No token was specified and neither GOOGLE_APPLICATION_CREDENTIALS "
-                                 "and neither "
-                                 "'ssh informations login' are specified")
+    if fs_kind == "gcs":
+        is_gcs = True
+    if fs_kind == "ssh":
+        load_dotenv()
+        if (os.getenv("SSH_PASSWORD") and os.getenv("SSH_USERNAME") and os.getenv("SSH_HOST")) is not None:
+            is_ssh = True
+        else:
+            raise ValueError("No token was specified and neither GOOGLE_APPLICATION_CREDENTIALS "
+                             "and neither "
+                             "'ssh informations login' are specified")
 
-        if is_gcs:
+    if is_gcs:
+        if token is None:
+            if "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
+                raise ValueError("You must specify a token or GOOGLE_APPLICATION_CREDENTIALS "
+                                 "must be present in your environment variables")
             token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        elif is_ssh:
-            if token is None:
-                token = os.getenv("SSH_PASSWORD")
-            fs_name = f"ssh_{os.getenv('SSH_HOST')}_{os.getenv('SSH_USERNAME')}"
-            TransparentPath.tokens[fs_name] = "hidden"
-            return fs_name, os.getenv('SSH_HOST'), token
+    elif is_ssh:
+        token = os.getenv("SSH_PASSWORD")
+        fs_name = f"ssh_{os.getenv('SSH_HOST')}_{os.getenv('SSH_USERNAME')}"
+        TransparentPath.tokens[fs_name] = "hidden"
+        return fs_name, os.getenv('SSH_HOST'), token
 
     token = token.strip()
     if is_gcs:
