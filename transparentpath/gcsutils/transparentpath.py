@@ -241,9 +241,7 @@ def get_fs(
         # Called from TransparentPath.__init__()
         if bucket is not None:
             fs_name = check_bucket(bucket)
-            if fs_name is not None:
-                fs = copy(TransparentPath.fss[fs_name])
-                return fs, fs_name, bucket
+
         if bucket is None and len(path.parts) > 0:
             bucket = path.parts[0]
             fs_name = check_bucket(bucket)
