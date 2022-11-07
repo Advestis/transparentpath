@@ -1,3 +1,5 @@
+import os
+
 import gcsfs
 import pytest
 from fsspec.implementations.local import LocalFileSystem
@@ -13,7 +15,7 @@ from ..functions import init, skip_gcs, reinit
         ("local", None, "local", "local", LocalFileSystem),
         ("gcs", "code_tests_sand", "gcs_sandbox-281209", "gcs", gcsfs.GCSFileSystem),
         ("gcs", None, "gcs_sandbox-281209", "gcs", gcsfs.GCSFileSystem),
-        ("ssh", None, "ssh", "ssh", FTPFileSystem),
+        ("ssh", None, f"ssh_{os.getenv('SSH_HOST')}_{'SSH_USERNAME'}", "ssh", FTPFileSystem),
 
     ],
 )
