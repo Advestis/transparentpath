@@ -1,5 +1,4 @@
 import os
-
 import pytest
 from fsspec.implementations.sftp import SFTPFileSystem
 from transparentpath import TransparentPath

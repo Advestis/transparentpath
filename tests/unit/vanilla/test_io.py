@@ -1,5 +1,4 @@
 import pytest
-
 from transparentpath import TransparentPath
 from ..functions import init, skip_gcs
 

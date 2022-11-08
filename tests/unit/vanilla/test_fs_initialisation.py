@@ -1,5 +1,3 @@
-import os
-
 import gcsfs
 import pytest
 from fsspec.implementations.local import LocalFileSystem
