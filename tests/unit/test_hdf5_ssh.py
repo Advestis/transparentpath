@@ -106,7 +106,7 @@ def get_path(fs_kind, use_pandas, simple):
 
     local_path = TransparentPath(f"tests/data/chien{to_add}.hdf5")
     phdf5 = TransparentPath(f"chien/chien.hdf5")
-    local_path.cp(phdf5)
+    local_path.put(phdf5)
 
     assert phdf5.is_file()
     return phdf5
