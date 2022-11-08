@@ -1,9 +1,6 @@
 import importlib.util
-import os
 from pathlib import Path
-
 import pytest
-
 from transparentpath import TransparentPath
 from transparentpath.gcsutils.transparentpath import TPMultipleExistenceError
 from ..functions import init, skip_gcs, get_reqs

@@ -21,7 +21,7 @@ dic = {"animals": {"chien": 4, "bird": 2}, "plants": {"drosera": "miam", "celeri
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize("fs_kind", ["ssh"])
-def test_read_json(fs_kind):  # A demander explication
+def test_read_json(fs_kind):
     reload(sys.modules["transparentpath"])
     if skip_gcs[fs_kind]:
         print("skipped")
