@@ -104,7 +104,7 @@ def get_path(fs_kind, use_pandas, simple):
     if not simple:
         to_add = f"{to_add}_multi"
 
-    local_path = TransparentPath(f"tests/data/chien{to_add}.hdf5")
+    local_path = TransparentPath(f"tests/data/chien{to_add}.hdf5", fs_kind="local")
     phdf5 = TransparentPath(f"chien/chien.hdf5")
     local_path.put(phdf5)
 
