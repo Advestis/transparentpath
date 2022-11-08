@@ -413,9 +413,23 @@ def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, Union[st
     if is_gcs:
         if token is None:
             if "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
-                raise ValueError("You must specify a token or GOOGLE_APPLICATION_CREDENTIALS "
-                                 "must be present in your environment variables")
+                fs = gcsfs.GCSFileSystem()
+                project = fs.project
+                if (
+                        project is None
+                        or fs.credentials is None
+                        or not hasattr(fs.credentials.credentials, "service_account_email")
+                        or fs.credentials.credentials.service_account_email is None
+                ):
+                    raise EnvironmentError(
+                        "If no token is explicitely specified and GOOGLE_APPLICATION_CREDENTIALS environnement "
+                        "variable is not "
+                        " set, you need to have done gcloud init or to be on GCP already to create a TransparentPath"
+                    )
+                email = fs.credentials.credentials.service_account_email
+                return f"gcs_{project}_{email}", project, None
             token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+
     elif is_ssh:
         token = os.getenv("SSH_PASSWORD")
         fs_name = f"ssh_{os.getenv('SSH_HOST')}_{os.getenv('SSH_USERNAME')}"
