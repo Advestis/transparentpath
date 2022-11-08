@@ -63,7 +63,7 @@ def test_path_success(fs_kind, global_init, expected_fs_kind, expected_fs_type, 
                 break
         assert p.fs == TransparentPath.fss[expected_fs_kind]
         assert not TransparentPath.unset
-        assert len(TransparentPath.fss) == 2
+        assert len(TransparentPath.fss) == 1
         assert TransparentPath.fs_kind == fs_kind
         assert list(TransparentPath.fss.keys())[-1] == expected_fs_kind
         assert isinstance(TransparentPath.fss[expected_fs_kind], expected_fs_type)
