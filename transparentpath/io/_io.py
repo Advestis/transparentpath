@@ -14,7 +14,7 @@ def myopen(*args, **kwargs) -> IO:
     if len(args) == 0:
         raise ValueError("open method needs arguments.")
     thefile = args[0]
-    if type(thefile) == str and ("gs://" in thefile or "s3://" in thefile):
+    if type(thefile) == str and ("gs://" in thefile):
         thefile = TransparentPath(thefile)
     if isinstance(thefile, TransparentPath):
         if thefile.when_checked["used"] and not thefile.nocheck:
@@ -65,20 +65,20 @@ def put(self, dst: Union[str, Path, TransparentPath]):
 
         if prefix == "":
             existing_fs_names = "-".join(list(TransparentPath.fss.keys()))
-            if "gcs_" not in existing_fs_names and "s3_" not in existing_fs_names:
+            if "gcs_" not in existing_fs_names and "ssh_" not in existing_fs_names:
                 raise ValueError(
                     "No global remote file system set up. Please give put() a TransparentPath or a str"
                     " starting with the remote file system prefix."
                 )
-            if "gcs_" in existing_fs_names and "s3_" in existing_fs_names:
+            if "gcs_" in existing_fs_names and "ssh_" in existing_fs_names:
                 raise ValueError(
                     "More than one global remote file system set up. Please give put() a TransparentPath"
                     " or a str starting with the remote file system prefix."
                 )
             if "gcs_" in existing_fs_names:
                 dst = TransparentPath(dst, fs_kind="gcs")
-            if "s3_" in existing_fs_names:
-                dst = TransparentPath(dst, fs_kind="scw")
+            if "ssh_" in existing_fs_names:
+                dst = TransparentPath(dst, fs_kind="ssh")
         else:
             dst = TransparentPath(dst)
 
