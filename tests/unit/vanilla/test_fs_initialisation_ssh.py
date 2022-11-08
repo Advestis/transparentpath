@@ -10,7 +10,7 @@ from ..functions import init, skip_gcs
 @pytest.mark.parametrize(
     "fs_kind, bucket, expected_fs_name, expected_fs_kind, expected_fs_type",
     [
-        ("ssh", None, f"ssh_{os.getenv('SSH_HOST')}_{'SSH_USERNAME'}", "ssh", FTPFileSystem),
+        ("ssh", None, f"ssh_{os.getenv('SSH_HOST')}_{os.getenv('SSH_USERNAME')}", "ssh", FTPFileSystem),
     ],
 )
 def test_init(fs_kind, bucket, expected_fs_name, expected_fs_kind, expected_fs_type):
