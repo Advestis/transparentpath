@@ -255,7 +255,6 @@ def get_fs(
             return copy(TransparentPath.fss[fs_name]), "gcs", bucket
 
     if "gcs" in fs_kind:
-
         # If bucket is specified, get the filesystem that contains it if it already exists. Else, create the filesystem.
         if bucket is not None:
             fs_name = check_bucket(bucket)
@@ -291,7 +290,10 @@ def get_fs(
         else:
             return fs, 'gcs', ""
     else:
-        if "ssh" in fs_kind:
+        if "ssh" in fs_kind or (list(TransparentPath.fss.values()) and (isinstance(
+                list(TransparentPath.fss.values())[0], SFTPFileSystem)
+                    and TransparentPath.unset is False and fs_kind == "")):
+            fs_kind = "ssh"
             fs_name, project, token = extract_fs_name(fs_kind, token)
             # if "ssh" not in TransparentPath.fss:
             load_dotenv()
@@ -397,7 +399,8 @@ def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, Union[st
         raise ValueError(f"Unknown value {fs_kind} for parameter 'fs_kind'")
 
     if fs_kind is None:
-        raise ValueError("Please specify your fs_kind")
+        fs_kind = "local"
+        # raise ValueError("Please specify your fs_kind")
 
     if fs_kind == "gcs":
         is_gcs = True
