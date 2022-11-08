@@ -1,7 +1,7 @@
 import os
 
 import pytest
-from fsspec.implementations.ftp import FTPFileSystem
+from fsspec.implementations.sftp import SFTPFileSystem
 from transparentpath import TransparentPath
 from ..functions import init, skip_gcs
 
@@ -10,7 +10,7 @@ from ..functions import init, skip_gcs
 @pytest.mark.parametrize(
     "fs_kind, bucket, expected_fs_name, expected_fs_kind, expected_fs_type",
     [
-        ("ssh", None, f"ssh_{os.getenv('SSH_HOST')}_{os.getenv('SSH_USERNAME')}", "ssh", FTPFileSystem),
+        ("ssh", None, f"ssh_{os.getenv('SSH_HOST')}_{os.getenv('SSH_USERNAME')}", "ssh", SFTPFileSystem),
     ],
 )
 def test_init(fs_kind, bucket, expected_fs_name, expected_fs_kind, expected_fs_type):

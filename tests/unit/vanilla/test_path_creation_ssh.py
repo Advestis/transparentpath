@@ -1,8 +1,5 @@
-import gcsfs
 import pytest
-import os
-from fsspec.implementations.local import LocalFileSystem
-from fsspec.implementations.ftp import FTPFileSystem
+from fsspec.implementations.sftp import SFTPFileSystem
 from transparentpath import TransparentPath
 from ..functions import init, reinit, skip_gcs, get_prefixes, bucket
 
@@ -34,10 +31,10 @@ def test_set_global_fs_then_root_path(fs_kind):
 @pytest.mark.parametrize(
     "fs_kind, global_init, expected_fs_kind, expected_fs_type, args, kwargs",
     [
-        ("ssh", True, "ssh", FTPFileSystem, "chien/lion", {"fs": "ssh"}),
-        ("ssh", True, "ssh", FTPFileSystem, "chien/lion", {}),
-        ("ssh", False, "ssh", FTPFileSystem, "chien/lion", {"fs": "ssh"}),
-        ("ssh", False, "ssh", FTPFileSystem, "chien/lion", {}),
+        ("ssh", True, "ssh", SFTPFileSystem, "chien/lion", {"fs": "ssh"}),
+        ("ssh", True, "ssh", SFTPFileSystem, "chien/lion", {}),
+        ("ssh", False, "ssh", SFTPFileSystem, "chien/lion", {"fs": "ssh"}),
+        ("ssh", False, "ssh", SFTPFileSystem, "chien/lion", {}),
     ],
 )
 def test_path_success(fs_kind, global_init, expected_fs_kind, expected_fs_type, args, kwargs):

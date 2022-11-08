@@ -2,7 +2,6 @@ import gcsfs
 import pytest
 import os
 from fsspec.implementations.local import LocalFileSystem
-from fsspec.implementations.ftp import FTPFileSystem
 from transparentpath import TransparentPath
 from ..functions import init, reinit, skip_gcs, get_prefixes, bucket
 
