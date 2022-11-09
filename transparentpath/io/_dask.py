@@ -195,8 +195,11 @@ try:
                 if TransparentPath.cli is None:
                     TransparentPath.cli = client.Client()
                 check_kwargs(dd.to_csv, kwargs)
-                parts = delayed(dd.to_csv)(data, f.name, **kwargs)
-                parts.compute()
+                path_to_save = self
+                if not path_to_save.stem.endswith("*"):
+                    path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
+                futures = self.__class__.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
+                self.__class__.cli.gather(futures)
                 TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
 
     def write_parquet(
