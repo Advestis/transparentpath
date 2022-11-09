@@ -234,15 +234,18 @@ try:
         if self.__class__.cli is None:
             self.__class__.cli = client.Client()
         check_kwargs(dd.to_parquet, kwargs)
-        # if self.fs_kind != "ssh":
-        dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
-        # else:
-        #     pass
-
-
+        if self.fs_kind != "ssh":
+            dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
+        else:
+            with tempfile.NamedTemporaryFile() as f:
+                if TransparentPath.cli is None:
+                    TransparentPath.cli = client.Client()
+                check_kwargs(pd.DataFrame.to_parquet, kwargs)
+                parts = delayed(pd.DataFrame.to_parquet)(data, f.name, **kwargs)
+                parts.compute()
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
 
     # noinspection PyUnresolvedReferences
-
     def write_hdf5(
         self, data: Any = None, set_name: str = None, use_pandas: bool = False, **kwargs,
     ) -> Union[None, "h5py.File"]:
