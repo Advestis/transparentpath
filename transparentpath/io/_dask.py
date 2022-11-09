@@ -240,8 +240,8 @@ try:
             with tempfile.NamedTemporaryFile() as f:
                 if TransparentPath.cli is None:
                     TransparentPath.cli = client.Client()
-                check_kwargs(pd.DataFrame.to_parquet, kwargs)
-                parts = delayed(pd.DataFrame.to_parquet)(data, f.name, **kwargs)
+                check_kwargs(dd.to_parquet, kwargs)
+                parts = delayed(dd.to_parquet())(data, f.name, **kwargs)
                 parts.compute()
                 TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
 
