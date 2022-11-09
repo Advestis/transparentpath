@@ -234,10 +234,10 @@ try:
         if self.__class__.cli is None:
             self.__class__.cli = client.Client()
         check_kwargs(dd.to_parquet, kwargs)
-        if self.fs_kind != "ssh":
-            dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
-        else:
-            pass
+        # if self.fs_kind != "ssh":
+        dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
+        # else:
+        #     pass
 
 
 
