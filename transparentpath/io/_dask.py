@@ -198,7 +198,7 @@ try:
                 path_to_save = self
                 if not path_to_save.stem.endswith("*"):
                     path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
-                futures = self.__class__.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
+                futures = self.__class__.cli.map(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
                 self.__class__.cli.gather(futures)
                 TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
 
