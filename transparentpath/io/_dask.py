@@ -174,21 +174,30 @@ try:
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
 
-        if self.__class__.cli is None:
-            self.__class__.cli = client.Client()
-        check_kwargs(dd.to_csv, kwargs)
-        path_to_save = self
-        if not path_to_save.stem.endswith("*"):
-            path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
-        # noinspection PyTypeChecker
-        futures = self.__class__.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
-        outfiles = [
-            TransparentPath(f, fs=self.fs_kind, bucket=self.bucket) for f in futures.result()
-        ]
-        if len(outfiles) == 1:
-            outfiles[0].mv(self)
+        if self.fs_kind != "ssh":
+            if self.__class__.cli is None:
+                self.__class__.cli = client.Client()
+            check_kwargs(dd.to_csv, kwargs)
+            path_to_save = self
+            if not path_to_save.stem.endswith("*"):
+                path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
+            # noinspection PyTypeChecker
+            futures = self.__class__.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
+            outfiles = [
+                TransparentPath(f, fs=self.fs_kind, bucket=self.bucket) for f in futures.result()
+            ]
+            if len(outfiles) == 1:
+                outfiles[0].mv(self)
+            else:
+                return outfiles
         else:
-            return outfiles
+            with tempfile.NamedTemporaryFile() as f:
+                if TransparentPath.cli is None:
+                    TransparentPath.cli = client.Client()
+                check_kwargs(dd.to_csv, kwargs)
+                parts = delayed(dd.to_csv)(data, f.name, **kwargs)
+                parts.compute()
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
 
     def write_parquet(
         self,
@@ -225,7 +234,12 @@ try:
         if self.__class__.cli is None:
             self.__class__.cli = client.Client()
         check_kwargs(dd.to_parquet, kwargs)
-        dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
+        if self.fs_kind != "ssh":
+            dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
+        else:
+            pass
+
+
 
     # noinspection PyUnresolvedReferences
 
