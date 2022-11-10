@@ -69,7 +69,24 @@ try:
 
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
         check_kwargs(dd.read_csv, kwargs)
-        return apply_index_and_date_dd(index_col, parse_dates, dd.read_csv(to_use.__fspath__(), **kwargs))
+        try:
+            if self.fs_kind != "ssh":
+                return apply_index_and_date_dd(index_col, parse_dates, dd.read_csv(to_use.__fspath__(), **kwargs))
+            else:
+                f = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
+                f.close()  # deletes the tmp file, but we can still use its name
+                self.get(f.name)
+                parts = delayed(pd.read_csv)(f.name, **kwargs)
+                data = dd.from_delayed(parts)
+                # We should not delete the tmp file, since dask does its operations lasily.
+                return data
+        except pd.errors.ParserError:
+            # noinspection PyUnresolvedReferences
+            raise pd.errors.ParserError(
+                "Could not read data. Most likely, the file is encrypted. Ask your cloud manager to remove encryption "
+                "on it."
+            )
+
 
     def read_parquet(self, **kwargs) -> Union[dd.DataFrame, dd.Series]:
 
@@ -194,13 +211,10 @@ try:
             with tempfile.NamedTemporaryFile(suffix=".csv") as f:
                 if TransparentPath.cli is None:
                     TransparentPath.cli = client.Client()
-                path_to_save = self
-                if not path_to_save.stem.endswith("*"):
-                    path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
                 check_kwargs(pd.DataFrame.to_csv, kwargs)
                 parts = delayed(pd.DataFrame.to_csv)(data, f.name, **kwargs)
                 parts.compute()
-                TransparentPath(path=f.name, fs="local", bucket=path_to_save.bucket).put(path_to_save.path)
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
 
     def write_parquet(
         self,
