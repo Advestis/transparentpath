@@ -76,11 +76,14 @@ try:
                 f = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
                 f.close()  # deletes the tmp file, but we can still use its name
                 self.get(f.name)
-                parts = delayed(pd.read_csv)(f.name, **kwargs)
-                data = dd.from_delayed(parts)
+                # parts = delayed(pd.read_csv)(f.name, **kwargs)
+                # data = dd.from_delayed(parts)
+
+                data = apply_index_and_date_dd(index_col, parse_dates, dd.from_delayed(delayed(pd.read_csv)(f.name, **kwargs)))
                 # We should not delete the tmp file, since dask does its operations lasily.
                 print(data.head(), "_dask")
                 return data
+
         except pd.errors.ParserError:
             # noinspection PyUnresolvedReferences
             raise pd.errors.ParserError(
