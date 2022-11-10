@@ -278,7 +278,7 @@ try:
         if self.fs_kind != "ssh":
             dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
         else:
-            with tempfile.NamedTemporaryFile() as f:
+            with tempfile.NamedTemporaryFile(delete=True, suffix=".parquet") as f:
                 if TransparentPath.cli is None:
                     TransparentPath.cli = client.Client()
                 check_kwargs(dd.to_parquet, kwargs)
