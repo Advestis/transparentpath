@@ -1643,11 +1643,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if str(self.path) == "/":
                 return True
             return self.__path.is_dir()
-        elif self.fs_kind == "local":
-            if self.info()["type"] == "directory" and self.info()["type"] == "directory":
-                return True
-            else:
-                return False
         else:
             if not self.exists():
                 return False
