@@ -79,6 +79,7 @@ try:
                 parts = delayed(pd.read_csv)(f.name, **kwargs)
                 data = dd.from_delayed(parts)
                 # We should not delete the tmp file, since dask does its operations lasily.
+                print(data.head(), "_dask")
                 return data
         except pd.errors.ParserError:
             # noinspection PyUnresolvedReferences
