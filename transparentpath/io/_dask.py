@@ -191,13 +191,16 @@ try:
             else:
                 return outfiles
         else:
-            with tempfile.NamedTemporaryFile() as f:
+            with tempfile.NamedTemporaryFile(suffix=".csv") as f:
                 if TransparentPath.cli is None:
                     TransparentPath.cli = client.Client()
+                path_to_save = self
+                if not path_to_save.stem.endswith("*"):
+                    path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
                 check_kwargs(pd.DataFrame.to_csv, kwargs)
                 parts = delayed(pd.DataFrame.to_csv)(data, f.name, **kwargs)
                 parts.compute()
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
+                TransparentPath(path=f.name, fs="local", bucket=path_to_save.bucket).put(path_to_save.path)
 
     def write_parquet(
         self,
