@@ -65,5 +65,4 @@ def test(fs_kind, suffix, kwargs):
             return
         pfile.write(df_dask)
         assert pfile.is_file()
-        print(df_dask.head(), "df_dask.head()")
         pd.testing.assert_frame_equal(df_dask.head(), pfile.read(use_dask=True, **kwargs).head())
