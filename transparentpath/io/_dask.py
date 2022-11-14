@@ -114,7 +114,7 @@ try:
                     index_col, parse_dates, dd.read_parquet(to_use.__fspath__(), engine="pyarrow", **kwargs)
                 )
             else:
-                f = tempfile.NamedTemporaryFile(delete=False)
+                f = tempfile.NamedTemporaryFile(delete=False, suffix=".parquet")
                 f.close()  # deletes the tmp file, but we can still use its name
                 self.get(f.name)
                 data = apply_index_and_date_dd(index_col, parse_dates,
@@ -278,13 +278,17 @@ try:
         if self.fs_kind != "ssh":
             dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
         else:
+            path_to_save = self
+            if path_to_save.stem.endswith("*"):
+                path_to_save = path_to_save.parent / path_to_save.stem
             with tempfile.NamedTemporaryFile(delete=True, suffix=".parquet") as f:
                 if TransparentPath.cli is None:
                     TransparentPath.cli = client.Client()
-                check_kwargs(dd.to_parquet, kwargs)
-                parts = delayed(data.to_parquet)(f.name, **kwargs)
+                check_kwargs(data.to_parquet, kwargs)
+                path_stem = "/".join(f.name.split(".")[:-1])
+                parts = delayed(data.to_parquet)(path_stem, engine="pyarrow", compression="snappy", **kwargs)
                 parts.compute()
-                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
+                TransparentPath(path=path_stem, fs="local", bucket=self.bucket).put(path_to_save)
 
     # noinspection PyUnresolvedReferences
     def write_hdf5(

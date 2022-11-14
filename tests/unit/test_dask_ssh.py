@@ -63,6 +63,14 @@ def test(fs_kind, suffix, kwargs):
         pfile = get_path(fs_kind, suffix)
         if pfile == "skipped":
             return
+        if suffix == ".parquet":
+            pfile = pfile.parent / (pfile.stem + "_*.parquet")
+
         pfile.write(df_dask)
+        if suffix == ".parquet":
+            pfile = pfile.parent / pfile.stem + "/part.0.parquet"
         assert pfile.is_file()
-        pd.testing.assert_frame_equal(df_dask.head(), pfile.read(use_dask=True, **kwargs).head())
+        res = pfile.read(use_dask=True, **kwargs)
+
+        res.index = res.index.rename(None)
+        pd.testing.assert_frame_equal(df_dask.head(), res.head())

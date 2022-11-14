@@ -85,8 +85,6 @@ def put(self, dst: Union[str, Path, TransparentPath]):
     # noinspection PyProtectedMember
     if not self.exist():
         raise FileNotFoundError(f"No such file or directory: {self}")
-    existing_fs_names = "-".join(list(TransparentPath.fss.keys()))
-    print(existing_fs_names)
     if self.is_dir():
         for item in self.glob("/*"):
             # noinspection PyUnresolvedReferences
