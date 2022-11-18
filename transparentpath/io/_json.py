@@ -60,7 +60,11 @@ try:
                 return dct
             df = pd.DataFrame(dct["data"], columns=dct["columns"])
             if "index" in dct:
-                df.index = dct["index"]
+                index = dct["index"]
+                if len(index) != 0 and isinstance(index[0], (list, tuple)):
+                    df.index = pd.MultiIndex.from_tuples(index)
+                else:
+                    df.index = index
             if "dtypes" in dct:
                 for column in dct["dtypes"]:
                     if dct["dtypes"][column].startswith("datetime64") and df[column].dtype in (int, float):
@@ -82,7 +86,11 @@ try:
                 return dct
             s = pd.Series(dct["data"])
             if "index" in dct:
-                s.index = dct["index"]
+                index = dct["index"]
+                if len(index) != 0 and isinstance(index[0], (list, tuple)):
+                    s.index = pd.MultiIndex.from_tuples(index)
+                else:
+                    s.index = index
             if "dtype" in dct:
                 if dct["dtype"].startswith("datetime64") and s.dtype in (int, float):
                     s = pd.to_datetime(s, unit="ms")
