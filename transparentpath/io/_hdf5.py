@@ -35,9 +35,10 @@ try:
         raise ImportError("Need the 'tables' package")
 
     class MyHDFFile(h5py.File):
-        """Class to override h5py.File to handle files on GCS.
+        """Class to override h5py.File to handle files on remote.
 
         This allows to do :
+
         >>> from transparentpath import TransparentPath  # doctest: +SKIP
         >>> # noinspection PyUnresolvedReferences
         >>> import numpy as np  # doctest: +SKIP
@@ -57,8 +58,8 @@ try:
                 First argument is the local path to read. It can be a TransparentPath or a
                 tempfile._TemporaryFileWrapper
             remote: Union[TransparentPath, None]
-                Path to the file on GCS. Only relevant if file is opened in a 'with' statement in write mode. It
-                will be used to put the modified local temporary HDF5 back to GCS. If specified, args[0] is expected to
+                Path to the file on remote. Only relevant if file is opened in a 'with' statement in write mode. It
+                will be used to put the modified local temporary HDF5 back to remote. If specified, args[0] is expected to
                 be a tempfile._TemporaryFileWrapper (Default value = None).
             kwargs: dict
             """
@@ -72,7 +73,7 @@ try:
                 h5py.File.__init__(self, *args, **kwargs)
 
         def __exit__(self, *args):
-            """Overload of the h5py.File.__exit__ method to push any modified local temporary HDF5 back to GCS after
+            """Overload of the h5py.File.__exit__ method to push any modified local temporary HDF5 back to remote after
             a 'with' statement."""
             h5py.File.__exit__(self, *args)
             if self.remote_file is not None:
@@ -84,7 +85,7 @@ try:
     def read(self: TransparentPath, use_pandas: bool = False, **kwargs,) -> Union[h5py.File, MyHDFStore]:
         """Reads a HDF5 file. Must have been created by h5py.File or pd.HDFStore (specify use_pandas=True if so)
 
-        Since h5py.File/pd.HDFStore does not support GCS, first copy it in a tmp file.
+        Since h5py.File/pd.HDFStore does not support remote, first copy it in a tmp file.
 
 
         Parameters

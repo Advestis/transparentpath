@@ -3,7 +3,6 @@ errormessage = (
     "TransparentPath.\nYou can change that by running 'pip install transparentpath[dask]'."
 )
 
-
 try:
     # noinspection PyUnresolvedReferences,PyPackageRequirements
     import dask.dataframe as dd
@@ -30,6 +29,7 @@ try:
 
     TransparentPath.cli = None
 
+
     def check_dask(self, which: str = "read"):
         if which != "read":
             return
@@ -39,12 +39,13 @@ try:
             raise FileNotFoundError(f"Could not find file {self}")
         else:
             if (
-                not self.is_file()
-                and not self.is_dir(exist=True)
-                and not self.with_suffix("").is_dir(exist=True)
-                and "*" not in str(self)
+                    not self.is_file()
+                    and not self.is_dir(exist=True)
+                    and not self.with_suffix("").is_dir(exist=True)
+                    and "*" not in str(self)
             ):
                 raise FileNotFoundError(f"Could not find file nor directory {self} nor {self.with_suffix('')}")
+
 
     def apply_index_and_date_dd(index_col: int, parse_dates: bool, df: dd.DataFrame) -> dd.DataFrame:
         if index_col is not None:
@@ -54,6 +55,7 @@ try:
             # noinspection PyTypeChecker
             df.index = dd.to_datetime(df.index)
         return df
+
 
     def read_csv(self, **kwargs) -> dd.DataFrame:
 
@@ -69,7 +71,25 @@ try:
 
         index_col, parse_dates, kwargs = get_index_and_date_from_kwargs(**kwargs)
         check_kwargs(dd.read_csv, kwargs)
-        return apply_index_and_date_dd(index_col, parse_dates, dd.read_csv(to_use.__fspath__(), **kwargs))
+        try:
+            if self.fs_kind != "ssh":
+                return apply_index_and_date_dd(index_col, parse_dates, dd.read_csv(to_use.__fspath__(), **kwargs))
+            else:
+                f = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
+                f.close()  # deletes the tmp file, but we can still use its name
+                self.get(f.name)
+                data = apply_index_and_date_dd(index_col, parse_dates,
+                                               dd.from_delayed(delayed(pd.read_csv)(f.name, **kwargs)))
+                # We should not delete the tmp file, since dask does its operations lasily.
+                return data
+
+        except pd.errors.ParserError:
+            # noinspection PyUnresolvedReferences
+            raise pd.errors.ParserError(
+                "Could not read data. Most likely, the file is encrypted. Ask your cloud manager to remove encryption "
+                "on it."
+            )
+
 
     def read_parquet(self, **kwargs) -> Union[dd.DataFrame, dd.Series]:
 
@@ -88,9 +108,27 @@ try:
         else:
             to_use = self.with_suffix("")
         check_kwargs(dd.read_parquet, kwargs)
-        return apply_index_and_date_dd(
-            index_col, parse_dates, dd.read_parquet(to_use.__fspath__(), engine="pyarrow", **kwargs)
-        )
+        try:
+            if self.fs_kind != "ssh":
+                return apply_index_and_date_dd(
+                    index_col, parse_dates, dd.read_parquet(to_use.__fspath__(), engine="pyarrow", **kwargs)
+                )
+            else:
+                f = tempfile.NamedTemporaryFile(delete=False, suffix=".parquet")
+                f.close()  # deletes the tmp file, but we can still use its name
+                self.get(f.name)
+                data = apply_index_and_date_dd(index_col, parse_dates,
+                                               dd.from_delayed(delayed(pd.read_parquet)(f.name, **kwargs)))
+                # We should not delete the tmp file, since dask does its operations lasily.
+                return data
+
+        except pd.errors.ParserError:
+            # noinspection PyUnresolvedReferences
+            raise pd.errors.ParserError(
+                "Could not read data. Most likely, the file is encrypted. Ask your cloud manager to remove encryption "
+                "on it."
+            )
+
 
     def read_hdf5(self, set_names: str = "", use_pandas: bool = False, **kwargs) -> dd.DataFrame:
 
@@ -127,6 +165,7 @@ try:
         # Do not delete the tmp file, since dask tasks are delayed
         return data.result()
 
+
     def read_excel(self, **kwargs) -> pd.DataFrame:
 
         if not excel_ok:
@@ -159,8 +198,9 @@ try:
                 "on it."
             )
 
+
     def write_csv(
-        self, data: dd.DataFrame, overwrite: bool = True, present: str = "ignore", **kwargs,
+            self, data: dd.DataFrame, overwrite: bool = True, present: str = "ignore", **kwargs,
     ) -> Union[None, List[TransparentPath]]:
 
         if self.suffix != ".csv":
@@ -174,29 +214,39 @@ try:
         if not overwrite and self.is_file() and present != "ignore":
             raise FileExistsError()
 
-        if self.__class__.cli is None:
-            self.__class__.cli = client.Client()
-        check_kwargs(dd.to_csv, kwargs)
-        path_to_save = self
-        if not path_to_save.stem.endswith("*"):
-            path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
-        # noinspection PyTypeChecker
-        futures = self.__class__.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
-        outfiles = [
-            TransparentPath(f, fs=self.fs_kind, bucket=self.bucket) for f in futures.result()
-        ]
-        if len(outfiles) == 1:
-            outfiles[0].mv(self)
+        if self.fs_kind != "ssh":
+            if self.__class__.cli is None:
+                self.__class__.cli = client.Client()
+            check_kwargs(dd.to_csv, kwargs)
+            path_to_save = self
+            if not path_to_save.stem.endswith("*"):
+                path_to_save = path_to_save.parent / (path_to_save.stem + "_*.csv")
+            # noinspection PyTypeChecker
+            futures = self.__class__.cli.submit(dd.to_csv, data, path_to_save.__fspath__(), **kwargs)
+            outfiles = [
+                TransparentPath(f, fs=self.fs_kind, bucket=self.bucket) for f in futures.result()
+            ]
+            if len(outfiles) == 1:
+                outfiles[0].mv(self)
+            else:
+                return outfiles
         else:
-            return outfiles
+            with tempfile.NamedTemporaryFile(suffix=".csv") as f:
+                if TransparentPath.cli is None:
+                    TransparentPath.cli = client.Client()
+                check_kwargs(pd.DataFrame.to_csv, kwargs)
+                parts = delayed(pd.DataFrame.to_csv)(data, f.name, **kwargs)
+                parts.compute()
+                TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
+
 
     def write_parquet(
-        self,
-        data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
-        overwrite: bool = True,
-        present: str = "ignore",
-        columns_to_string: bool = True,
-        **kwargs,
+            self,
+            data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
+            overwrite: bool = True,
+            present: str = "ignore",
+            columns_to_string: bool = True,
+            **kwargs,
     ) -> None:
 
         if not parquet_ok:
@@ -225,12 +275,24 @@ try:
         if self.__class__.cli is None:
             self.__class__.cli = client.Client()
         check_kwargs(dd.to_parquet, kwargs)
-        dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
+        if self.fs_kind != "ssh":
+            dd.to_parquet(data, self.with_suffix("").__fspath__(), engine="pyarrow", compression="snappy", **kwargs)
+        else:
+            path_to_save = self
+            if path_to_save.stem.endswith("*"):
+                path_to_save = path_to_save.parent / path_to_save.stem
+            with tempfile.NamedTemporaryFile(delete=True, suffix=".parquet") as f:
+                if TransparentPath.cli is None:
+                    TransparentPath.cli = client.Client()
+                check_kwargs(data.to_parquet, kwargs)
+                path_stem = "/".join(f.name.split(".")[:-1])
+                parts = delayed(data.to_parquet)(path_stem, engine="pyarrow", compression="snappy", **kwargs)
+                parts.compute()
+                TransparentPath(path=path_stem, fs="local", bucket=self.bucket).put(path_to_save)
 
     # noinspection PyUnresolvedReferences
-
     def write_hdf5(
-        self, data: Any = None, set_name: str = None, use_pandas: bool = False, **kwargs,
+            self, data: Any = None, set_name: str = None, use_pandas: bool = False, **kwargs,
     ) -> Union[None, "h5py.File"]:
 
         if not hdf5_ok:
@@ -275,12 +337,13 @@ try:
                 TransparentPath(path=f.name, fs="local", bucket=self.bucket).put(self.path)
         return
 
+
     def write_excel(
-        self,
-        data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
-        overwrite: bool = True,
-        present: str = "ignore",
-        **kwargs,
+            self,
+            data: Union[pd.DataFrame, pd.Series, dd.DataFrame],
+            overwrite: bool = True,
+            present: str = "ignore",
+            **kwargs,
     ) -> None:
 
         if not excel_ok:

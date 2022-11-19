@@ -2,10 +2,13 @@ import sys
 import os
 from transparentpath import TransparentPath
 from importlib import reload
+from dotenv import load_dotenv
 
 bucket = "code_tests_sand"
-skip_gcs = {"local": False, "gcs": False}
-requirements = {"vanilla": []}
+load_dotenv()
+username = os.getenv("SSH_USERNAME")
+skip_gcs = {"local": False, "gcs": False, "ssh": False}
+requirements = {"vanilla": [], "vanilla_ssh": []}
 
 with open("setup.cfg", "r") as setupfile:
     all_reqs_lines = setupfile.read()
@@ -63,6 +66,9 @@ def get_prefixes(fs_kind):
     if fs_kind == "gcs":
         str_prefix = f"gs://{bucket}"
         pathlib_prefix = bucket
+    if fs_kind == "ssh":
+        str_prefix = f"/home/{username}"
+        pathlib_prefix = str_prefix
     return str_prefix, pathlib_prefix
 
 
@@ -81,6 +87,10 @@ def get_path(fs_kind, suffix):
         local_path = TransparentPath(f"tests/data/chien{suffix}")
         pfile = TransparentPath(f"chien{suffix}")
         local_path.cp(pfile)
+    elif fs_kind == "ssh":
+        local_path = TransparentPath(f"tests/data/chien{suffix}", fs_kind="local")
+        pfile = TransparentPath(f"chien/chien{suffix}")
+        local_path.put(pfile)
     else:
         local_path = TransparentPath(f"tests/data/chien{suffix}", fs_kind="local")
         pfile = TransparentPath(f"chien{suffix}")

@@ -179,6 +179,98 @@ jobs:
           retry_on: error
           command: |
             pytest -s -v tests/unit/test_dask.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+            
+
+      - name: test-vanilla-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/vanilla/test_fs_initialisation_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"
+
+      - name: test-json-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_json_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"
+
+      - name: test-pandas-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_pandas_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"
+
+      - name: test-parquet-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_parquet_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"
+
+      - name: test-excel-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_excel_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"
+
+      - name: test-hdf5-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_hdf5_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"
+
+      - name: test-dask-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_dask_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"
 
   pytest-39:
     needs: pytest-38
@@ -287,3 +379,95 @@ jobs:
           retry_on: error
           command: |
             pytest -s -v tests/unit/test_dask.py --token "$GOOGLE_APPLICATION_CREDENTIALS"
+
+
+      - name: test-vanilla-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/vanilla/test_fs_initialisation_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"
+
+      - name: test-json-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_json_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"
+
+      - name: test-pandas-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_pandas_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"
+
+      - name: test-parquet-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_parquet_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"
+
+      - name: test-excel-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_excel_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"
+
+      - name: test-hdf5-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_hdf5_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"
+
+      - name: test-dask-ssh
+        uses: nick-invision/retry@v2
+        env:
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        with:
+          timeout_minutes: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            pytest -s -v tests/unit/test_dask_ssh.py --SSH_USERNAME "$SSH_USERNAME" --SSH_HOST "$SSH_HOST" --SSH_PASSWORD "$SSH_PASSWORD"

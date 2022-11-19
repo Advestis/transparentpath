@@ -1,20 +1,23 @@
-import warnings
 import builtins
-import os
+import collections
 import json
+import os
 import sys
 import tempfile
-from time import time
+import warnings
 from copy import copy
 from datetime import datetime
+from inspect import signature
 from pathlib import Path
+from time import time
 from typing import Union, Tuple, Any, Iterator, Optional, Iterable, List, Callable
 
-from .methodtranslator import MultiMethodTranslator
 import gcsfs
+from dotenv import load_dotenv
 from fsspec.implementations.local import LocalFileSystem
-from inspect import signature
-import collections
+from fsspec.implementations.sftp import SFTPFileSystem
+
+from .methodtranslator import MultiMethodTranslator
 
 
 class TPMultipleExistenceError(Exception):
@@ -166,16 +169,17 @@ def collapse_ddots(path: Union[Path, TransparentPath, str]) -> TransparentPath:
     )
 
 
-def treat_remote_prefix(path: Union[Path, TransparentPath, str], bucket: str) -> Tuple[str, str]:
-    splitted = str(path).split(TransparentPath.remote_prefix)
+def treat_remote_prefix(path: Union[Path, TransparentPath, str], bucket: str, prefix: str) -> Tuple[str, str]:
+    splitted = str(path).split(TransparentPath.remote_prefix[prefix])
     if len(splitted) == 0:
         if bucket is None and TransparentPath.bucket is None:
             raise ValueError(
-                "If using a path starting with 'gs://', you must include the bucket name in it unless it"
+                f"If using a path starting with {TransparentPath.remote_prefix[prefix]}, you must include the bucket "
+                f"name in it unless it "
                 "is specified with bucket= or if TransparentPath already has been set to use a specified bucket"
                 "with set_global_fs"
             )
-        path = str(path).replace(TransparentPath.remote_prefix, "", 1)
+        path = str(path).replace(TransparentPath.remote_prefix[prefix], "", 1)
 
     else:
         bucket_from_path = splitted[1].split("/")[0]
@@ -188,7 +192,7 @@ def treat_remote_prefix(path: Union[Path, TransparentPath, str], bucket: str) ->
         else:
             bucket = bucket_from_path
 
-        path = str(path).replace(TransparentPath.remote_prefix, "", 1)
+        path = str(path).replace(TransparentPath.remote_prefix[prefix], "", 1)
         if path.startswith(bucket_from_path) or (len(path) > 0 and path[1:].startswith(bucket_from_path)):
             path = path.replace(bucket_from_path, "", 1)
         if path.startswith("/"):
@@ -197,45 +201,47 @@ def treat_remote_prefix(path: Union[Path, TransparentPath, str], bucket: str) ->
 
 
 def get_fs(
-    fs_kind: str,
-    bucket: Union[str, None] = None,
-    token: Optional[Union[str, dict]] = None,
-    path: Union[Path, None] = None,
-) -> Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem], str, str]:
-    """Gets the FileSystem object of either gcs or local (Default)
+        fs_kind: str,
+        bucket: Union[str, None] = None,
+        token: Optional[Union[str, dict]] = None,
+        path: Union[Path, None] = None,
+) -> Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem, SFTPFileSystem], str, str]:
+    """Gets the FileSystem object of either remote or local (Default)
 
-    If GCS is asked and bucket is specified, will check that it exists and is accessible.
+    If remote is asked and bucket is specified, will check that it exists and is accessible.
+
+    One and only one of 'fs_kind' and 'token' must be specified.
 
     Parameters
     ----------
-    fs_kind: str
-        Returns GCSFileSystem if 'gcs_*', LocalFilsSystem if 'local'.
-    bucket: str
-        bucket name for GCS
-    token: Optional[Union[str, dict]]
-        credentials (default value = None)
-    path: Pathlib.Path
-        Only relevant if the method was called from TransparentPath.__init__() : will attempts to fetch the bucket
-        from the path if bucket is not given
+     fs_kind: str Returns GCSFileSystem if 'gcs_*', LocalFilsSystem if 'local', `fsspec.implementations.local.SFTPFileSystem`.
+    bucket: str bucket name for GCS
+    token: Optional[Union[str, dict]] credentials (default value = None)
+    path: Pathlib.Path Only relevant if the method was called from TransparentPath.__init__() : will attempts to fetch
+    the bucket from the path if bucket is not given
 
     Returns
     -------
-    Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem], Union[None, str], Union[None, str], Union[None, str]]
-        The FileSystem object, the project if on GCS else None, and the bucket if on GCS.
+    Tuple[Union[gcsfs.GCSFileSystem, LocalFileSystem,
+    `fsspec.implementations.local.SFTPFileSystem`], Union[None, str], Union[None, str], Union[None, str]] The
+    FileSystem object, the project if on remote else None, and the bucket if on remote.
     """
 
-    if fs_kind is None:
-        fs_kind = ""
-    if fs_kind == "" and token is not None:
-        fs_kind = "gcs"
+    # if fs_kind is None:
+    #     fs_kind = ""
+    # if fs_kind == "" and token is not None:
+    #     if "google" in json.load(open(token)):
+    #         fs_kind = "gcs"
+
     fs_name = None
-    if fs_kind == "local":
+    if fs_kind == "local" or fs_kind == "ssh":
         bucket = None
 
-    if path is not None and fs_kind != "local":
+    if path is not None and fs_kind != "local" and fs_kind != "ssh":
         # Called from TransparentPath.__init__()
         if bucket is not None:
             fs_name = check_bucket(bucket)
+
         if bucket is None and len(path.parts) > 0:
             bucket = path.parts[0]
             fs_name = check_bucket(bucket)
@@ -246,18 +252,17 @@ def get_fs(
             fs_name = check_bucket(bucket)
 
         if fs_name is not None:
-            return copy(TransparentPath.fss[fs_name]), fs_name, bucket
+            return copy(TransparentPath.fss[fs_name]), "gcs", bucket
 
-    if "gcs" in fs_kind or token is not None:
-
+    if "gcs" in fs_kind:
         # If bucket is specified, get the filesystem that contains it if it already exists. Else, create the filesystem.
         if bucket is not None:
             fs_name = check_bucket(bucket)
             if fs_name is not None:
                 fs = copy(TransparentPath.fss[fs_name])
-                return fs, fs_name, ""
+                return fs, "gcs", ""
 
-        fs_name, project, token = extract_fs_name(token)
+        fs_name, project, token = extract_fs_name(fs_kind, token)
         if fs_name in TransparentPath.fss:
             pass
         elif token is None:
@@ -281,16 +286,29 @@ def get_fs(
 
         fs = copy(TransparentPath.fss[fs_name])
         if ret_bucket:
-            return fs, fs_name, bucket
+            return fs, "gcs", bucket
         else:
-            return fs, fs_name, ""
+            return fs, 'gcs', ""
     else:
-        if "local" not in TransparentPath.fss:
-            TransparentPath.fss["local"] = LocalFileSystem()
-        return copy(TransparentPath.fss["local"]), "local", ""
+        if "ssh" in fs_kind or (list(TransparentPath.fss.values()) and (isinstance(
+                list(TransparentPath.fss.values())[0], SFTPFileSystem)
+                    and TransparentPath.unset is False and fs_kind == "")):
+            fs_kind = "ssh"
+            fs_name, project, token = extract_fs_name(fs_kind, token)
+            # if "ssh" not in TransparentPath.fss:
+            load_dotenv()
+            host = os.getenv("SSH_HOST")
+            usename = os.getenv("SSH_USERNAME")
+            password = os.getenv("SSH_PASSWORD")
+            TransparentPath.fss[fs_name] = SFTPFileSystem(host=host, username=usename, password=password)
+            return copy(TransparentPath.fss[fs_name]), "ssh", token
+        else:
+            if "local" not in TransparentPath.fss:
+                TransparentPath.fss["local"] = LocalFileSystem()
+            return copy(TransparentPath.fss["local"]), "local", ""
 
 
-def get_buckets(fs: gcsfs.GCSFileSystem) -> List[str]:
+def get_buckets(fs: Union[gcsfs.GCSFileSystem]) -> List[str]:
     """Return list of all buckets in the file system."""
     if "" not in fs.dircache:
         items = []
@@ -369,46 +387,82 @@ def get_index_and_date_from_kwargs(**kwargs: dict) -> Tuple[int, bool, dict]:
     return index_col, parse_dates, kwargs
 
 
-def extract_fs_name(token: str = None) -> Tuple[str, str, Union[str, None]]:
-    if token is None and "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
-        fs = gcsfs.GCSFileSystem()
-        project = fs.project
-        if (
-            project is None
-            or fs.credentials is None
-            or not hasattr(fs.credentials.credentials, "service_account_email")
-            or fs.credentials.credentials.service_account_email is None
-        ):
-            raise EnvironmentError(
-                "If no token is explicitely specified and GOOGLE_APPLICATION_CREDENTIALS environnement variable is not"
-                " set, you need to have done gcloud init or to be on GCP already to create a TransparentPath"
-            )
-        email = fs.credentials.credentials.service_account_email
-        return f"gcs_{project}_{email}", project, None
-    elif token is None:
-        token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+def extract_fs_name(fs_kind: str, token: str = None) -> Tuple[str, str, Union[str, None]]:
+    is_gcs = False
+    is_ssh = False
+
+    if fs_kind is not None and not (
+            fs_kind == "gcs"
+            or fs_kind == "local"
+            or fs_kind == "ssh"
+    ):
+        raise ValueError(f"Unknown value {fs_kind} for parameter 'fs_kind'")
+
+    if fs_kind is None:
+        fs_kind = "local"
+        # raise ValueError("Please specify your fs_kind")
+
+    if fs_kind == "gcs":
+        is_gcs = True
+    if fs_kind == "ssh":
+        load_dotenv()
+        if (os.getenv("SSH_PASSWORD") and os.getenv("SSH_USERNAME") and os.getenv("SSH_HOST")) is not None:
+            is_ssh = True
+        else:
+            raise ValueError("No token was specified and neither GOOGLE_APPLICATION_CREDENTIALS "
+                             "and neither "
+                             "'ssh informations login' are specified")
+
+    if is_gcs:
+        if token is None:
+            if "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
+                fs = gcsfs.GCSFileSystem()
+                project = fs.project
+                if (
+                        project is None
+                        or fs.credentials is None
+                        or not hasattr(fs.credentials.credentials, "service_account_email")
+                        or fs.credentials.credentials.service_account_email is None
+                ):
+                    raise EnvironmentError(
+                        "If no token is explicitely specified and GOOGLE_APPLICATION_CREDENTIALS environnement "
+                        "variable is not "
+                        " set, you need to have done gcloud init or to be on GCP already to create a TransparentPath"
+                    )
+                email = fs.credentials.credentials.service_account_email
+                return f"gcs_{project}_{email}", project, None
+            token = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+    elif is_ssh:
+        token = os.getenv("SSH_PASSWORD")
+        fs_name = f"ssh_{os.getenv('SSH_HOST')}_{os.getenv('SSH_USERNAME')}"
+        TransparentPath.tokens[fs_name] = "hidden"
+        return fs_name, os.getenv('SSH_HOST'), token
 
     token = token.strip()
-    if not TransparentPath(token, fs="local", nocheck=True, notupdatecache=True).is_file():
-        raise FileNotFoundError(f"Credential file {token} not found")
-    content = json.load(open(token))
-    if "project_id" not in content:
-        raise ValueError(f"Credential file {token} does not contain project_id key.")
-    if "client_email" not in content:
-        raise ValueError(f"Credential file {token} does not contain client_email key.")
+    if is_gcs:
+        if not TransparentPath(token, fs="local", nocheck=True, notupdatecache=True).is_file():
+            raise FileNotFoundError(f"Crendential file {token} not found")
+        content = json.load(open(token))
 
-    fs_name = f"gcs_{content['project_id']}_{content['client_email']}"
-    TransparentPath.tokens[fs_name] = token
-    return fs_name, content["project_id"], token
+        if "project_id" not in content:
+            raise ValueError(f"Credential file {token} does not contain project_id key.")
+        if "client_email" not in content:
+            raise ValueError(f"Credential file {token} does not contain client_email key.")
+
+        fs_name = f"gcs_{content['project_id']}_{content['client_email']}"
+        TransparentPath.tokens[fs_name] = token
+        return fs_name, content["project_id"], token
 
 
 class TransparentPath(os.PathLike):  # noqa : F811
     # noinspection PyUnresolvedReferences
     """
-    A class that allows one to use a path in a local file system or a Google Cloud Storage (GCS) file system in the
+    A class that allows one to use a path in a local file system or a Google Cloud Storage (GCS) file system or SFTP file system in the
     same way one would use a `pathlib.Path` object. One can use many different GCP projects at once.
 
     Create a path that points to GCS, and one that does not:
+
     >>> from transparentpath import Path
     >>> # Or : from transparentpath import TransparentPath
     >>> p = Path("gs://mybucket/some_path", token="some/cred/file.json")
@@ -416,6 +470,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     >>> p3 = Path("bar")  # Will point to local path "bar"
 
     Set all paths to point to GCS by default:
+
     >>> from transparentpath import Path
     >>> Path.set_global_fs("gcs", token="some/cred/file.json")
     >>> p = Path("mybucket") / "some_path" # Will point to gs://mybucket/some_path
@@ -425,6 +480,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     >>> p5 = Path("not_a_bucket")  # Will point to local path "not_a_bucket" (assuming it is indeed, not a bucket)
 
     Set all paths to point to severral GCS projects by default:
+
     >>> from transparentpath import Path
     >>> Path.set_global_fs("gcs", token="some/cred/file.json")
     >>> Path.set_global_fs("gcs", token="some/other/cred/file.json")
@@ -438,6 +494,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     credential files can access them.
 
     Set all paths to point to GCS by default, and specify a default bucket:
+
     >>> from transparentpath import Path
     >>> Path.set_global_fs("gcs", bucket="mybucket", token="some/cred/file.json")
     >>> p = Path("some_path")  # Will point to gs://mybucket/some_path/
@@ -449,7 +506,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
     The latest option is interesting if you have a code that should be able to run with paths being sometimes remote,
     sometimes local. To do that, you can use the class attribute `nas_dir`. Then when a path is created, if it starts by
     *nas_dir*'s path, *nas_dir*'s path is replaced by the bucket name. This is useful if, for instance, you have a
-    backup of a bucket locally at let's say */my/local/backup*. Then you can do:
+    backup of a bucket locally at let's say */my/local/backup*.
+
+    Then you can do:
+
     >>> from transparentpath import Path
     >>> Path.nas_dir = "/my/local/backup"
     >>> Path.set_global_fs("gcs", bucket="mybucket", token="some/cred/file.json")
@@ -467,6 +527,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     machine (VM, cluster...) with access to GCS.
 
     No matter whether you are using GCS or your local file system, here is a sample of what TransparentPath can do:
+
     >>> from transparentpath import Path
     >>> # Path.set_global_fs("gcs", bucket="bucket_name", project="project_name")
     >>> # The following lines will also work with the previous line uncommented
@@ -526,55 +587,64 @@ class TransparentPath(os.PathLike):  # noqa : F811
     All instances of TransparentPath are absolute, even if created with relative paths.
 
     TransparentPaths are seen as instances of str:
+
     >>> from transparentpath import Path
     >>> path = Path()
     >>> isinstance(path, str)  # returns True
 
-    This is required to allow
+    This is required to allow:
+
     >>> from transparentpath import Path
     >>> path = Path()
     >>> # noinspection PyTypeChecker
     >>> with open(path, "w/r/a/b...") as ifile:
     >>> ...
     to work. If you want to check whether path is actually a TransparentPath and nothing else, use
+
     >>> from transparentpath import Path
     >>> path = Path()
     >>> assert type(path) == Path
     >>> assert issubclass(path.__class__, Path)
     instead.
 
-    Any method or attribute valid in `fsspec.implementations.local.LocalFileSystem`, `gcs.GCSFileSystem`, `pathlib.Path`
-    or `str` can be used on a TransparentPath object.
+    Any method or attribute valid in `fsspec.implementations.local.LocalFileSystem`, `gcs.GCSFileSystem`,
+    `fsspec.implementations.SFTP.SFTPFileSystem`, `pathlib.Path` or `str` can be used on a TransparentPath object.
 
     **Warnings about GCS behaviour**
+
     if you use GCS:\n
-      1. Remember that directories are not a thing on GCS.\n
-      2. You do not need the parent directories of a file on GCS to create the file : they will be created if they do
-      not exist (that is not true localy however).\n
-      3. If you delete a file that was alone in its parent directories, those directories disapear.\n
-      4. If a file exists at the same path than a directory, then TransparentPath is not able to know which one is the
-      file and which one is the directory, and will raise a
-    `transparentpath.gcsutils.transparentpath.TPMultipleExistenceError` upon object creation. This
-      check for multiplicity is done at almost every method in case an exterior source created a duplicate of the
-      file/directory. This case can't happen locally. However, it can happen on remote if the cache is not updated
-      frequently. Doing this check can significantly increase computation time (if using glob on a directory
-      containing a lot of files for example). You can deactivate it either globally (TransparentPath._do_check =
-      False and TransparentPath._do_update_cache = False), for a specific path (pass nockeck=True at path
-      creation), or for glob and ls by passing fast=True as additional argument.
+        1. Remember that directories are not a thing on GCS.\n
+        2. You do not need the parent directories of a file on GCS to create the file : they will be created if they do
+           not exist (that is not true localy however).\n
+        3. If you delete a file that was alone in its parent directories, those directories disapear.\n
+        4. If a file exists at the same path than a directory, then TransparentPath is not able to know which one is the
+           file and which one is the directory, and will raise a
+           `transparentpath.gcsutils.transparentpath.TPMultipleExistenceError` upon object creation. This
+           check for multiplicity is done at almost every method in case an exterior source created a duplicate of the
+           file/directory. This case can't happen locally. However, it can happen on remote if the cache is not updated
+           frequently. Doing this check can significantly increase computation time (if using glob on a directory
+           containing a lot of files for example). You can deactivate it either globally (TransparentPath._do_check =
+           False and TransparentPath._do_update_cache = False), for a specific path (pass nockeck=True at path
+           creation), or for glob and ls by passing fast=True as additional argument.
 
 
     TransparentPath on GCS is slow because of the verification for multiple existance and the cache updating.
-    However one can tweak those a bit. As mentionned earlier, cache updating and multiple existence check can be
-    deactivated for all paths by doing
+    However one can tweak those a bit.
+
+    As mentionned earlier, cache updating and multiple existence check can be deactivated for all paths by doing
+
     >>> from transparentpath import TransparentPath
     >>> TransparentPath._do_update_cache = False
     >>> TransparentPath._do_check = False
 
-    They can also be deactivated for one path only by doing
+    They can also be deactivated for one path only by doing:
+
     >>> p = TransparentPath("somepath", nocheck=True, notupdatecache=True)
 
     It is also possible to specify when to do those check : at path creation, path usage (read, write, exists...) or
-    both. Here to it can be set on all paths or only some :
+    both.
+    Here to it can be set on all paths or only some :
+
     >>> TransparentPath._when_checked = {"created": True, "used": False}  # Default value
     >>> TransparentPath._when_updated = {"created": True, "used": False}  # Default value
     >>> p = TransparentPath(
@@ -582,14 +652,18 @@ class TransparentPath(os.PathLike):  # noqa : F811
     >>> )
 
     There is also an expiration time in seconds for check and update : the operation is not done if it was done not a
-    long time ago. Those expiration times are of 1 second by default and can be changed through :
+    long time ago.
+    Those expiration times are of 1 second by default and can be changed through :
+
     >>> TransparentPath._check_expire = 10
     >>> TransparentPath._update_expire = 10
     >>> p = TransparentPath("somepath", check_expire=0, update_expire=0)
     ```
 
     `transparentpath.gcsutils.transparentpath.TransparentPath.glob()` and
-    `transparentpath.gcsutils.transparentpath.TransparentPath.ls()` have their own way to be accelerated :
+    `transparentpath.gcsutils.transparentpath.TransparentPath.ls()`
+    have their own way to be accelerated :
+
     >>> p.glob("/*", fast=True)
     >>> p.ls("", fast=True)
     Basically, *fast=True* means "do not check and do not update the cache" for all the items found by the method.
@@ -619,6 +693,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     >>>         return None
 
     The original method was:
+
     >>>
     >>> import os
     >>> ...
@@ -640,7 +715,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
     @classmethod
     def reinit(cls):
         """Reinit all class attributes to their default values"""
-        cls.remote_prefix = "gs://"
+        cls.remote_prefix = {"local": "", "gcs": "gs://", "ssh": ""}
         cls.fss = {}
         cls.buckets_in_project = {}
         cls.fs_kind = None
@@ -664,25 +739,25 @@ class TransparentPath(os.PathLike):  # noqa : F811
     @classmethod
     def show_state(cls):
         """Prints the state of the TransparentPath class"""
-        print("remote_prefix: ", cls.remote_prefix)
-        print("fss: ", cls.fss)
-        print("buckets_in_project: ", cls.buckets_in_project)
-        print("fs_kind: ", cls.fs_kind)
-        print("bucket: ", cls.bucket)
-        print("nas_dir: ", cls.nas_dir)
-        print("unset: ", cls.unset)
-        print("cwd: ", cls.cwd)
-        print("tokens: ", cls.tokens)
-        print("_do_update_cache: ", cls._do_update_cache)
-        print("_do_check: ", cls._do_check)
-        print("_check_expire: ", cls._check_expire)
-        print("_update_expire: ", cls._update_expire)
-        print("_when_updated: ", cls._when_updated)
-        print("LOCAL_SEP: ", cls.LOCAL_SEP)
-        print("cached_data_dict: ", cls.cached_data_dict)
-        print("used_memory: ", cls.used_memory)
-        print("caching: ", cls.caching)
-        print("caching_max_memory: ", cls.caching_max_memory)
+        print(f"remote_prefix: {cls.remote_prefix}")
+        print(f"fss: {cls.fss}")
+        print(f"buckets_in_project: {cls.buckets_in_project}")
+        print(f"fs_kind: {cls.fs_kind}")
+        print(f"bucket: {cls.bucket}")
+        print(f"nas_dir: {cls.nas_dir}")
+        print(f"unset: {cls.unset}")
+        print(f"cwd: {cls.cwd}")
+        print(f"tokens: {cls.tokens}")
+        print(f"_do_update_cache: {cls._do_update_cache}")
+        print(f"_do_check: {cls._do_check}")
+        print(f"_check_expire: {cls._check_expire}")
+        print(f"_update_expire: {cls._update_expire}")
+        print(f"_when_updated: {cls._when_updated}")
+        print(f"LOCAL_SEP: {cls.LOCAL_SEP}")
+        print(f"cached_data_dict: {cls.cached_data_dict}")
+        print(f"used_memory: {cls.used_memory}")
+        print(f"caching: {cls.caching}")
+        print(f"caching_max_memory: {cls.caching_max_memory}")
 
     @classmethod
     def get_state(cls) -> dict:
@@ -711,15 +786,17 @@ class TransparentPath(os.PathLike):  # noqa : F811
         }
         return state
 
-    remote_prefix = "gs://"
-    """remote prefix of the known possible remote file system. For now, only GCS is supported, so default is gs://"""
+    remote_prefix = {"local": "", "gcs": "gs://", "ssh": ""}
+    """remote prefix of the known possible remote file system. For now, only GCS and ssh is supported, 
+    so there are gs:// """
     fss = {}
-    """Declared filesystems. Keys are 'local' or 'gcs_cred_mail' and values are
-     `fsspec.implementations.local.LocalFileSystem` or `gcsfs.GCSFileSystem` objects"""
+    """Declared filesystems. Keys are 'local' or 'gcs_cred_mail' or 'ssh' and values are
+     `fsspec.implementations.local.LocalFileSystem` or `gcsfs.GCSFileSystem` or `
+     fsspec.implementations.sftp.SFTPFileSystem` objects"""
     buckets_in_project = {}
     """Known buckets. Keys are 'gcs_cred_mail' and values are bucket names (str)"""
     fs_kind = None
-    """Default fs kind ('local' or 'gcs')"""
+    """Default fs kind ('local' or 'gcs' or 'ssh')"""
     bucket = None
     """Default bucket"""
     nas_dir = None
@@ -790,31 +867,32 @@ class TransparentPath(os.PathLike):  # noqa : F811
     translations = {
         "mkdir": MultiMethodTranslator(
             "mkdir",
-            ["local", "gcs"],
-            ["mkdir", "self._do_nothing"],
-            [{"parents": "create_parents"}, {"parents": ""}],
+            ["local", "gcs", "ssh"],
+            ["mkdir", "self._do_nothing", "mkdir"],
+            [{"parents": "create_parents"}, {"parents": ""}, {"parents": "create_parents"}],
         ),
     }
     """To translate method args and kwargs between `fsspec.implementations.local.LocalFileSystem` 
-    and `gcsfs.GCSFileSystem`"""
+    and `gcsfs.GCSFileSystem` and `fsspec.implementations.sftp.SFTPFileSystem`"""
 
     @classmethod
     def set_global_fs(
-        cls,
-        fs: str,
-        bucket: Union[str, None] = None,
-        nas_dir: Optional[Union[TransparentPath, Path, str]] = None,
-        token: Optional[Union[dict, str]] = None,
+            cls,
+            fs: str,
+            bucket: Union[str, None] = None,
+            nas_dir: Optional[Union[TransparentPath, Path, str]] = None,
+            token: Optional[Union[dict, str]] = None,
     ) -> None:
         """To call before creating any instance to set the file system.
 
         If not called, default file system is local. If the first parameter is 'local', the file system is local. If
-        the first parameter is 'gcs', file system is GCS.
+        the first parameter is 'gcs', file system is GCS. If the first parameter is 'ssh', the file system is ssh.
 
         Parameters
         ----------
         fs: str
-            'gcs' will use GCSFileSystem, 'local' will use LocalFileSystem
+            'gcs' will use GCSFileSystem, 'local' will use LocalFileSystem,
+            'ssh' will use SFTPFileSystem
         bucket: str
             The bucket name, only valid if using gcs (Default value =  None)
         nas_dir: Union[TransparentPath, Path, str]
@@ -829,7 +907,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
         -------
         None
         """
-        if "gcs" not in fs and fs != "local":
+        if not (
+                fs == "gcs"
+                or fs == "local"
+                or fs == "ssh"
+        ):
             raise ValueError(f"Unknown value {fs} for parameter 'fs'")
 
         cls.fs_kind = fs
@@ -840,22 +922,24 @@ class TransparentPath(os.PathLike):  # noqa : F811
         TransparentPath.unset = False
 
     def __init__(
-        self,
-        path: Union[Path, TransparentPath, str] = ".",
-        collapse: bool = True,
-        fs: Optional[str] = "",
-        bucket: Optional[str] = None,
-        token: Optional[Union[dict, str]] = None,
-        nocheck: Optional[bool] = None,
-        notupdatecache: Optional[bool] = None,
-        update_expire: Optional[int] = None,
-        check_expire: Optional[int] = None,
-        when_checked: Optional[dict] = None,
-        when_updated: Optional[dict] = None,
-        enable_caching: bool = False,
-        **kwargs,
+            self,
+            path: Union[Path, TransparentPath, str] = ".",
+            collapse: bool = True,
+            fs: Optional[str] = "",
+            bucket: Optional[str] = None,
+            token: Optional[Union[dict, str]] = None,
+            username: Optional[str] = None,
+            host: Optional[str] = None,
+            nocheck: Optional[bool] = None,
+            notupdatecache: Optional[bool] = None,
+            update_expire: Optional[int] = None,
+            check_expire: Optional[int] = None,
+            when_checked: Optional[dict] = None,
+            when_updated: Optional[dict] = None,
+            enable_caching: bool = False,
+            **kwargs,
     ):
-        """Creator of the TranparentPath object
+        """Creator of the TransparentPath object
 
         Parameters
         ----------
@@ -864,10 +948,10 @@ class TransparentPath(os.PathLike):  # noqa : F811
         collapse: bool
             If True, will collapse any double dots ('..') in path. (Default value = True)
         fs: Optional[str]
-            The file system to use, 'local' or 'gcs'. If None, uses the default one set by
+            The file system to use, 'local', swc or 'gcs' or ssh. If None, uses the default one set by
             `transparentpath.gcsutils.transparentpath.TransparentPath.set_global_fs` if any, or 'local' (Default = None)
         bucket: Optional[str]
-            The bucket name if using GCS and if path is not 'gs://bucket/...'
+            The bucket name if using remote and if path is not '<remote prefix>bucket/...'
         token: Optional[Union[dict, str]]
             The path to google application credentials json file to use, if envvar GOOGLE_APPLICATION_CREDENTIALS
             is not set and the code is not running on a GCP machine.
@@ -901,9 +985,9 @@ class TransparentPath(os.PathLike):  # noqa : F811
             path = "."
 
         if (
-            not (type(path) == type(Path("dummy")))  # noqa: E721
-            and not (type(path) == str)
-            and not (type(path) == TransparentPath)
+                not (type(path) == type(Path("dummy")))  # noqa: E721
+                and not (type(path) == str)
+                and not (type(path) == TransparentPath)
         ):
             raise TypeError(f"Unsupported type {type(path)} for path")
 
@@ -951,14 +1035,20 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self.token = path.token
             return
 
+        prefix = ""
+        _fs = "local"
         # In case we initiate a path containing 'gs://'
-        if str(path).startswith(TransparentPath.remote_prefix):
-            if fs == "local":
+        for _fs in TransparentPath.remote_prefix:
+            if str(path).startswith(TransparentPath.remote_prefix[_fs]):
+                prefix = TransparentPath.remote_prefix[_fs]
+                break
+        if prefix != "":
+            if fs == "local" or fs == "ssh":
                 raise ValueError(
-                    "You specified a path starting with 'gs://' but ask for it to be local. This is not possible."
+                    f"You specified a path starting with {prefix} but ask for it to be {fs}. This is not possible."
                 )
-            path, bucket = treat_remote_prefix(path, bucket)
-            fs = "gcs"
+            path, bucket = treat_remote_prefix(path, bucket, prefix)
+            fs = _fs
 
         self.__path = Path(str(path).encode("utf-8").decode("utf-8"), **kwargs)
 
@@ -981,6 +1071,19 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if self.fs_kind == "local":
             self.sep = TransparentPath.LOCAL_SEP
             self.__path = self.__path.absolute()
+
+        elif self.fs_kind == "ssh":
+            self.sep = "/"
+            if username is None:
+                username = os.getenv("SSH_USERNAME")
+            if not str(path).startswith("/"):
+                root_path = Path("/", fs="ssh")
+                if (root_path / "home").is_dir():
+                    path = root_path / "home" / username / str(path)
+                    self.__path = path
+                else:
+                    raise NotADirectoryError("/home is not a directory")
+
         else:
             self.sep = "/"
 
@@ -994,16 +1097,16 @@ class TransparentPath(os.PathLike):  # noqa : F811
             if len(self.__path.parts) > 0 and self.__path.parts[0] == "..":
                 raise ValueError("The path can not start with '..'")
 
-        else:
+        elif self.fs_kind == "gcs":
 
-            # ON GCS
+            # ON remote
 
             # Remove occurences of nas_dir at beginning of path, if any
             if self.nas_dir is not None and (
-                str(self.__path).startswith(os.path.abspath(self.nas_dir) + os.sep) or str(self.__path) == self.nas_dir
+                    str(self.__path).startswith(os.path.abspath(self.nas_dir) + os.sep) or str(
+                self.__path) == self.nas_dir
             ):
                 self.__path = self.__path.relative_to(self.nas_dir)
-
             if str(self.__path) == "." or str(self.__path) == "/":
                 self.__path = Path(self.bucket)
             elif len(self.__path.parts) > 0:
@@ -1019,10 +1122,12 @@ class TransparentPath(os.PathLike):  # noqa : F811
             # if len(self.__path.parts) > 1 and self.bucket in self.__path.parts[1:]:
             #     raise ValueError("You should never use your bucket name as a directory or file name.")
 
-        if self.when_checked["created"] and not self.nocheck:
-            self._check_multiplicity()
-        elif self.when_updated["created"] and not self.notupdatecache:  # Else, because called by check_multiplicity
-            self._update_cache()
+        # TODO Ask what these lines are for because it bugs the file creation
+        if self.fs_kind != "ssh":
+            if self.when_checked["created"] and not self.nocheck:
+                self._check_multiplicity()
+            elif self.when_updated["created"] and not self.notupdatecache:  # Else, because called by check_multiplicity
+                self._update_cache()
 
     @property
     def path(self):
@@ -1037,7 +1142,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     def __contains__(self, item: str) -> bool:
         """Overload of 'in' operator
-        Use __fspath__ instead of str(self) so that any method trying to assess whether the path is on gcs using
+        Use __fspath__ instead of str(self) so that any method trying to assess whether the path is remote using
         '//' in path will return True.
         """
         return item in self.__fspath__()
@@ -1072,12 +1177,14 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """Alias of truediv
 
         You can do :
+
         >>> from transparentpath import TransparentPath
         >>> p = TransparentPath("/chat")
         >>> p + "chien"
         /chat/chien
 
         If you want to add a string without having a '/' poping, use 'append':
+
         >>> from transparentpath import TransparentPath
         >>> p = TransparentPath("/chat")
         >>> p.append("chien")
@@ -1156,13 +1263,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if self.fs_kind == "local":
             return str(self.__path)
         else:
-            s = "".join([TransparentPath.remote_prefix, str(self.__path)])
+            s = "".join([TransparentPath.remote_prefix[self.fs_kind], str(self.__path)])
             if TransparentPath.LOCAL_SEP != "/":
                 s = s.replace(TransparentPath.LOCAL_SEP, "/")
             return s
 
     def __hash__(self) -> int:
-        """Uniaue hash number.
+        """Unique hash number.
 
         Two TransarentPath will have a same hash number if their fspath are the same and fs_kind (which will inlude
         the project name if remote) are the same."""
@@ -1321,7 +1428,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         """
 
         # Append the absolute path to self.path according to whether the object
-        # needs it and whether we are in gcs or local
+        # needs it and whether we are in gcs, or local or ssh
         new_args = self._transform_path(obj_name, *args)
 
         # Object is a method and exists in FileSystem object but has a
@@ -1420,7 +1527,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
             return
 
         self.fs.invalidate_cache()
-        if "gcs" in self.fs_kind:
+        if self.fs_kind != "local" and self.fs_kind != "ssh":
             try:
                 self.fs.info(self.bucket)
             except FileNotFoundError:
@@ -1496,7 +1603,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         return self.exists()
 
     def exists(self) -> bool:
-        if str(self.path) == "/" and self.fs_kind == "local":
+        if str(self.path) == "/" and (self.fs_kind == "local"):
             return True
         elif self.path == "gs://" and self.fs_kind == "gcs":
             return True
@@ -1679,7 +1786,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         self.rm(absent=absent, ignore_kind=ignore_kind, recursive=True)
 
     def glob(
-        self, wildcard: str = "*", fast: bool = False, i_am_sure_i_am_a_dir: bool = False
+            self, wildcard: str = "*", fast: bool = False, i_am_sure_i_am_a_dir: bool = False
     ) -> Iterator[TransparentPath]:
         """Returns a list of TransparentPath matching the wildcard pattern.
 
@@ -1817,9 +1924,13 @@ class TransparentPath(os.PathLike):  # noqa : F811
         if not isinstance(path, str) or isinstance(path, TransparentPath):
             raise TypeError("Can only pass a string to TransparentPath's cd method")
 
-        path = path.replace(TransparentPath.remote_prefix, "", 1)
+        for _fs in TransparentPath.remote_prefix:
+            prefix = TransparentPath.remote_prefix[_fs]
+            if path.startswith(prefix):
+                path = path.replace(prefix, "", 1)
 
-        if "gcs" in self.fs_kind and str(path) == self.bucket or path == "" or str(path) == "/":
+        if self.fs_kind != "local" and self.fs_kind != "ssh" and str(path) == self.bucket or path == "" or str(
+                path) == "/":
             self.__path = Path(self.bucket)
             return
 
@@ -1831,7 +1942,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
         # noinspection PyUnresolvedReferences
         self.__path = self.__path / path
 
-        if self.fs_kind == "local":
+        if self.fs_kind == "local" or self.fs_kind == "ssh":
             # If asked for an absolute path
             if path.startswith("/"):
                 self.__path = Path(path)
@@ -1848,7 +1959,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 self.__path = Path(self.bucket) / path[1:]
                 return
             # noinspection PyUnresolvedReferences
-            if self.__path == 1:  # On gcs, first part is bucket
+            if self.__path == 1:  # On remote, first part is bucket
                 return
             # noinspection PyUnresolvedReferences
             if self.__path.parts[1] == "..":
@@ -1871,7 +1982,6 @@ class TransparentPath(os.PathLike):  # noqa : F811
             What to do if there is already something at self. Can be "raise" or "ignore" (Default value = "ignore")
 
         kwargs
-            The kwargs to pass to file system's touch method
 
 
         Returns
@@ -1890,10 +2000,32 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 raise FileExistsError(f"There is already an object at {self} which is not a file.")
             else:
                 return
+        if self.fs_kind != "ssh":
+            for parent in reversed(self.parents):
+                p = TransparentPath(
+                    parent,
+                    fs=self.fs_kind,
+                    bucket=self.bucket,
+                    notupdatecache=self.notupdatecache,
+                    nocheck=self.nocheck,
+                    when_checked=self.when_checked,
+                    when_updated=self.when_updated,
+                    update_expire=self.update_expire,
+                    check_expire=self.check_expire,
+                )
+                if p.is_file():
+                    raise FileExistsError(
+                        f"A parent directory can not be created because there is already a file at {p}")
+                elif not p.exists():
+                    p.mkdir()
 
-        for parent in reversed(self.parents):
+            self.fs.touch(self.__fspath__(), **kwargs)
+        else:
+            parent = str(self.path).split("/")
+            parent = parent[:-1]
+            parent = "/".join(parent)
             p = TransparentPath(
-                parent,
+                Path(parent),
                 fs=self.fs_kind,
                 bucket=self.bucket,
                 notupdatecache=self.notupdatecache,
@@ -1904,11 +2036,11 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 check_expire=self.check_expire,
             )
             if p.is_file():
-                raise FileExistsError(f"A parent directory can not be created because there is already a file at {p}")
+                raise FileExistsError(
+                    f"A parent directory can not be created because there is already a file at {p}")
             elif not p.exists():
                 p.mkdir()
-
-        self.fs.touch(self.__fspath__(), **kwargs)
+            self.fs.touch(self.__fspath__(), **kwargs)
 
     def mkdir(self, present: str = "ignore", **kwargs) -> None:
         """Creates the directory corresponding to self if does not exist
@@ -1942,24 +2074,25 @@ class TransparentPath(os.PathLike):  # noqa : F811
                 raise FileExistsError(f"There is already an object at {self} and it is not a  directory")
             return
 
-        for parent in reversed(self.parents):
-            thefile = TransparentPath(
-                parent,
-                fs=self.fs_kind,
-                bucket=self.bucket,
-                notupdatecache=self.notupdatecache,
-                nocheck=self.nocheck,
-                when_checked=self.when_checked,
-                when_updated=self.when_updated,
-                update_expire=self.update_expire,
-                check_expire=self.check_expire,
-            )
-            if thefile.is_file():
-                raise FileExistsError(
-                    "A parent directory can not be created because there is already a file at" f" {thefile}"
+        if self.fs_kind != "ssh":
+            for parent in reversed(self.parents):
+                thefile = TransparentPath(
+                    parent,
+                    fs=self.fs_kind,
+                    bucket=self.bucket,
+                    notupdatecache=self.notupdatecache,
+                    nocheck=self.nocheck,
+                    when_checked=self.when_checked,
+                    when_updated=self.when_updated,
+                    update_expire=self.update_expire,
+                    check_expire=self.check_expire,
                 )
+                if thefile.is_file():
+                    raise FileExistsError(
+                        "A parent directory can not be created because there is already a file at" f" {thefile}"
+                    )
 
-        if self.fs_kind == "local":
+        if self.fs_kind == "local" or self.fs_kind == "ssh":
             # Use _obj_missing instead of callign mkdir directly because
             # file systems mkdir has some kwargs with different name than
             # pathlib.Path's  mkdir, and this is handled in _obj_missing
@@ -2050,7 +2183,7 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     @property
     def buckets(self) -> List[str]:
-        if self.fs_kind == "local":
+        if self.fs_kind == "local" or self.fs_kind == "ssh":
             return []
         return get_buckets(self.fs)
 
@@ -2188,25 +2321,26 @@ class TransparentPath(os.PathLike):  # noqa : F811
             self._update_cache()
 
     def read(
-        self,
-        *args,
-        get_obj: bool = False,
-        use_pandas: bool = False,
-        use_dask: bool = False,
-        **kwargs,
+            self,
+            *args,
+            get_obj: bool = False,
+            use_pandas: bool = False,
+            use_dask: bool = False,
+            **kwargs,
     ) -> Any:
         """Method used to read the content of the file located at self
 
         Will raise FileNotFound error if there is no file. Calls a specific method to read self based on the suffix
         of self.path:
-            1: .csv : will use pandas's read_csv
-            2: .parquet : will use pandas's read_parquet with pyarrow engine
-            3: .hdf5 or .h5 : will use h5py.File or pd.HDFStore (if use_pandas = True). Since it does not support
-            remote file systems, the file will be downloaded localy in a tmp file read, then removed.
-            4: .json : will use open() method to get file content then json.loads to get a dict
-            5: .xlsx : will use pd.read_excel
-            6: any other suffix : will return a IO buffer to read from, or the string contained in the file if
-            get_obj is False.
+
+            1. .csv : will use pandas's read_csv\n
+            2. .parquet : will use pandas's read_parquet with pyarrow engine\n
+            3. .hdf5 or .h5 : will use h5py.File or pd.HDFStore (if use_pandas = True). Since it does not support
+               remote file systems, the file will be downloaded localy in a tmp file read, then removed.\n
+            4. .json : will use open() method to get file content then json.loads to get a dict\n
+            5. .xlsx : will use pd.read_excel\n
+            6. any other suffix : will return a IO buffer to read from, or the string contained in the file if
+               get_obj is False.\n
 
         For any of the reading method, the appropriate packages need to have been installed by calling
         `pip install transparentpath[something]`
@@ -2295,25 +2429,27 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     # noinspection PyUnresolvedReferences
     def write(
-        self,
-        data: Any,
-        *args,
-        set_name: str = "data",
-        use_pandas: bool = False,
-        overwrite: bool = True,
-        present: str = "ignore",
-        make_parents: bool = False,
-        **kwargs,
+            self,
+            data: Any,
+            *args,
+            set_name: str = "data",
+            use_pandas: bool = False,
+            overwrite: bool = True,
+            present: str = "ignore",
+            make_parents: bool = False,
+            **kwargs,
     ) -> Union[None, "pd.HDFStore", "h5py.File"]:
         """Method used to write the content of the file located at self
-        Calls a specific method to write data based on the suffix of self.path:
-            1: .csv : will use pandas's to_csv
-            2: .parquet : will use pandas's to_parquet with pyarrow engine
-            3: .hdf5 or .h5 : will use h5py.File. Since it does not support remote file systems, the file will be
-            created localy in a tmp filen written to, then uploaded and removed localy.
-            4: .json : will use jsonencoder.JSONEncoder class. Works with DataFrames and np.ndarrays too.
-            5: .xlsx : will use pandas's to_excel
-            5: any other suffix : uses self.open to write to an IO Buffer
+
+        Calls a specific method to write data based on the suffix of self.path:\n
+            1. .csv : will use pandas's to_csv\n
+            2. .parquet : will use pandas's to_parquet with pyarrow engine\n
+            3. .hdf5 or .h5 : will use h5py.File. Since it does not support remote file systems, the file will be
+               created localy in a tmp filen written to, then uploaded and removed localy.\n
+            4. .json : will use jsonencoder.JSONEncoder class. Works with DataFrames and np.ndarrays too.\n
+            5. .xlsx : will use pandas's to_excel\n
+            6. any other suffix : uses self.open to write to an IO Buffer\n
+
         Parameters
         ----------
         data: Any
@@ -2425,37 +2561,46 @@ class TransparentPath(os.PathLike):  # noqa : F811
 
     @property
     def download(self) -> Union[None, str]:
-        """Returns a clickable link to download the file from GCS.
+        """Returns a clickable link to download the file from remote.
 
         Returns None if the path does not correspond to an existing file on GCS.
         """
-        if self.fs_kind.startswith("gcs") and self.is_file():
-            obj = str(self).replace(TransparentPath.remote_prefix, "").replace(" ", "%20")
-            return f"https://storage.cloud.google.com/{obj}"
+        if self.fs_kind != "local" and self.fs_kind != "ssh" and self.is_file():
+            if self.fs_kind == "gcs":
+                obj = str(self).replace(TransparentPath.remote_prefix["gcs"], "").replace(" ", "%20")
+                return f"https://storage.cloud.google.com/{obj}"
+            else:
+                ValueError(f"{self.fs_kind} does not exist ")
         return None
 
     @property
     def url(self) -> Union[None, str]:
-        """Returns a clickable link to open the path in GCS
+        """Returns a clickable link to open the path
 
         Returns None if the path does not correspond to an existing file or directory.
         """
-        obj = str(self).replace(TransparentPath.remote_prefix, "").replace(" ", "%20")
-        if self.fs_kind.startswith("gcs"):
-            project = self.fs.project
-            if self.is_file():
-                prefix = "https://console.cloud.google.com/storage/browser/_details/"
-                postfix = f";tab=live_object?project={project}"
-            elif self.is_dir():
-                prefix = "https://console.cloud.google.com/storage/browser/"
-                postfix = f";tab=objects?project={project}"
-            else:
-                return None
+        if self.fs_kind != "local" and self.fs_kind != "ssh":
+            if self.fs_kind == "gcs":
+                obj = str(self).replace(TransparentPath.remote_prefix["gcs"], "").replace(" ", "%20")
+                project = self.fs.project
+
+                if self.is_file():
+                    prefix = "https://console.cloud.google.com/storage/browser/_details/"
+                    postfix = f";tab=live_object?project={project}"
+                elif self.is_dir():
+                    prefix = "https://console.cloud.google.com/storage/browser/"
+                    postfix = f";tab=objects?project={project}"
+                else:
+                    return None
+            return f"{prefix}{obj}{postfix}"
         else:
             if not self.exists():
                 return None
-            return f"file://{obj}"
-        return f"{prefix}{obj}{postfix}"
+            if self.fs_kind == "local":
+                return f"file://{str(self).replace(' ', '%20')}"
+            elif self.fs_kind == "ssh":
+                return f"sftp://{os.getenv('SSH_USERNAME')}@{os.getenv('SSH_HOST')}/home/{os.getenv('SSH_USERNAME')}/" \
+                       f"{str(self).replace(' ', '%20')}"
 
     # READ CSV
 

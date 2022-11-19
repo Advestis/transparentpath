@@ -1,18 +1,20 @@
 import builtins
-from typing import IO, Union, Any
+import tempfile
 from pathlib import Path
-from ..gcsutils.transparentpath import TransparentPath
+from typing import IO, Union, Any
 
+from ..gcsutils.transparentpath import TransparentPath
 
 builtins_open = builtins.open
 
 
 def myopen(*args, **kwargs) -> IO:
-    """Method overloading builtins' 'open' method, allowing to open files on GCS using TransparentPath."""
+    """Method overloading builtins' 'open' method, allowing to open files on GCS and scaleway and by ssh using
+    TransparentPath. """
     if len(args) == 0:
         raise ValueError("open method needs arguments.")
     thefile = args[0]
-    if type(thefile) == str and "gs://" in thefile:
+    if type(thefile) == str and ("gs://" in thefile):
         thefile = TransparentPath(thefile)
     if isinstance(thefile, TransparentPath):
         if thefile.when_checked["used"] and not thefile.nocheck:
@@ -20,7 +22,8 @@ def myopen(*args, **kwargs) -> IO:
             thefile._check_multiplicity()
         return thefile.open(*args[1:], **kwargs)
     elif (
-        isinstance(thefile, str) or isinstance(thefile, Path) or isinstance(thefile, int) or isinstance(thefile, bytes)
+            isinstance(thefile, str) or isinstance(thefile, Path) or isinstance(thefile, int) or isinstance(thefile,
+                                                                                                            bytes)
     ):
         return builtins_open(*args, **kwargs)
     else:
@@ -38,32 +41,50 @@ def set_old_open():
 def put(self, dst: Union[str, Path, TransparentPath]):
     """used to push a local file to the cloud. Does not remove the local file.
 
-    self must be a local TransparentPath. If dst is a TransparentPath, it must be on GCS. If it is a pathlib.Path
-    or a str, it will be casted into a GCS TransparentPath, so a gcs file system must have been set up before. """
+    self must be a local TransparentPath. If dst is a TransparentPath, it must be on remote. If it is a pathlib.Path
+    or a str, it will be casted into a GCS TransparentPath, so a remote file system must have been set up before. """
+
     if not self.fs_kind == "local":
         raise ValueError(
             "The calling instance of put() must be local. "
-            "To move on gcs a file already on gcs, use mv("
-            "). To move a file from gcs, to local, use get("
+            "To move on remote a file already on remote, use mv("
+            "). To move a file from remote, to local, use get("
             "). "
         )
     # noinspection PyUnresolvedReferences
-    if type(dst) == TransparentPath and "gcs" not in dst.fs_kind:
+    if type(dst) == TransparentPath and dst.fs_kind == "local":
         raise ValueError(
             "The second argument can not be a local TransparentPath. To move a file localy, use the mv() method."
         )
     if type(dst) != TransparentPath:
-        if TransparentPath.remote_prefix not in str(dst):
-            if "gcs" not in "".join(TransparentPath.fss):
-                raise ValueError("You need to set up a gcs file system before using the put() command.")
-            dst = TransparentPath(dst, fs="gcs")
+        prefix = ""
+        for _fs in TransparentPath.remote_prefix:
+            if str(dst).startswith(TransparentPath.remote_prefix[_fs]):
+                prefix = TransparentPath.remote_prefix[_fs]
+                break
+
+        if prefix == "":
+            existing_fs_names = "-".join(list(TransparentPath.fss.keys()))
+            if "gcs_" not in existing_fs_names and "ssh_" not in existing_fs_names:
+                raise ValueError(
+                    "No global remote file system set up. Please give put() a TransparentPath or a str"
+                    " starting with the remote file system prefix."
+                )
+            if "gcs_" in existing_fs_names and "ssh_" in existing_fs_names:
+                raise ValueError(
+                    "More than one global remote file system set up. Please give put() a TransparentPath"
+                    " or a str starting with the remote file system prefix."
+                )
+            if "gcs_" in existing_fs_names:
+                dst = TransparentPath(dst, fs_kind="gcs")
+            if "ssh_" in existing_fs_names:
+                dst = TransparentPath(dst, fs_kind="ssh")
         else:
             dst = TransparentPath(dst)
 
     # noinspection PyProtectedMember
     if not self.exist():
         raise FileNotFoundError(f"No such file or directory: {self}")
-
     if self.is_dir():
         for item in self.glob("/*"):
             # noinspection PyUnresolvedReferences
@@ -78,7 +99,7 @@ def put(self, dst: Union[str, Path, TransparentPath]):
 
 
 def get(self, loc: Union[str, Path, TransparentPath]):
-    """used to get a remote file to local. Does not remove the remote file.
+    """used to get a remote file (self) to local (loc). Does not remove the remote file.
 
     self must be a remote TransparentPath. If loc is a TransparentPath, it must be local. If it is a pathlib.Path or
     a str, it will be casted into a local TransparentPath. """
@@ -94,14 +115,14 @@ def get(self, loc: Union[str, Path, TransparentPath]):
         else:
             raise ValueError(f"Element {source} exists is neither a file nor a dir, then what is it ?")
 
-    if "gcs" not in self.fs_kind:
-        raise ValueError("The calling instance of get() must be on GCS. To move a file localy, use the mv() method.")
+    if self.fs_kind == "local":
+        raise ValueError("The calling instance of get() must be remote. To move a file localy, use the mv() method.")
     # noinspection PyUnresolvedReferences
     if type(loc) == TransparentPath and loc.fs_kind != "local":
         raise ValueError(
-            "The second argument can not be a GCS "
-            "TransparentPath. To move on gcs a file already"
-            "on gcs, use mv(). To move a file from gcs, to"
+            "The second argument can not be a remote "
+            "TransparentPath. To move on remote a file already"
+            "on remote, use mv(). To move a file from remote, to"
             " local, use get()"
         )
     if type(loc) != TransparentPath:
@@ -145,6 +166,7 @@ def mv(self, other: Union[str, Path, TransparentPath]):
         )
 
     if other.fs_kind != self.fs_kind:
+        # TODO : adapt to s3 -> Isn't it already adapted ? To be tested
         if self.fs_kind == "local":
             self.put(other)
             self.rm(absent="raise", ignore_kind=True)
@@ -206,8 +228,15 @@ def cp(self, other: Union[str, Path, TransparentPath]):
     # properly
 
     if self.is_file():
-        self.fs.cp(self.__fspath__(), other)
-        return
+        if self.fs_kind == other.fs_kind:
+            self.fs.copy(self.__fspath__(), other)
+            return
+        else:
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=self.suffix)
+            tmp.close()  # deletes the tmp file
+            self.download_object(tmp.name)  # downloads self at tmp's address
+            TransparentPath(tmp.name, fs_kind="local").upload(other)
+            return
 
     for stuff in list(self.glob("**/*", fast=True)):
         # noinspection PyUnresolvedReferences
@@ -242,7 +271,6 @@ def read_text(self, *args, size: int = -1, get_obj: bool = False, **kwargs) -> U
 
 
 def write_stuff(self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs) -> None:
-
     if not overwrite and self.is_file() and present != "ignore":
         raise FileExistsError()
 
@@ -254,8 +282,7 @@ def write_stuff(self, data: Any, *args, overwrite: bool = True, present: str = "
         f.write(data)
 
 
-def write_bytes(self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs,) -> None:
-
+def write_bytes(self, data: Any, *args, overwrite: bool = True, present: str = "ignore", **kwargs, ) -> None:
     args = list(args)
     if len(args) == 0:
         args = ("wb",)
