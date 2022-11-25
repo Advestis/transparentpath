@@ -59,6 +59,7 @@ try:
             if any([k not in possible_keys for k in dct]):  # not a pd.DataFrame either
                 return dct
             df = pd.DataFrame(dct["data"], columns=dct["columns"])
+            columns_are_ints = isinstance(df.columns, pd.Int64Index)
             if "index" in dct:
                 index = dct["index"]
                 if len(index) != 0 and isinstance(index[0], (list, tuple)):
@@ -67,10 +68,13 @@ try:
                     df.index = index
             if "dtypes" in dct:
                 for column in dct["dtypes"]:
-                    if dct["dtypes"][column].startswith("datetime64") and df[column].dtype in (int, float):
-                        df[column] = pd.to_datetime(df[column], unit="ms")
+                    column_in_df = column
+                    if columns_are_ints:
+                        column_in_df = int(column)
+                    if dct["dtypes"][column].startswith("datetime64") and df[column_in_df].dtype in (int, float):
+                        df[column_in_df] = pd.to_datetime(df[column_in_df], unit="ms")
                     else:
-                        df[column] = df[column].astype(dct["dtypes"][column])
+                        df[column_in_df] = df[column_in_df].astype(dct["dtypes"][column])
             if dct["datetimeindex"] is True:
                 if df.index.dtype in (int, float):
                     # noinspection PyTypeChecker
