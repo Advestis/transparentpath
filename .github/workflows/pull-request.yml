@@ -40,7 +40,7 @@ jobs:
     strategy:
       matrix:
         opt: [vanilla, pandas, excel, json, parquet, hdf5, dask]
-        python-version: [ 3.8, 3.9 ]
+        python-version: [ 3.8 ]
     steps:
 
       - uses: actions/checkout@master

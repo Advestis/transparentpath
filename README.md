@@ -19,7 +19,8 @@
 ![python](https://img.shields.io/pypi/pyversions/transparentpath)
 
 This package is not maintained for python 3.6 anymore. The latest version available for python 3.6 is 0.1.129.
-Please use python >= 3.7.
+It should work on Python 3.7, even though it is not tested with it. Please use python == 3.8. Python 3.9 and above
+fail to create the tar.gz.
 
 
 ##### Contact
