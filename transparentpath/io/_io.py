@@ -209,6 +209,10 @@ def cp(self, other: Union[str, Path, TransparentPath]):
         self.fs.cp(self.__fspath__(), other)
         return
 
+    if self.isdir() and self.info()["size"] == 0:
+        other.mkdir()
+        return
+
     for stuff in list(self.glob("**/*", fast=True)):
         # noinspection PyUnresolvedReferences
         if not stuff.is_file():
