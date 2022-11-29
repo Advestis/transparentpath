@@ -59,7 +59,7 @@ try:
             if any([k not in possible_keys for k in dct]):  # not a pd.DataFrame either
                 return dct
             df = pd.DataFrame(dct["data"], columns=dct["columns"])
-            columns_are_ints = isinstance(df.columns, pd.Int64Index)
+            columns_are_ints = isinstance(df.columns, pd.Index) and df.columns.dtype == "int64"
             if "index" in dct:
                 index = dct["index"]
                 if len(index) != 0 and isinstance(index[0], (list, tuple)):
