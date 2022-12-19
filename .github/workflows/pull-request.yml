@@ -68,6 +68,7 @@ jobs:
               pip install  --upgrade --upgrade-strategy eager .
           else
               if [ "${{ matrix.opt }}" = "hdf5" ] ; then
+                  echo "installing python3-h5py" 
                   sudo apt install python3-h5py
               fi
               echo "installing ${{ matrix.opt }}"
