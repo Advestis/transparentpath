@@ -5,15 +5,15 @@ from ..functions import init, skip_gcs
 
 
 # noinspection PyUnusedLocal
-def test_put(clean):
+def test_put(clean, testfilename):
     print("test_put")
     if skip_gcs["gcs"]:
         print("skipped")
         return
     init("gcs")
     TransparentPath.show_state()
-    localpath = TransparentPath("chien.txt", fs_kind="local")
-    remotepath = TransparentPath("chien.txt")
+    localpath = TransparentPath(f"chien{testfilename}.txt", fs_kind="local")
+    remotepath = TransparentPath(f"chien{testfilename}.txt")
     localpath.touch()
     localpath.put(remotepath)
     assert localpath.is_file()
@@ -21,15 +21,15 @@ def test_put(clean):
 
 
 # noinspection PyUnusedLocal
-def test_get(clean):
+def test_get(clean, testfilename):
     print("test_get")
     if skip_gcs["gcs"]:
         print("skipped")
         return
     init("gcs")
 
-    localpath = TransparentPath("chien.txt", fs_kind="local")
-    remotepath = TransparentPath("chien.txt")
+    localpath = TransparentPath(f"chien{testfilename}.txt", fs_kind="local")
+    remotepath = TransparentPath(f"chien{testfilename}.txt")
     remotepath.touch()
     remotepath.get(localpath)
     assert remotepath.is_file()
@@ -40,7 +40,7 @@ def test_get(clean):
 @pytest.mark.parametrize(
     "fs_kind1, fs_kind2", [("local", "local"), ("gcs", "local"), ("local", "gcs"), ("gcs", "gcs")]
 )
-def test_mv(clean, fs_kind1, fs_kind2):
+def test_mv(clean, testfilename, fs_kind1, fs_kind2):
     print("test_mv", fs_kind1, fs_kind2)
     if skip_gcs[fs_kind1] or skip_gcs[fs_kind2]:
         print("skipped")
@@ -50,7 +50,7 @@ def test_mv(clean, fs_kind1, fs_kind2):
     elif fs_kind2 != "local":
         init(fs_kind2)
 
-    path1 = TransparentPath("chien.txt", fs_kind=fs_kind1)
+    path1 = TransparentPath(f"chien{testfilename}.txt", fs_kind=fs_kind1)
     path2 = TransparentPath("chien2.txt", fs_kind=fs_kind2)
     path1.touch()
     path1.mv(path2)
@@ -62,7 +62,7 @@ def test_mv(clean, fs_kind1, fs_kind2):
 @pytest.mark.parametrize(
     "fs_kind1, fs_kind2", [("local", "local"), ("gcs", "local"), ("local", "gcs"), ("gcs", "gcs")]
 )
-def test_cp(clean, fs_kind1, fs_kind2):
+def test_cp(clean, testfilename, fs_kind1, fs_kind2):
     print("test_cp", fs_kind1, fs_kind2)
     if skip_gcs[fs_kind1] or skip_gcs[fs_kind2]:
         print("skipped")
@@ -72,7 +72,7 @@ def test_cp(clean, fs_kind1, fs_kind2):
     elif fs_kind2 != "local":
         init(fs_kind2)
 
-    path1 = TransparentPath("chien.txt", fs_kind=fs_kind1)
+    path1 = TransparentPath(f"chien{testfilename}.txt", fs_kind=fs_kind1)
     path2 = TransparentPath("chien2.txt", fs_kind=fs_kind2)
     path1.touch()
     path1.cp(path2)

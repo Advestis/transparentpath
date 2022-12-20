@@ -11,6 +11,11 @@ acceptable = {
 
 
 @pytest.fixture
+def testfilename(pytestconfig):
+    return pytestconfig.getoption("testfilename")
+
+
+@pytest.fixture
 def reqs(pytestconfig):
     name = pytestconfig.getoption("name")
     requirements = {"vanilla": []}
@@ -56,3 +61,4 @@ def reqs(pytestconfig):
 
 def pytest_addoption(parser):
     parser.addoption("--name", action="store", default=None)
+    parser.addoption("--testfilename", type="str", default="")

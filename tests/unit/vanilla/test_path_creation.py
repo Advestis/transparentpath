@@ -10,14 +10,14 @@ from ..functions import init, reinit, skip_gcs, get_prefixes, bucket
 @pytest.mark.parametrize(
     "fs_kind", ["local", "gcs"],
 )
-def test_set_global_fs_then_root_path(clean, fs_kind):
+def test_set_global_fs_then_root_path(clean, testfilename, fs_kind):
     if skip_gcs[fs_kind]:
         print("skipped")
         return
 
     init(fs_kind)
     str_prefix, pathlib_prefix = get_prefixes(fs_kind)
-    p = TransparentPath("chien")
+    p = TransparentPath(f"chien{testfilename}")
     p2 = p / ".."
     assert str(p2) == str_prefix
     p2 = TransparentPath()
@@ -30,25 +30,25 @@ def test_set_global_fs_then_root_path(clean, fs_kind):
 
 
 # noinspection PyUnusedLocal
-def test_set_global_fs_then_path_with_gs_failed(clean):
+def test_set_global_fs_then_path_with_gs_failed(clean, testfilename):
     if skip_gcs["gcs"]:
         print("skipped")
         return
 
     init("gcs")
     with pytest.raises(ValueError):
-        TransparentPath(f"gs://{bucket + 'chat'}/chien", bucket=bucket)
+        TransparentPath(f"gs://{bucket + 'chat'}/chien{testfilename}", bucket=bucket)
 
     with pytest.raises(NotADirectoryError):
-        TransparentPath(f"gs://{bucket + 'chat'}/chien")
+        TransparentPath(f"gs://{bucket + 'chat'}/chien{testfilename}")
 
     with pytest.raises(ValueError):
-        TransparentPath(f"gs://{bucket}/chien", fs="local")
+        TransparentPath(f"gs://{bucket}/chien{testfilename}", fs="local")
 
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "fs_kind, global_init, expected_fs_kind, expected_fs_type, args, kwargs",
+    "fs_kind, global_init, expected_fs_kind, expected_fs_type, args_, kwargs",
     [
         ("gcs", False, "gcs_sandbox-281209", gcsfs.GCSFileSystem, (f"gs://{bucket}/chien",), {}),
         ("gcs", False, "gcs_sandbox-281209", gcsfs.GCSFileSystem, ("chien",), {"fs": "gcs", "bucket": bucket}),
@@ -62,10 +62,16 @@ def test_set_global_fs_then_path_with_gs_failed(clean):
         ("gcs", False, "gcs_sandbox-281209", gcsfs.GCSFileSystem, (f"gs://{bucket}/chien",), {}),
     ],
 )
-def test_path_success(clean, fs_kind, global_init, expected_fs_kind, expected_fs_type, args, kwargs):
+def test_path_success(clean, testfilename, fs_kind, global_init, expected_fs_kind, expected_fs_type, args_, kwargs):
     if skip_gcs[fs_kind]:
         print("skipped")
         return
+
+    args = []
+    for arg in args:
+        if "chien" in arg:
+            arg = arg.replace("chien", f"chien{testfilename}")
+        args.append(arg)
 
     if global_init:
         init(fs_kind)
@@ -103,15 +109,21 @@ def test_path_success(clean, fs_kind, global_init, expected_fs_kind, expected_fs
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "args, kwargs",
+    "args_, kwargs",
     [
         (("chien",), {"fs": "gcs"}),
     ],
 )
-def test_gcs_path_without_set_global_fs_fail(clean, args, kwargs):
+def test_gcs_path_without_set_global_fs_fail(clean, testfilename, args_, kwargs):
     if skip_gcs["gcs"]:
         print("skipped")
         return
+
+    args = []
+    for arg in args:
+        if "chien" in arg:
+            arg = arg.replace("chien", f"chien{testfilename}")
+        args.append(arg)
 
     with pytest.raises(NotADirectoryError):
         TransparentPath(*args, **kwargs)
@@ -119,28 +131,33 @@ def test_gcs_path_without_set_global_fs_fail(clean, args, kwargs):
 
 # noinspection PyUnusedLocal
 @pytest.mark.parametrize(
-    "args, kwargs",
+    "args_, kwargs",
     [
         ((f"gs://{bucket}/chien",), {"bucket": bucket + "chien"}),
         ((f"gs://{bucket}/chien",), {"fs": "local"}),
     ],
 )
-def test_failed_gs_path(clean, args, kwargs):
+def test_failed_gs_path(clean, testfilename, args_, kwargs):
+    args = []
+    for arg in args:
+        if "chien" in arg:
+            arg = arg.replace("chien", f"chien{testfilename}")
+        args.append(arg)
     with pytest.raises(ValueError):
         TransparentPath(*args, **kwargs)
 
 
 # noinspection PyUnusedLocal
-def init_local_class_then_gcs_path(clean):
+def init_local_class_then_gcs_path(clean, testfilename):
     if skip_gcs["gcs"]:
         print("skipped")
         return
 
     init("local")
-    p = TransparentPath("chien", fs="gcs", bucket=bucket)
-    assert str(p.path) == f"{bucket}/chien"
-    assert str(p) == f"gs://{bucket}/chien"
-    assert p.__fspath__() == f"gs://{bucket}/chien"
+    p = TransparentPath(f"chien{testfilename}", fs="gcs", bucket=bucket)
+    assert str(p.path) == f"{bucket}/chien{testfilename}"
+    assert str(p) == f"gs://{bucket}/chien{testfilename}"
+    assert p.__fspath__() == f"gs://{bucket}/chien{testfilename}"
 
     assert "gcs" in p.fs_kind
     assert p.fs == TransparentPath.fss["gcs_sandbox-281209"]
@@ -154,18 +171,18 @@ def init_local_class_then_gcs_path(clean):
 
     init("local")
     with pytest.raises(ValueError):
-        TransparentPath(f"gs://{bucket}/chien", bucket=bucket + "chien")
+        TransparentPath(f"gs://{bucket}/chien{testfilename}", bucket=bucket + f"chien{testfilename}")
 
     with pytest.raises(ValueError):
-        TransparentPath(f"gs://{bucket}/chien", fs="local", bucket=bucket)
+        TransparentPath(f"gs://{bucket}/chien{testfilename}", fs="local", bucket=bucket)
 
     with pytest.raises(ValueError):
-        TransparentPath(f"gs://{bucket}/chien")
+        TransparentPath(f"gs://{bucket}/chien{testfilename}")
 
-    p = TransparentPath(f"gs://{bucket}/chien",)
-    assert str(p.path) == f"{bucket}/chien"
-    assert str(p) == f"gs://{bucket}/chien"
-    assert p.__fspath__() == f"gs://{bucket}/chien"
+    p = TransparentPath(f"gs://{bucket}/chien{testfilename}",)
+    assert str(p.path) == f"{bucket}/chien{testfilename}"
+    assert str(p) == f"gs://{bucket}/chien{testfilename}"
+    assert p.__fspath__() == f"gs://{bucket}/chien{testfilename}"
 
     assert "gcs" in p.fs_kind
     assert p.fs == TransparentPath.fss["gcs_sandbox-281209"]
@@ -178,16 +195,16 @@ def init_local_class_then_gcs_path(clean):
 
 
 # noinspection PyUnusedLocal
-def init_gcs_class_then_local_path(clean):
+def init_gcs_class_then_local_path(clean, testfilename):
     if skip_gcs["gcs"]:
         print("skipped")
         return
 
     init("gcs")
-    p = TransparentPath("chien", fs="local")
-    assert str(p.path) == f"{os.getcwd()}/chien"
-    assert str(p) == f"{os.getcwd()}/chien"
-    assert p.__fspath__() == f"{os.getcwd()}/chien"
+    p = TransparentPath(f"chien{testfilename}", fs="local")
+    assert str(p.path) == f"{os.getcwd()}/chien{testfilename}"
+    assert str(p) == f"{os.getcwd()}/chien{testfilename}"
+    assert p.__fspath__() == f"{os.getcwd()}/chien{testfilename}"
 
     assert p.fs_kind == "local"
     assert p.fs == TransparentPath.fss["local"]
