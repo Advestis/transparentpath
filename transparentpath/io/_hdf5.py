@@ -31,8 +31,8 @@ try:
 
     hdf5_ok = True
 
-    if importlib.util.find_spec("tables") is None:
-        raise ImportError("Need the 'tables' package")
+    # if importlib.util.find_spec("tables") is None:
+    #     raise ImportError("Need the 'tables' package")
 
     class MyHDFFile(h5py.File):
         """Class to override h5py.File to handle files on GCS.
